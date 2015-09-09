@@ -18,7 +18,8 @@
   (:import [backtype.storm.generated Nimbus Nimbus$Processor Nimbus$Iface StormTopology ShellComponent
             NotAliveException AlreadyAliveException InvalidTopologyException GlobalStreamId
             ClusterSummary TopologyInfo TopologySummary ExecutorSummary ExecutorStats ExecutorSpecificStats
-            SpoutStats BoltStats ErrorInfo SupervisorSummary])
+            SpoutStats BoltStats ErrorInfo SupervisorSummary]
+           [backtype.storm.utils RateTracker])
   (:use [backtype.storm util log])
   (:use [clojure.math.numeric-tower :only [ceil]]))
 
@@ -161,8 +162,8 @@
 ;;         :else (* 10 (to-proportional-bucket (ceil (/ val 10))
 ;;                                             buckets))))
 
-(def COMMON-FIELDS [:emitted :transferred])
-(defrecord CommonStats [emitted transferred rate])
+(def COMMON-FIELDS [:emitted :transferred :throughput ])
+(defrecord CommonStats [emitted transferred throughput rate])
 
 (def BOLT-FIELDS [:acked :failed :process-latencies :executed :execute-latencies])
 ;;acked and failed count individual tuples
@@ -181,6 +182,7 @@
   (CommonStats.
     (atom (apply keyed-counter-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
     (atom (apply keyed-counter-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
+    (atom (apply avg-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
     rate))
 
 (defn mk-bolt-stats
@@ -222,7 +224,9 @@
   [^BoltExecutorStats stats component stream latency-ms]
   (let [key [component stream]]
     (update-executor-stat! stats :executed key (stats-rate stats))
-    (update-executor-stat! stats :execute-latencies key latency-ms)))
+    (update-executor-stat! stats :execute-latencies key latency-ms)
+    ;(update-executor-stat! stats [:common :throughput] key throughput)
+    ))
 
 (defn bolt-acked-tuple!
   [^BoltExecutorStats stats component stream latency-ms]
@@ -340,7 +344,7 @@
          is_bolt? (.is_set_bolt specific-stats)
          specific-stats (if is_bolt? (.get_bolt specific-stats) (.get_spout specific-stats))
          specific-stats (clojurify-specific-stats specific-stats)
-         common-stats (CommonStats. (window-set-converter (.get_emitted stats) symbol) (window-set-converter (.get_transferred stats) symbol) (.get_rate stats))]
+         common-stats (CommonStats. (window-set-converter (.get_emitted stats) symbol) (window-set-converter (.get_transferred stats) symbol) 0 (.get_rate stats))]
     (if is_bolt?
       ; worker heart beat does not store the BoltExecutorStats or SpoutExecutorStats , instead it stores the result returned by render-stats!
       ; which flattens the BoltExecutorStats/SpoutExecutorStats by extracting values from all atoms and merging all values inside :common to top

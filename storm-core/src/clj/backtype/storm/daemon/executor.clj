@@ -16,7 +16,8 @@
 (ns backtype.storm.daemon.executor
   (:use [backtype.storm.daemon common])
   (:import [backtype.storm.generated Grouping]
-           [java.io Serializable])
+           [java.io Serializable]
+           [backtype.storm.utils RateTracker])
   (:use [backtype.storm util config log timer stats])
   (:import [java.util List Random HashMap ArrayList LinkedList Map])
   (:import [backtype.storm ICredentialsListener])
@@ -28,7 +29,7 @@
   (:import [backtype.storm.grouping CustomStreamGrouping])
   (:import [backtype.storm.task WorkerTopologyContext IBolt OutputCollector IOutputCollector])
   (:import [backtype.storm.generated GlobalStreamId])
-  (:import [backtype.storm.utils Utils MutableObject RotatingMap RotatingMap$ExpiredCallback MutableLong Time])
+  (:import [backtype.storm.utils Utils MutableObject RotatingMap RotatingMap$ExpiredCallback MutableLong Time RateTracker])
   (:import [com.lmax.disruptor InsufficientCapacityException])
   (:import [backtype.storm.serialization KryoTupleSerializer KryoTupleDeserializer])
   (:import [backtype.storm.daemon Shutdownable])
@@ -261,6 +262,7 @@
                                ((:suicide-fn <>))))
      :deserializer (KryoTupleDeserializer. storm-conf worker-context)
      :sampler (mk-stats-sampler storm-conf)
+     :rate-tracker (RateTracker. 10000 10)
      ;; TODO: add in the executor-specific stuff in a :specific... or make a spout-data, bolt-data function?
      )))
 
@@ -677,6 +679,7 @@
                                 (when execute-sampler?
                                   (.setExecuteSampleStartTime tuple now))
                                 (.execute bolt-obj tuple)
+                                (.notify (:rate-tracker executor-data) 1)
                                 (let [delta (tuple-execute-time-delta! tuple)]
                                   (when (= true (storm-conf TOPOLOGY-DEBUG))
                                     (log-message "Execute done TUPLE " tuple " TASK: " task-id " DELTA: " delta))
@@ -691,6 +694,7 @@
                                     (stats/bolt-execute-tuple! executor-stats
                                                                (.getSourceComponent tuple)
                                                                (.getSourceStreamId tuple)
+                                                               (.reportRate (:rate-tracker executor-data))
                                                                delta)))))))
 
         ;; the overflow buffer is used to ensure that bolts do not block when emitting
