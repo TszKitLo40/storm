@@ -160,7 +160,8 @@
 (defn aggregate-common-stats
   [stats-seq]
   {:emitted (aggregate-counts (map #(.get_emitted ^ExecutorStats %) stats-seq))
-   :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))})
+   :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))
+   :throughput (aggregate-averages (map #(.get_throughput ^ExecutorStats %) stats-seq))})
 
 (defn mk-include-sys-fn
   [include-sys?]
@@ -442,6 +443,10 @@
                            (get-in
                              (spout-streams-stats spout-summs true)
                              [:complete-latencies window]))
+                :throughput (if bolt-summs
+                              (get-in
+                                (bolt-streams-stats bolt-summs true)
+                                [:process-latencies window]))
                 :transferred (or
                                (get-in
                                  (spout-streams-stats spout-summs true)

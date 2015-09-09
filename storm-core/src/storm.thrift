@@ -1,5 +1,4 @@
 #!/usr/local/bin/thrift --gen java:beans,nocamel,hashcode
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
@@ -204,6 +203,7 @@ struct ExecutorStats {
   2: required map<string, map<string, i64>> transferred;
   3: required ExecutorSpecificStats specific;
   4: required double rate;
+  5: required double throughput;
 }
 
 struct ExecutorInfo {

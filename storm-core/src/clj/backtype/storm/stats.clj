@@ -344,7 +344,7 @@
          is_bolt? (.is_set_bolt specific-stats)
          specific-stats (if is_bolt? (.get_bolt specific-stats) (.get_spout specific-stats))
          specific-stats (clojurify-specific-stats specific-stats)
-         common-stats (CommonStats. (window-set-converter (.get_emitted stats) symbol) (window-set-converter (.get_transferred stats) symbol) 0 (.get_rate stats))]
+         common-stats (CommonStats. (window-set-converter (.get_emitted stats) symbol) (window-set-converter (.get_transferred stats) symbol) (window-set-converter (.get_throughput stats) symbol) (.get_rate stats))]
     (if is_bolt?
       ; worker heart beat does not store the BoltExecutorStats or SpoutExecutorStats , instead it stores the result returned by render-stats!
       ; which flattens the BoltExecutorStats/SpoutExecutorStats by extracting values from all atoms and merging all values inside :common to top
@@ -373,8 +373,10 @@
 (defn thriftify-executor-stats
   [stats]
   (let [specific-stats (thriftify-specific-stats stats)
-        rate (:rate stats)]
+        rate (:rate stats)
+        throughput (:throughput stats)]
     (ExecutorStats. (window-set-converter (:emitted stats) str)
       (window-set-converter (:transferred stats) str)
       specific-stats
-      rate)))
+      rate
+      throughput)))
