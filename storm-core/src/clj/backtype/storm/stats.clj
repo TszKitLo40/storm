@@ -182,7 +182,7 @@
   (CommonStats.
     (atom (apply keyed-counter-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
     (atom (apply keyed-counter-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
-    (atom (apply avg-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
+    (atom (apply keyed-avg-rolling-window-set NUM-STAT-BUCKETS STAT-BUCKETS))
     rate))
 
 (defn mk-bolt-stats
@@ -221,11 +221,11 @@
   (update-executor-stat! stats [:common :transferred] stream (* (stats-rate stats) amt)))
 
 (defn bolt-execute-tuple!
-  [^BoltExecutorStats stats component stream latency-ms]
+  [^BoltExecutorStats stats component stream throughput latency-ms]
   (let [key [component stream]]
     (update-executor-stat! stats :executed key (stats-rate stats))
     (update-executor-stat! stats :execute-latencies key latency-ms)
-    ;(update-executor-stat! stats [:common :throughput] key throughput)
+    (update-executor-stat! stats [:common :throughput] stream throughput)
     ))
 
 (defn bolt-acked-tuple!
@@ -373,10 +373,9 @@
 (defn thriftify-executor-stats
   [stats]
   (let [specific-stats (thriftify-specific-stats stats)
-        rate (:rate stats)
-        throughput (:throughput stats)]
+        rate (:rate stats)]
     (ExecutorStats. (window-set-converter (:emitted stats) str)
       (window-set-converter (:transferred stats) str)
       specific-stats
       rate
-      throughput)))
+      (window-set-converter (:throughput stats) str))))

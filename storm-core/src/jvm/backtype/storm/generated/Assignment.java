@@ -678,15 +678,15 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
           case 2: // NODE_HOST
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map378 = iprot.readMapBegin();
-                struct.node_host = new HashMap<String,String>(2*_map378.size);
-                String _key379;
-                String _val380;
-                for (int _i381 = 0; _i381 < _map378.size; ++_i381)
+                org.apache.thrift.protocol.TMap _map398 = iprot.readMapBegin();
+                struct.node_host = new HashMap<String,String>(2*_map398.size);
+                String _key399;
+                String _val400;
+                for (int _i401 = 0; _i401 < _map398.size; ++_i401)
                 {
-                  _key379 = iprot.readString();
-                  _val380 = iprot.readString();
-                  struct.node_host.put(_key379, _val380);
+                  _key399 = iprot.readString();
+                  _val400 = iprot.readString();
+                  struct.node_host.put(_key399, _val400);
                 }
                 iprot.readMapEnd();
               }
@@ -698,26 +698,26 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
           case 3: // EXECUTOR_NODE_PORT
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map382 = iprot.readMapBegin();
-                struct.executor_node_port = new HashMap<List<Long>,NodeInfo>(2*_map382.size);
-                List<Long> _key383;
-                NodeInfo _val384;
-                for (int _i385 = 0; _i385 < _map382.size; ++_i385)
+                org.apache.thrift.protocol.TMap _map402 = iprot.readMapBegin();
+                struct.executor_node_port = new HashMap<List<Long>,NodeInfo>(2*_map402.size);
+                List<Long> _key403;
+                NodeInfo _val404;
+                for (int _i405 = 0; _i405 < _map402.size; ++_i405)
                 {
                   {
-                    org.apache.thrift.protocol.TList _list386 = iprot.readListBegin();
-                    _key383 = new ArrayList<Long>(_list386.size);
-                    long _elem387;
-                    for (int _i388 = 0; _i388 < _list386.size; ++_i388)
+                    org.apache.thrift.protocol.TList _list406 = iprot.readListBegin();
+                    _key403 = new ArrayList<Long>(_list406.size);
+                    long _elem407;
+                    for (int _i408 = 0; _i408 < _list406.size; ++_i408)
                     {
-                      _elem387 = iprot.readI64();
-                      _key383.add(_elem387);
+                      _elem407 = iprot.readI64();
+                      _key403.add(_elem407);
                     }
                     iprot.readListEnd();
                   }
-                  _val384 = new NodeInfo();
-                  _val384.read(iprot);
-                  struct.executor_node_port.put(_key383, _val384);
+                  _val404 = new NodeInfo();
+                  _val404.read(iprot);
+                  struct.executor_node_port.put(_key403, _val404);
                 }
                 iprot.readMapEnd();
               }
@@ -729,25 +729,25 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
           case 4: // EXECUTOR_START_TIME_SECS
             if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
               {
-                org.apache.thrift.protocol.TMap _map389 = iprot.readMapBegin();
-                struct.executor_start_time_secs = new HashMap<List<Long>,Long>(2*_map389.size);
-                List<Long> _key390;
-                long _val391;
-                for (int _i392 = 0; _i392 < _map389.size; ++_i392)
+                org.apache.thrift.protocol.TMap _map409 = iprot.readMapBegin();
+                struct.executor_start_time_secs = new HashMap<List<Long>,Long>(2*_map409.size);
+                List<Long> _key410;
+                long _val411;
+                for (int _i412 = 0; _i412 < _map409.size; ++_i412)
                 {
                   {
-                    org.apache.thrift.protocol.TList _list393 = iprot.readListBegin();
-                    _key390 = new ArrayList<Long>(_list393.size);
-                    long _elem394;
-                    for (int _i395 = 0; _i395 < _list393.size; ++_i395)
+                    org.apache.thrift.protocol.TList _list413 = iprot.readListBegin();
+                    _key410 = new ArrayList<Long>(_list413.size);
+                    long _elem414;
+                    for (int _i415 = 0; _i415 < _list413.size; ++_i415)
                     {
-                      _elem394 = iprot.readI64();
-                      _key390.add(_elem394);
+                      _elem414 = iprot.readI64();
+                      _key410.add(_elem414);
                     }
                     iprot.readListEnd();
                   }
-                  _val391 = iprot.readI64();
-                  struct.executor_start_time_secs.put(_key390, _val391);
+                  _val411 = iprot.readI64();
+                  struct.executor_start_time_secs.put(_key410, _val411);
                 }
                 iprot.readMapEnd();
               }
@@ -779,10 +779,10 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
           oprot.writeFieldBegin(NODE_HOST_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, struct.node_host.size()));
-            for (Map.Entry<String, String> _iter396 : struct.node_host.entrySet())
+            for (Map.Entry<String, String> _iter416 : struct.node_host.entrySet())
             {
-              oprot.writeString(_iter396.getKey());
-              oprot.writeString(_iter396.getValue());
+              oprot.writeString(_iter416.getKey());
+              oprot.writeString(_iter416.getValue());
             }
             oprot.writeMapEnd();
           }
@@ -794,17 +794,17 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
           oprot.writeFieldBegin(EXECUTOR_NODE_PORT_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.LIST, org.apache.thrift.protocol.TType.STRUCT, struct.executor_node_port.size()));
-            for (Map.Entry<List<Long>, NodeInfo> _iter397 : struct.executor_node_port.entrySet())
+            for (Map.Entry<List<Long>, NodeInfo> _iter417 : struct.executor_node_port.entrySet())
             {
               {
-                oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, _iter397.getKey().size()));
-                for (long _iter398 : _iter397.getKey())
+                oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, _iter417.getKey().size()));
+                for (long _iter418 : _iter417.getKey())
                 {
-                  oprot.writeI64(_iter398);
+                  oprot.writeI64(_iter418);
                 }
                 oprot.writeListEnd();
               }
-              _iter397.getValue().write(oprot);
+              _iter417.getValue().write(oprot);
             }
             oprot.writeMapEnd();
           }
@@ -816,17 +816,17 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
           oprot.writeFieldBegin(EXECUTOR_START_TIME_SECS_FIELD_DESC);
           {
             oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.LIST, org.apache.thrift.protocol.TType.I64, struct.executor_start_time_secs.size()));
-            for (Map.Entry<List<Long>, Long> _iter399 : struct.executor_start_time_secs.entrySet())
+            for (Map.Entry<List<Long>, Long> _iter419 : struct.executor_start_time_secs.entrySet())
             {
               {
-                oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, _iter399.getKey().size()));
-                for (long _iter400 : _iter399.getKey())
+                oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, _iter419.getKey().size()));
+                for (long _iter420 : _iter419.getKey())
                 {
-                  oprot.writeI64(_iter400);
+                  oprot.writeI64(_iter420);
                 }
                 oprot.writeListEnd();
               }
-              oprot.writeI64(_iter399.getValue());
+              oprot.writeI64(_iter419.getValue());
             }
             oprot.writeMapEnd();
           }
@@ -865,42 +865,42 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
       if (struct.is_set_node_host()) {
         {
           oprot.writeI32(struct.node_host.size());
-          for (Map.Entry<String, String> _iter401 : struct.node_host.entrySet())
+          for (Map.Entry<String, String> _iter421 : struct.node_host.entrySet())
           {
-            oprot.writeString(_iter401.getKey());
-            oprot.writeString(_iter401.getValue());
+            oprot.writeString(_iter421.getKey());
+            oprot.writeString(_iter421.getValue());
           }
         }
       }
       if (struct.is_set_executor_node_port()) {
         {
           oprot.writeI32(struct.executor_node_port.size());
-          for (Map.Entry<List<Long>, NodeInfo> _iter402 : struct.executor_node_port.entrySet())
+          for (Map.Entry<List<Long>, NodeInfo> _iter422 : struct.executor_node_port.entrySet())
           {
             {
-              oprot.writeI32(_iter402.getKey().size());
-              for (long _iter403 : _iter402.getKey())
+              oprot.writeI32(_iter422.getKey().size());
+              for (long _iter423 : _iter422.getKey())
               {
-                oprot.writeI64(_iter403);
+                oprot.writeI64(_iter423);
               }
             }
-            _iter402.getValue().write(oprot);
+            _iter422.getValue().write(oprot);
           }
         }
       }
       if (struct.is_set_executor_start_time_secs()) {
         {
           oprot.writeI32(struct.executor_start_time_secs.size());
-          for (Map.Entry<List<Long>, Long> _iter404 : struct.executor_start_time_secs.entrySet())
+          for (Map.Entry<List<Long>, Long> _iter424 : struct.executor_start_time_secs.entrySet())
           {
             {
-              oprot.writeI32(_iter404.getKey().size());
-              for (long _iter405 : _iter404.getKey())
+              oprot.writeI32(_iter424.getKey().size());
+              for (long _iter425 : _iter424.getKey())
               {
-                oprot.writeI64(_iter405);
+                oprot.writeI64(_iter425);
               }
             }
-            oprot.writeI64(_iter404.getValue());
+            oprot.writeI64(_iter424.getValue());
           }
         }
       }
@@ -914,64 +914,64 @@ public class Assignment implements org.apache.thrift.TBase<Assignment, Assignmen
       BitSet incoming = iprot.readBitSet(3);
       if (incoming.get(0)) {
         {
-          org.apache.thrift.protocol.TMap _map406 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-          struct.node_host = new HashMap<String,String>(2*_map406.size);
-          String _key407;
-          String _val408;
-          for (int _i409 = 0; _i409 < _map406.size; ++_i409)
+          org.apache.thrift.protocol.TMap _map426 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+          struct.node_host = new HashMap<String,String>(2*_map426.size);
+          String _key427;
+          String _val428;
+          for (int _i429 = 0; _i429 < _map426.size; ++_i429)
           {
-            _key407 = iprot.readString();
-            _val408 = iprot.readString();
-            struct.node_host.put(_key407, _val408);
+            _key427 = iprot.readString();
+            _val428 = iprot.readString();
+            struct.node_host.put(_key427, _val428);
           }
         }
         struct.set_node_host_isSet(true);
       }
       if (incoming.get(1)) {
         {
-          org.apache.thrift.protocol.TMap _map410 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.LIST, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.executor_node_port = new HashMap<List<Long>,NodeInfo>(2*_map410.size);
-          List<Long> _key411;
-          NodeInfo _val412;
-          for (int _i413 = 0; _i413 < _map410.size; ++_i413)
+          org.apache.thrift.protocol.TMap _map430 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.LIST, org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+          struct.executor_node_port = new HashMap<List<Long>,NodeInfo>(2*_map430.size);
+          List<Long> _key431;
+          NodeInfo _val432;
+          for (int _i433 = 0; _i433 < _map430.size; ++_i433)
           {
             {
-              org.apache.thrift.protocol.TList _list414 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, iprot.readI32());
-              _key411 = new ArrayList<Long>(_list414.size);
-              long _elem415;
-              for (int _i416 = 0; _i416 < _list414.size; ++_i416)
+              org.apache.thrift.protocol.TList _list434 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, iprot.readI32());
+              _key431 = new ArrayList<Long>(_list434.size);
+              long _elem435;
+              for (int _i436 = 0; _i436 < _list434.size; ++_i436)
               {
-                _elem415 = iprot.readI64();
-                _key411.add(_elem415);
+                _elem435 = iprot.readI64();
+                _key431.add(_elem435);
               }
             }
-            _val412 = new NodeInfo();
-            _val412.read(iprot);
-            struct.executor_node_port.put(_key411, _val412);
+            _val432 = new NodeInfo();
+            _val432.read(iprot);
+            struct.executor_node_port.put(_key431, _val432);
           }
         }
         struct.set_executor_node_port_isSet(true);
       }
       if (incoming.get(2)) {
         {
-          org.apache.thrift.protocol.TMap _map417 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.LIST, org.apache.thrift.protocol.TType.I64, iprot.readI32());
-          struct.executor_start_time_secs = new HashMap<List<Long>,Long>(2*_map417.size);
-          List<Long> _key418;
-          long _val419;
-          for (int _i420 = 0; _i420 < _map417.size; ++_i420)
+          org.apache.thrift.protocol.TMap _map437 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.LIST, org.apache.thrift.protocol.TType.I64, iprot.readI32());
+          struct.executor_start_time_secs = new HashMap<List<Long>,Long>(2*_map437.size);
+          List<Long> _key438;
+          long _val439;
+          for (int _i440 = 0; _i440 < _map437.size; ++_i440)
           {
             {
-              org.apache.thrift.protocol.TList _list421 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, iprot.readI32());
-              _key418 = new ArrayList<Long>(_list421.size);
-              long _elem422;
-              for (int _i423 = 0; _i423 < _list421.size; ++_i423)
+              org.apache.thrift.protocol.TList _list441 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.I64, iprot.readI32());
+              _key438 = new ArrayList<Long>(_list441.size);
+              long _elem442;
+              for (int _i443 = 0; _i443 < _list441.size; ++_i443)
               {
-                _elem422 = iprot.readI64();
-                _key418.add(_elem422);
+                _elem442 = iprot.readI64();
+                _key438.add(_elem442);
               }
             }
-            _val419 = iprot.readI64();
-            struct.executor_start_time_secs.put(_key418, _val419);
+            _val439 = iprot.readI64();
+            struct.executor_start_time_secs.put(_key438, _val439);
           }
         }
         struct.set_executor_start_time_secs_isSet(true);

@@ -695,7 +695,8 @@
                                                                (.getSourceComponent tuple)
                                                                (.getSourceStreamId tuple)
                                                                (.reportRate (:rate-tracker executor-data))
-                                                               delta)))))))
+                                                               delta)
+                                    (log-message "Throughput:" (.reportRate (:rate-tracker executor-data)))))))))
 
         ;; the overflow buffer is used to ensure that bolts do not block when emitting
         ;; this ensures that the bolt can always clear the incoming messages, which

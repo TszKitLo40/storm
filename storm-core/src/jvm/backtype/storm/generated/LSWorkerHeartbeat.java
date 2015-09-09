@@ -638,14 +638,14 @@ public class LSWorkerHeartbeat implements org.apache.thrift.TBase<LSWorkerHeartb
           case 3: // EXECUTORS
             if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list482 = iprot.readListBegin();
-                struct.executors = new ArrayList<ExecutorInfo>(_list482.size);
-                ExecutorInfo _elem483;
-                for (int _i484 = 0; _i484 < _list482.size; ++_i484)
+                org.apache.thrift.protocol.TList _list502 = iprot.readListBegin();
+                struct.executors = new ArrayList<ExecutorInfo>(_list502.size);
+                ExecutorInfo _elem503;
+                for (int _i504 = 0; _i504 < _list502.size; ++_i504)
                 {
-                  _elem483 = new ExecutorInfo();
-                  _elem483.read(iprot);
-                  struct.executors.add(_elem483);
+                  _elem503 = new ExecutorInfo();
+                  _elem503.read(iprot);
+                  struct.executors.add(_elem503);
                 }
                 iprot.readListEnd();
               }
@@ -687,9 +687,9 @@ public class LSWorkerHeartbeat implements org.apache.thrift.TBase<LSWorkerHeartb
         oprot.writeFieldBegin(EXECUTORS_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.executors.size()));
-          for (ExecutorInfo _iter485 : struct.executors)
+          for (ExecutorInfo _iter505 : struct.executors)
           {
-            _iter485.write(oprot);
+            _iter505.write(oprot);
           }
           oprot.writeListEnd();
         }
@@ -719,9 +719,9 @@ public class LSWorkerHeartbeat implements org.apache.thrift.TBase<LSWorkerHeartb
       oprot.writeString(struct.topology_id);
       {
         oprot.writeI32(struct.executors.size());
-        for (ExecutorInfo _iter486 : struct.executors)
+        for (ExecutorInfo _iter506 : struct.executors)
         {
-          _iter486.write(oprot);
+          _iter506.write(oprot);
         }
       }
       oprot.writeI32(struct.port);
@@ -735,14 +735,14 @@ public class LSWorkerHeartbeat implements org.apache.thrift.TBase<LSWorkerHeartb
       struct.topology_id = iprot.readString();
       struct.set_topology_id_isSet(true);
       {
-        org.apache.thrift.protocol.TList _list487 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-        struct.executors = new ArrayList<ExecutorInfo>(_list487.size);
-        ExecutorInfo _elem488;
-        for (int _i489 = 0; _i489 < _list487.size; ++_i489)
+        org.apache.thrift.protocol.TList _list507 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
+        struct.executors = new ArrayList<ExecutorInfo>(_list507.size);
+        ExecutorInfo _elem508;
+        for (int _i509 = 0; _i509 < _list507.size; ++_i509)
         {
-          _elem488 = new ExecutorInfo();
-          _elem488.read(iprot);
-          struct.executors.add(_elem488);
+          _elem508 = new ExecutorInfo();
+          _elem508.read(iprot);
+          struct.executors.add(_elem508);
         }
       }
       struct.set_executors_isSet(true);
