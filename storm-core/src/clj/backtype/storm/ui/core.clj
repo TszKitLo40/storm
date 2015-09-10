@@ -41,7 +41,8 @@
   (:require [compojure.route :as route]
             [compojure.handler :as handler]
             [ring.util.response :as resp]
-            [backtype.storm [thrift :as thrift]])
+            [backtype.storm [thrift :as thrift]]
+            [clojure.java.io :as io])
   (:import [org.apache.commons.lang StringEscapeUtils])
   (:gen-class))
 
@@ -115,7 +116,7 @@
              (into {}
                    (for [[stream c] streams]
                      [stream
-                      [(* c (get-in avg [slice stream]))
+                      [(* c (nil-to-zero (get-in avg [slice stream])) )
                        c]]
                      ))]))))
 
@@ -160,8 +161,7 @@
 (defn aggregate-common-stats
   [stats-seq]
   {:emitted (aggregate-counts (map #(.get_emitted ^ExecutorStats %) stats-seq))
-   :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))
-   :throughput (aggregate-averages (map #(.get_throughput ^ExecutorStats %) stats-seq))})
+   :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))})
 
 (defn mk-include-sys-fn
   [include-sys?]
@@ -193,6 +193,9 @@
 (defn aggregate-bolt-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
+    (map #(log-message "from thrift (bolt): throughput:" (.get_throughput ^ExecutorStats %)) stats-seq)
+    (map #(spit "/home/robert/ui.log" (str "from thrift (bolt): throughput:" (.get_throughput ^ExecutorStats %)) :append true ) stats-seq)
+    (map #(spit "/home/robert/ui.log" (str "from thrift (bolt): acked:" (.. ^ExecutorStats % get_specific get_bolt get_executed)) :append true ) stats-seq)
     (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_bolt get_acked)
@@ -212,11 +215,17 @@
             (aggregate-averages (map #(.. ^ExecutorStats % get_specific get_bolt get_execute_ms_avg)
                                      stats-seq)
                                 (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
-                                     stats-seq))})))
+                                     stats-seq))
+            :throughput
+            (aggregate-averages (map #(.get_throughput ^ExecutorStats %) stats-seq)
+                                (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
+                            stats-seq))})))
 
 (defn aggregate-spout-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
+    (map #(spit "/home/robert/ui.log" (str "from thrift (spout): throughput:" (.get_throughput ^ExecutorStats %)) :append true ) stats-seq)
+    (map #(spit "/home/robert/ui.log" (str "from thrift (spout): acked:" (.. ^ExecutorStats % get_specific get_spout get_acked)) :append true ) stats-seq)
     (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
@@ -228,7 +237,11 @@
             (aggregate-averages (map #(.. ^ExecutorStats % get_specific get_spout get_complete_ms_avg)
                                      stats-seq)
                                 (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
-                                     stats-seq))})))
+                                     stats-seq))
+            :throughput
+            (aggregate-averages (map #(.get_throughput ^ExecutorStats %) stats-seq)
+                                (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
+                            stats-seq))})))
 
 (defn aggregate-bolt-streams
   [stats]
@@ -240,7 +253,11 @@
                                              (:acked stats))
    :executed (aggregate-count-streams (:executed stats))
    :execute-latencies (aggregate-avg-streams (:execute-latencies stats)
-                                             (:executed stats))})
+                                             (:executed stats))
+   :throughput (aggregate-avg-streams (:throughput stats)
+                 (:executed stats))
+   })
+
 
 (defn aggregate-spout-streams
   [stats]
@@ -249,7 +266,9 @@
    :emitted (aggregate-count-streams (:emitted stats))
    :transferred (aggregate-count-streams (:transferred stats))
    :complete-latencies (aggregate-avg-streams (:complete-latencies stats)
-                                              (:acked stats))})
+                                              (:acked stats))
+   :throughput (aggregate-avg-streams (:throughput stats)
+                 (:acked stats))})
 
 (defn spout-summary?
   [topology s]
@@ -446,7 +465,10 @@
                 :throughput (if bolt-summs
                               (get-in
                                 (bolt-streams-stats bolt-summs true)
-                                [:process-latencies window]))
+                                [:throughput window])
+                              (get-in
+                                (spout-streams-stats spout-summs true)
+                                [:throughput window]))
                 :transferred (or
                                (get-in
                                  (spout-streams-stats spout-summs true)
@@ -655,6 +677,7 @@
        "emitted" (get-in stats [:emitted k])
        "transferred" (get-in stats [:transferred k])
        "completeLatency" (float-str (get-in stats [:complete-latencies k]))
+       "throughput" (float-str (get-in stats [:throughput k]))
        "acked" (get-in stats [:acked k])
        "failed" (get-in stats [:failed k])})))
 
@@ -674,6 +697,7 @@
      "emitted" (get-in stats [:emitted window])
      "transferred" (get-in stats [:transferred window])
      "completeLatency" (float-str (get-in stats [:complete-latencies window]))
+     "throughput" (float-str (get-in stats [:throughput window]))
      "acked" (get-in stats [:acked window])
      "failed" (get-in stats [:failed window])
      "errorHost" error-host
@@ -702,6 +726,7 @@
      "executeLatency" (float-str (get-in stats [:execute-latencies window]))
      "executed" (get-in stats [:executed window])
      "processLatency" (float-str (get-in stats [:process-latencies window]))
+     "throughput" (float-str (get-in stats [:throughput window]))
      "acked" (get-in stats [:acked window])
      "failed" (get-in stats [:failed window])
      "errorHost" error-host
@@ -738,6 +763,7 @@
         "emitted" (get-in stats [:emitted k])
         "transferred" (get-in stats [:transferred k])
         "completeLatency" (float-str (get-in stats [:complete-latencies k]))
+        "throughput" (float-str (get-in stats [:throughput k]))
         "acked" (get-in stats [:acked k])
         "failed" (get-in stats [:failed k])})))
 
@@ -789,6 +815,7 @@
        "emitted" (nil-to-zero (:emitted stats))
        "transferred" (nil-to-zero (:transferred stats))
        "completeLatency" (float-str (:complete-latencies stats))
+       "throughput" (float-str (:throughput stats))
        "acked" (nil-to-zero (:acked stats))
        "failed" (nil-to-zero (:failed stats))})))
 
@@ -810,6 +837,7 @@
      "emitted" (nil-to-zero (:emitted stats))
      "transferred" (nil-to-zero (:transferred stats))
      "completeLatency" (float-str (:complete-latencies stats))
+     "throughput" (float-str (:throughput stats))
      "acked" (nil-to-zero (:acked stats))
      "failed" (nil-to-zero (:failed stats))
      "workerLogLink" (worker-log-link (.get_host e) (.get_port e) topology-id secure?)}))
@@ -854,6 +882,7 @@
        "executeLatency" (float-str (get-in stats [:execute-latencies k]))
        "executed" (get-in stats [:executed k])
        "processLatency" (float-str (get-in stats [:process-latencies k]))
+       "throughput" (float-str (get-in stats [:throughput k]))
        "acked" (get-in stats [:acked k])
        "failed" (get-in stats [:failed k])})))
 
@@ -876,7 +905,7 @@
             swap-map-order
             (get window)
             (select-keys [:acked :failed :process-latencies
-                          :executed :execute-latencies])
+                          :executed :execute-latencies :throughput])
             swap-map-order)]
     (for [[^GlobalStreamId s stats] stream-summary]
       {"component" (.get_componentId s)
@@ -884,6 +913,7 @@
        "stream" (.get_streamId s)
        "executeLatency" (float-str (:execute-latencies stats))
        "processLatency" (float-str (:process-latencies stats))
+       "throughput" (float-str (:throughput stats))
        "executed" (nil-to-zero (:executed stats))
        "acked" (nil-to-zero (:acked stats))
        "failed" (nil-to-zero (:failed stats))})))
@@ -909,6 +939,7 @@
      "executeLatency" (float-str (:execute-latencies stats))
      "executed" (nil-to-zero (:executed stats))
      "processLatency" (float-str (:process-latencies stats))
+     "throughput" (float-str (:throughput stats))
      "acked" (nil-to-zero (:acked stats))
      "failed" (nil-to-zero (:failed stats))
      "workerLogLink" (worker-log-link (.get_host e) (.get_port e) topology-id secure?)}))

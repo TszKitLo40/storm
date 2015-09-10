@@ -374,6 +374,7 @@
   [stats]
   (let [specific-stats (thriftify-specific-stats stats)
         rate (:rate stats)]
+    (log-message "thrifity: throughput: " (window-set-converter (:throughput stats) str) )
     (ExecutorStats. (window-set-converter (:emitted stats) str)
       (window-set-converter (:transferred stats) str)
       specific-stats
