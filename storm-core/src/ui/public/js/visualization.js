@@ -126,14 +126,15 @@ function renderGraph(elem) {
                     col = "#0000FF";
                 }
                 
-                var w = Math.max(55, 25 + gfx.textWidth(node.name));
-                
+                //var w = Math.max(55, 25 + gfx.textWidth(node.name));
+                var w = Math.max(55, 25 + Math.max(gfx.textWidth(node.name), gfx.textWidth(parseFloat(node.data[":throughput"]).toFixed(2))));
+
                 gfx.oval(pt.x - w/2, pt.y - w/2, w, w, {fill: col});
                 gfx.text(node.name, pt.x, pt.y+3, {color:"white", align:"center", font:"Arial", size:12});
                 gfx.text(node.name, pt.x, pt.y+3, {color:"white", align:"center", font:"Arial", size:12});
                 
                 //gfx.text(parseFloat(node.data[":latency"]).toFixed(2) + " ms", pt.x, pt.y + 17, {color:"white", align:"center", font:"Arial", size:12});
-                gfx.text(parseFloat(node.data[":throughput"]).toFixed(2) + " tuples/ms", pt.x, pt.y + 17, {color:"white", align:"center", font:"Arial", size:12});
+                gfx.text(parseFloat(node.data[":throughput"]).toFixed(2) + " tps", pt.x, pt.y + 17, {color:"white", align:"center", font:"Arial", size:12});
             });
 
             // Draw gradient sidebar

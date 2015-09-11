@@ -160,6 +160,7 @@
 
 (defn aggregate-common-stats
   [stats-seq]
+  (log-message "aggregate-common-stats: transferred:" (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq)))
   {:emitted (aggregate-counts (map #(.get_emitted ^ExecutorStats %) stats-seq))
    :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))})
 
@@ -193,9 +194,14 @@
 (defn aggregate-bolt-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
-    (map #(log-message "from thrift (bolt): throughput:" (.get_throughput ^ExecutorStats %)) stats-seq)
-    (map #(spit "/home/robert/ui.log" (str "from thrift (bolt): throughput:" (.get_throughput ^ExecutorStats %)) :append true ) stats-seq)
-    (map #(spit "/home/robert/ui.log" (str "from thrift (bolt): acked:" (.. ^ExecutorStats % get_specific get_bolt get_executed)) :append true ) stats-seq)
+    (doseq [x stats-seq] (log-message "from thrift (bolt): throughput:" (.get_throughput ^ExecutorStats x)))
+    (doseq [x stats-seq] (log-message "from thrift (bolt): executed:" (.. ^ExecutorStats x get_specific get_bolt get_executed)))
+    (log-message "from thrift (bolt) result:" (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
+                                                                  ;(map #(.. ^ExecutorStats % get_specific get_bolt get_executed) stats-seq)
+                                     ) )
+    (log-message "after be processed executed:" (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
+                                                                       stats-seq)))
+
     (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_bolt get_acked)
@@ -217,15 +223,15 @@
                                 (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
                                      stats-seq))
             :throughput
-            (aggregate-averages (map #(.get_throughput ^ExecutorStats %) stats-seq)
-                                (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
-                            stats-seq))})))
+            (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
+                                ;(map #(.. ^ExecutorStats % get_specific get_bolt get_executed) stats-seq)
+                                )})))
 
 (defn aggregate-spout-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
-    (map #(spit "/home/robert/ui.log" (str "from thrift (spout): throughput:" (.get_throughput ^ExecutorStats %)) :append true ) stats-seq)
-    (map #(spit "/home/robert/ui.log" (str "from thrift (spout): acked:" (.. ^ExecutorStats % get_specific get_spout get_acked)) :append true ) stats-seq)
+    (doseq [x stats-seq] (log-message (str "from thrift (spout): throughput:" (.get_throughput ^ExecutorStats x))))
+    (doseq [x stats-seq] (log-message (str "from thrift (spout): acked:" (.. ^ExecutorStats x get_specific get_spout get_acked))))
     (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
@@ -239,9 +245,9 @@
                                 (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
                                      stats-seq))
             :throughput
-            (aggregate-averages (map #(.get_throughput ^ExecutorStats %) stats-seq)
-                                (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
-                            stats-seq))})))
+            (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
+                              ;(map #(.get_emitted ^ExecutorStats %) stats-seq)
+                              )})))
 
 (defn aggregate-bolt-streams
   [stats]
@@ -254,8 +260,9 @@
    :executed (aggregate-count-streams (:executed stats))
    :execute-latencies (aggregate-avg-streams (:execute-latencies stats)
                                              (:executed stats))
-   :throughput (aggregate-avg-streams (:throughput stats)
-                 (:executed stats))
+   :throughput (aggregate-count-streams (:throughput stats)
+                                        ;(:executed stats)
+                                        )
    })
 
 
@@ -267,8 +274,9 @@
    :transferred (aggregate-count-streams (:transferred stats))
    :complete-latencies (aggregate-avg-streams (:complete-latencies stats)
                                               (:acked stats))
-   :throughput (aggregate-avg-streams (:throughput stats)
-                 (:acked stats))})
+   :throughput (aggregate-count-streams (:throughput stats)
+                                      ;(:emited stats)
+                                      )})
 
 (defn spout-summary?
   [topology s]
@@ -529,6 +537,7 @@
                                       bolt-comp-summs)
           topology-conf (from-json
                           (.getTopologyConf ^Nimbus$Client nimbus id))]
+      ;(log-message )
       (visualization-data
        (merge (hashmap-to-persistent spouts)
               (hashmap-to-persistent bolts))
@@ -794,6 +803,9 @@
                                               bolt-comp-summs
                                               window
                                               id)]
+      (log-message "bolt-comp-sums:" bolt-comp-summs)
+      (log-message "spout-comp-summs" spout-comp-summs)
+      (log-message "visualizer-data: " visualizer-data)
       (merge
        (topology-summary summ)
        {"user" user

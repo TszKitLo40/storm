@@ -228,6 +228,9 @@
     (update-executor-stat! stats [:common :throughput] stream throughput)
     ))
 
+(defn update-stats-throughput! [stats stream throughput]
+  (update-executor-stat! stats [:common :throughput] stream throughput))
+
 (defn bolt-acked-tuple!
   [^BoltExecutorStats stats component stream latency-ms]
   (let [key [component stream]]
