@@ -175,7 +175,8 @@
 
 (def NUM-STAT-BUCKETS 20)
 ;; 10 minutes, 3 hours, 1 day
-(def STAT-BUCKETS [30 540 4320])
+;(def STAT-BUCKETS [30 540 4320])
+(def STAT-BUCKETS [1 30 540])
 
 (defn- mk-common-stats
   [rate]
