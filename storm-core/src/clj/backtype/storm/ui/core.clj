@@ -919,6 +919,7 @@
             (select-keys [:acked :failed :process-latencies
                           :executed :execute-latencies :throughput])
             swap-map-order)]
+    (log-message "stream-summary:" stream-summary)
     (for [[^GlobalStreamId s stats] stream-summary]
       {"component" (.get_componentId s)
        "encodedComponent" (url-encode (.get_componentId s))
