@@ -199,14 +199,6 @@
 (defn aggregate-bolt-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
-    (doseq [x stats-seq] (log-message "from thrift (bolt): throughput:" (.get_throughput ^ExecutorStats x)))
-    (doseq [x stats-seq] (log-message "from thrift (bolt): executed:" (.. ^ExecutorStats x get_specific get_bolt get_executed)))
-    (log-message "from thrift (bolt) result:" (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
-                                                                  ;(map #(.. ^ExecutorStats % get_specific get_bolt get_executed) stats-seq)
-                                     ) )
-    (log-message "after be processed executed:" (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
-                                                                       stats-seq)))
-
     (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_bolt get_acked)
@@ -226,19 +218,12 @@
             (aggregate-averages (map #(.. ^ExecutorStats % get_specific get_bolt get_execute_ms_avg)
                                      stats-seq)
                                 (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
-                                     stats-seq))
-            ;:throughput
-            ;(aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
-            ;                    ;(map #(.. ^ExecutorStats % get_specific get_bolt get_executed) stats-seq)
-            ;                    )
-            })))
+                                     stats-seq))})))
 
 (defn aggregate-spout-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
-    (doseq [x stats-seq] (log-message (str "from thrift (spout): throughput:" (.get_throughput ^ExecutorStats x))))
-    (doseq [x stats-seq] (log-message (str "from thrift (spout): acked:" (.. ^ExecutorStats x get_specific get_spout get_acked))))
-    (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
+      (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
                                    stats-seq))
@@ -249,12 +234,7 @@
             (aggregate-averages (map #(.. ^ExecutorStats % get_specific get_spout get_complete_ms_avg)
                                      stats-seq)
                                 (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
-                                     stats-seq))
-            ;:throughput
-            ;(aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
-            ;                  ;(map #(.get_emitted ^ExecutorStats %) stats-seq)
-            ;                  )
-            })))
+                                     stats-seq))})))
 
 (defn aggregate-bolt-streams
   [stats]
@@ -810,9 +790,6 @@
                                               bolt-comp-summs
                                               window
                                               id)]
-      (log-message "bolt-comp-sums:" bolt-comp-summs)
-      (log-message "spout-comp-summs" spout-comp-summs)
-      (log-message "visualizer-data: " visualizer-data)
       (merge
        (topology-summary summ)
        {"user" user
@@ -926,7 +903,6 @@
             (select-keys [:acked :failed :process-latencies
                           :executed :execute-latencies])
             swap-map-order)]
-    (log-message "stream-summary:" stream-summary)
     (for [[^GlobalStreamId s stats] stream-summary]
       {"component" (.get_componentId s)
        "encodedComponent" (url-encode (.get_componentId s))
