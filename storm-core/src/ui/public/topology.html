@@ -149,10 +149,10 @@ $(document).ready(function() {
             });
 
             spoutStats.append(Mustache.render($(template).filter("#spout-stats-template").html(),response));
-            //id, executors, tasks, emitted, transferred, complete latency, acked, failed, Last error
+            //id, executors, tasks, emitted, transferred, complete latency, throughput, acked, failed, Last error
             dtAutoPage("#spout-stats-table", {
               columnDefs: [
-                {type: "num", targets: [1, 2, 3, 4, 5, 6, 7]}
+                {type: "num", targets: [1, 2, 3, 4, 5, 6, 7, 8]}
               ]
             });
 

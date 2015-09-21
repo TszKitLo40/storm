@@ -162,7 +162,8 @@
   [stats-seq]
   (log-message "aggregate-common-stats: transferred:" (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq)))
   {:emitted (aggregate-counts (map #(.get_emitted ^ExecutorStats %) stats-seq))
-   :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))})
+   :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))
+   :throughput (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq))})
 
 (defn mk-include-sys-fn
   [include-sys?]
@@ -187,8 +188,12 @@
         transferred (:transferred stream-summary)
         transferred (into {} (for [[window stat] transferred]
                                {window (filter-key filter-fn stat)}))
+        throughput (:throughput stream-summary)
+        throughput (into {} (for [[window stat] throughput]
+                              {window (filter-key filter-fn stat)}))
         stream-summary (-> stream-summary (dissoc :emitted) (assoc :emitted emitted))
-        stream-summary (-> stream-summary (dissoc :transferred) (assoc :transferred transferred))]
+        stream-summary (-> stream-summary (dissoc :transferred) (assoc :transferred transferred))
+        stream-summary (-> stream-summary (dissoc :throughput) (assoc :throughput throughput))]
     stream-summary))
 
 (defn aggregate-bolt-stats
@@ -222,10 +227,11 @@
                                      stats-seq)
                                 (map #(.. ^ExecutorStats % get_specific get_bolt get_executed)
                                      stats-seq))
-            :throughput
-            (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
-                                ;(map #(.. ^ExecutorStats % get_specific get_bolt get_executed) stats-seq)
-                                )})))
+            ;:throughput
+            ;(aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
+            ;                    ;(map #(.. ^ExecutorStats % get_specific get_bolt get_executed) stats-seq)
+            ;                    )
+            })))
 
 (defn aggregate-spout-stats
   [stats-seq include-sys?]
@@ -244,10 +250,11 @@
                                      stats-seq)
                                 (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
                                      stats-seq))
-            :throughput
-            (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
-                              ;(map #(.get_emitted ^ExecutorStats %) stats-seq)
-                              )})))
+            ;:throughput
+            ;(aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq)
+            ;                  ;(map #(.get_emitted ^ExecutorStats %) stats-seq)
+            ;                  )
+            })))
 
 (defn aggregate-bolt-streams
   [stats]
@@ -917,15 +924,15 @@
             swap-map-order
             (get window)
             (select-keys [:acked :failed :process-latencies
-                          :executed :execute-latencies :throughput])
+                          :executed :execute-latencies])
             swap-map-order)]
+    (log-message "stream-summary:" stream-summary)
     (for [[^GlobalStreamId s stats] stream-summary]
       {"component" (.get_componentId s)
        "encodedComponent" (url-encode (.get_componentId s))
        "stream" (.get_streamId s)
        "executeLatency" (float-str (:execute-latencies stats))
        "processLatency" (float-str (:process-latencies stats))
-       "throughput" (float-str (:throughput stats))
        "executed" (nil-to-zero (:executed stats))
        "acked" (nil-to-zero (:acked stats))
        "failed" (nil-to-zero (:failed stats))})))
