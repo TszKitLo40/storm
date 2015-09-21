@@ -41,7 +41,7 @@
   (:require [compojure.route :as route]
             [compojure.handler :as handler]
             [ring.util.response :as resp]
-            [backtype.storm [thrift :as thrift]]
+            [backtype.storm [thrift :as thrift]])
   (:import [org.apache.commons.lang StringEscapeUtils])
   (:gen-class))
 
