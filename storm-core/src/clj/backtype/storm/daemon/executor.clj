@@ -552,13 +552,6 @@
                      send-spout-msg (fn [out-stream-id values message-id out-task-id]
                                       (.increment emitted-count)
                                       (.notify (:rate-tracker executor-data) 1)
-                                      ; (update-executor-stat! stats [:common :throughput] stream throughput)
-                                      ;(if (sampler)
-                                      ;  (update-executor-stat!
-                                      ;    (:stats executor-data)
-                                      ;    [:common :throughput]
-                                      ;    out-stream_id
-                                      ;    (.reportRate (:rate-tracker executor-data))))
                                       (if (sampler) (stats/update-stats-throughput! (:stats executor-data) out-stream-id (.reportRate (:rate-tracker executor-data))))
                                       (let [out-tasks (if out-task-id
                                                         (tasks-fn out-task-id out-stream-id values)

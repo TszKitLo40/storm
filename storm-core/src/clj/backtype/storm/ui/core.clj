@@ -42,7 +42,6 @@
             [compojure.handler :as handler]
             [ring.util.response :as resp]
             [backtype.storm [thrift :as thrift]]
-            [clojure.java.io :as io])
   (:import [org.apache.commons.lang StringEscapeUtils])
   (:gen-class))
 
@@ -160,7 +159,6 @@
 
 (defn aggregate-common-stats
   [stats-seq]
-  (log-message "aggregate-common-stats: transferred:" (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq)))
   {:emitted (aggregate-counts (map #(.get_emitted ^ExecutorStats %) stats-seq))
    :transferred (aggregate-counts (map #(.get_transferred ^ExecutorStats %) stats-seq))
    :throughput (aggregate-counts (map #(.get_throughput ^ExecutorStats %) stats-seq))})
@@ -223,7 +221,7 @@
 (defn aggregate-spout-stats
   [stats-seq include-sys?]
   (let [stats-seq (collectify stats-seq)]
-      (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
+    (merge (pre-process (aggregate-common-stats stats-seq) include-sys?)
            {:acked
             (aggregate-counts (map #(.. ^ExecutorStats % get_specific get_spout get_acked)
                                    stats-seq))
@@ -247,11 +245,7 @@
    :executed (aggregate-count-streams (:executed stats))
    :execute-latencies (aggregate-avg-streams (:execute-latencies stats)
                                              (:executed stats))
-   :throughput (aggregate-count-streams (:throughput stats)
-                                        ;(:executed stats)
-                                        )
-   })
-
+   :throughput (aggregate-count-streams (:throughput stats))})
 
 (defn aggregate-spout-streams
   [stats]
@@ -261,9 +255,7 @@
    :transferred (aggregate-count-streams (:transferred stats))
    :complete-latencies (aggregate-avg-streams (:complete-latencies stats)
                                               (:acked stats))
-   :throughput (aggregate-count-streams (:throughput stats)
-                                      ;(:emited stats)
-                                      )})
+   :throughput (aggregate-count-streams (:throughput stats))})
 
 (defn spout-summary?
   [topology s]
@@ -524,7 +516,6 @@
                                       bolt-comp-summs)
           topology-conf (from-json
                           (.getTopologyConf ^Nimbus$Client nimbus id))]
-      ;(log-message )
       (visualization-data
        (merge (hashmap-to-persistent spouts)
               (hashmap-to-persistent bolts))
