@@ -16,7 +16,8 @@
 (ns backtype.storm.daemon.executor
   (:use [backtype.storm.daemon common])
   (:import [backtype.storm.generated Grouping]
-           [java.io Serializable])
+           [java.io Serializable]
+           [backtype.storm.utils RateTracker])
   (:use [backtype.storm util config log timer stats])
   (:import [java.util List Random HashMap ArrayList LinkedList Map])
   (:import [backtype.storm ICredentialsListener])
@@ -28,7 +29,7 @@
   (:import [backtype.storm.grouping CustomStreamGrouping])
   (:import [backtype.storm.task WorkerTopologyContext IBolt OutputCollector IOutputCollector])
   (:import [backtype.storm.generated GlobalStreamId])
-  (:import [backtype.storm.utils Utils MutableObject RotatingMap RotatingMap$ExpiredCallback MutableLong Time DisruptorQueue WorkerBackpressureThread])
+  (:import [backtype.storm.utils Utils MutableObject RotatingMap RotatingMap$ExpiredCallback MutableLong Time DisruptorQueue RateTracker WorkerBackpressureThread])
   (:import [com.lmax.disruptor InsufficientCapacityException])
   (:import [backtype.storm.serialization KryoTupleSerializer KryoTupleDeserializer])
   (:import [backtype.storm.daemon Shutdownable])
@@ -266,6 +267,7 @@
      :spout-throttling-metrics (if (= executor-type :spout) 
                                 (builtin-metrics/make-spout-throttling-data)
                                 nil)
+     :rate-tracker (RateTracker. 10000 10)
      ;; TODO: add in the executor-specific stuff in a :specific... or make a spout-data, bolt-data function?
      )))
 
@@ -497,6 +499,7 @@
         ;; this limits the size of the overflow buffer to however many tuples a spout emits in one call of nextTuple, 
         ;; preventing memory issues
         overflow-buffer (ConcurrentLinkedQueue.)
+        sampler (mk-stats-sampler storm-conf)
 
         pending (RotatingMap.
                  2 ;; microoptimize for performance of .size method
@@ -547,43 +550,52 @@
                 :let [^ISpout spout-obj (:object task-data)
                      tasks-fn (:tasks-fn task-data)
                      send-spout-msg (fn [out-stream-id values message-id out-task-id]
-                                       (.increment emitted-count)
-                                       (let [out-tasks (if out-task-id
-                                                         (tasks-fn out-task-id out-stream-id values)
-                                                         (tasks-fn out-stream-id values))
-                                             rooted? (and message-id has-ackers?)
-                                             root-id (if rooted? (MessageId/generateId rand))
-                                             out-ids (fast-list-for [t out-tasks] (if rooted? (MessageId/generateId rand)))]
-                                         (fast-list-iter [out-task out-tasks id out-ids]
-                                                         (let [tuple-id (if rooted?
-                                                                          (MessageId/makeRootId root-id id)
-                                                                          (MessageId/makeUnanchored))
-                                                               out-tuple (TupleImpl. worker-context
-                                                                                     values
-                                                                                     task-id
-                                                                                     out-stream-id
-                                                                                     tuple-id)]
-                                                           (transfer-fn out-task
-                                                                        out-tuple
-                                                                        overflow-buffer)
-                                                           ))
-                                         (if (and rooted?
-                                                  (not (.isEmpty out-ids)))
-                                           (do
-                                             (.put pending root-id [task-id
-                                                                    message-id
-                                                                    {:stream out-stream-id :values values}
-                                                                    (if (sampler) (System/currentTimeMillis))])
-                                             (task/send-unanchored task-data
-                                                                   ACKER-INIT-STREAM-ID
-                                                                   [root-id (bit-xor-vals out-ids) task-id]
-                                                                   overflow-buffer))
-                                           (when message-id
-                                             (ack-spout-msg executor-data task-data message-id
-                                                            {:stream out-stream-id :values values}
-                                                            (if (sampler) 0) "0:")))
-                                         (or out-tasks [])
-                                         ))]]
+                                      (.increment emitted-count)
+                                      (.notify (:rate-tracker executor-data) 1)
+                                      ; (update-executor-stat! stats [:common :throughput] stream throughput)
+                                      ;(if (sampler)
+                                      ;  (update-executor-stat!
+                                      ;    (:stats executor-data)
+                                      ;    [:common :throughput]
+                                      ;    out-stream_id
+                                      ;    (.reportRate (:rate-tracker executor-data))))
+                                      (if (sampler) (stats/update-stats-throughput! (:stats executor-data) out-stream-id (.reportRate (:rate-tracker executor-data))))
+                                      (let [out-tasks (if out-task-id
+                                                        (tasks-fn out-task-id out-stream-id values)
+                                                        (tasks-fn out-stream-id values))
+                                            rooted? (and message-id has-ackers?)
+                                            root-id (if rooted? (MessageId/generateId rand))
+                                            out-ids (fast-list-for [t out-tasks] (if rooted? (MessageId/generateId rand)))]
+                                        (fast-list-iter [out-task out-tasks id out-ids]
+                                                        (let [tuple-id (if rooted?
+                                                                         (MessageId/makeRootId root-id id)
+                                                                         (MessageId/makeUnanchored))
+                                                              out-tuple (TupleImpl. worker-context
+                                                                                    values
+                                                                                    task-id
+                                                                                    out-stream-id
+                                                                                    tuple-id)]
+                                                          (transfer-fn out-task
+                                                                       out-tuple
+                                                                       overflow-buffer)
+                                                          ))
+                                        (if (and rooted?
+                                                 (not (.isEmpty out-ids)))
+                                          (do
+                                            (.put pending root-id [task-id
+                                                                   message-id
+                                                                   {:stream out-stream-id :values values}
+                                                                   (if (sampler) (System/currentTimeMillis))])
+                                            (task/send-unanchored task-data
+                                                                  ACKER-INIT-STREAM-ID
+                                                                  [root-id (bit-xor-vals out-ids) task-id]
+                                                                  overflow-buffer))
+                                          (when message-id
+                                            (ack-spout-msg executor-data task-data message-id
+                                                           {:stream out-stream-id :values values}
+                                                           (if (sampler) 0) "0:")))
+                                        (or out-tasks [])
+                                        ))]]
           (builtin-metrics/register-all (:builtin-metrics task-data) storm-conf (:user-context task-data))
           (builtin-metrics/register-queue-metrics {:sendqueue (:batch-transfer-queue executor-data)
                                                    :receive receive-queue}
@@ -736,6 +748,7 @@
                                 (when execute-sampler?
                                   (.setExecuteSampleStartTime tuple now))
                                 (.execute bolt-obj tuple)
+                                (.notify (:rate-tracker executor-data) 1)
                                 (let [delta (tuple-execute-time-delta! tuple)]
                                   (when (= true (storm-conf TOPOLOGY-DEBUG))
                                     (log-message "Execute done TUPLE " tuple " TASK: " task-id " DELTA: " delta))
@@ -750,8 +763,9 @@
                                     (stats/bolt-execute-tuple! executor-stats
                                                                (.getSourceComponent tuple)
                                                                (.getSourceStreamId tuple)
+                                                               (.reportRate (:rate-tracker executor-data))
                                                                delta)))))))]
-    
+
     ;; TODO: can get any SubscribedState objects out of the context now
 
     [(async-loop
