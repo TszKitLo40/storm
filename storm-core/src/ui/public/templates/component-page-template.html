@@ -71,13 +71,13 @@
           </span>
         </th>
         <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The average time a Tuple &quot;tree&quot; takes to be completely processed by the Topology. A value of 0 is expected if no acking is done.">
-            Complete latency (ms)
+          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples emitted per millisecond.">
+            Throughput (tuples/ms)
           </span>
         </th>
         <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples per millisecond.">
-            Throughput (tuples/ms)
+          <span data-toggle="tooltip" data-placement="above" title="The average time a Tuple &quot;tree&quot; takes to be completely processed by the Topology. A value of 0 is expected if no acking is done.">
+            Complete latency (ms)
           </span>
         </th>
         <th class="header">
@@ -98,8 +98,8 @@
         <td><a href="/component.html?id={{encodedId}}&topology_id={{encodedTopologyId}}&window={{window}}">{{windowPretty}}</a></td>
         <td>{{emitted}}</td>
         <td>{{transferred}}</td>
-        <td>{{completeLatency}}</td>
         <td>{{throughput}}</td>
+        <td>{{completeLatency}}</td>
         <td>{{acked}}</td>
         <td>{{failed}}</td>
       </tr>
@@ -128,13 +128,13 @@
           </span>
         </th>
         <th class="header">
-          <span data-original-title="The average time a Tuple &quot;tree&quot; takes to be completely processed by the Topology. A value of 0 is expected if no acking is done." data-toggle="tooltip" data-placement="above">
-            Complete latency (ms)
+          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples emitted per millisecond.">
+            Throughput (tuples/ms)
           </span>
         </th>
         <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples per millisecond.">
-            Throughput (tuples/ms)
+          <span data-original-title="The average time a Tuple &quot;tree&quot; takes to be completely processed by the Topology. A value of 0 is expected if no acking is done." data-toggle="tooltip" data-placement="above">
+            Complete latency (ms)
           </span>
         </th>
         <th class="header">
@@ -155,8 +155,8 @@
         <td>{{stream}}</td>
         <td>{{emitted}}</td>
         <td>{{transferred}}</td>
-        <td>{{completeLatency}}</td>
         <td>{{throughput}}</td>
+        <td>{{completeLatency}}</td>
         <td>{{acked}}</td>
         <td>{{failed}}</td>
       </tr>
@@ -200,13 +200,13 @@
           </span>
         </th>
         <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The average time a Tuple &quot;tree&quot; takes to be completely processed by the Topology. A value of 0 is expected if no acking is done.">
-            Complete latency (ms)
+          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples emitted per millisecond.">
+            Throughput (tuples/ms)
           </span>
         </th>
         <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples per millisecond.">
-            Throughput (tuples/ms)
+          <span data-toggle="tooltip" data-placement="above" title="The average time a Tuple &quot;tree&quot; takes to be completely processed by the Topology. A value of 0 is expected if no acking is done.">
+            Complete latency (ms)
           </span>
         </th>
         <th class="header">
@@ -230,8 +230,8 @@
         <td><a href="{{workerLogLink}}">{{port}}</a></td>
         <td>{{emitted}}</td>
         <td>{{transferred}}</td>
-        <td>{{completeLatency}}</td>
         <td>{{throughput}}</td>
+        <td>{{completeLatency}}</td>
         <td>{{acked}}</td>
         <td>{{failed}}</td>
       </tr>
@@ -265,6 +265,11 @@
           </span>
         </th>
         <th class="header">
+          <span data-toggle="tooltip" data-placement="above" title="The number of incoming Tuples processed per millisecond.">
+            Throughput (tuples/ms)
+          </span>
+        </th>
+        <th class="header">
           <span data-toggle="tooltip" data-placement="above" title="The number of incoming Tuples processed.">
             Executed
           </span>
@@ -272,11 +277,6 @@
         <th class="header">
           <span data-original-title="The average time it takes to Ack a Tuple after it is first received.  Bolts that join, aggregate or batch may not Ack a tuple until a number of other Tuples have been received." data-toggle="tooltip" data-placement="above">
             Process latency (ms)
-          </span>
-        </th>
-        <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples per millisecond.">
-            Throughput (tuples/ms)
           </span>
         </th>
         <th class="header">
@@ -298,9 +298,9 @@
         <td>{{emitted}}</td>
         <td>{{transferred}}</td>
         <td>{{executeLatency}}</td>
+        <td>{{throughput}}</td>
         <td>{{executed}}</td>
         <td>{{processLatency}}</td>
-        <td>{{throughput}}</td>
         <td>{{acked}}</td>
         <td>{{failed}}</td>
       </tr>
@@ -444,6 +444,11 @@
           </span>
         </th>
         <th class="header">
+          <span data-toggle="tooltip" data-placement="above" title="The number of incoming Tuples processed per millisecond.">
+            Throughput (tuples/ms)
+          </span>
+        </th>
+        <th class="header">
           <span data-toggle="tooltip" data-placement="above" title="The number of incoming Tuples processed.">
             Executed
           </span>
@@ -451,11 +456,6 @@
         <th class="header">
           <span data-original-title="The average time it takes to Ack a Tuple after it is first received.  Bolts that join, aggregate or batch may not Ack a tuple until a number of other Tuples have been received." data-toggle="tooltip" data-placement="above">
             Process latency (ms)
-          </span>
-        </th>
-        <th class="header">
-          <span data-toggle="tooltip" data-placement="above" title="The number of Tuples per millisecond.">
-            Throughput (tuples/ms)
           </span>
         </th>
         <th class="header">
@@ -481,9 +481,9 @@
         <td>{{transferred}}</td>
         <td>{{capacity}}</td>
         <td>{{executeLatency}}</td>
+        <td>{{throughput}}</td>
         <td>{{executed}}</td>
         <td>{{processLatency}}</td>
-        <td>{{throughput}}</td>
         <td>{{acked}}</td>
         <td>{{failed}}</td>
       </tr>
