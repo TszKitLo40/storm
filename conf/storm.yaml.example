@@ -15,11 +15,11 @@
 # limitations under the License.
 
 ########### These MUST be filled in for a storm configuration
- storm.zookeeper.servers:
-     - "localhost"
+# storm.zookeeper.servers:
+#     - "server1"
 #     - "server2"
 # 
- nimbus.host: "localhost"
+# nimbus.host: "nimbus"
 # 
 # 
 # ##### These may optionally be filled in:
