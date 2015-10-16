@@ -1,5 +1,4 @@
 #!/usr/local/bin/thrift --gen java:beans,nocamel,hashcode
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
@@ -205,6 +204,7 @@ struct ExecutorStats {
   2: required map<string, map<string, i64>> transferred;
   3: required ExecutorSpecificStats specific;
   4: required double rate;
+  5: optional map<string, map<string, double>> throughput;
 }
 
 struct ExecutorInfo {
@@ -244,8 +244,9 @@ struct CommonAggregateStats {
 2: optional i32 num_tasks;
 3: optional i64 emitted;
 4: optional i64 transferred;
-5: optional i64 acked;
-6: optional i64 failed;
+5: optional double throughput;
+6: optional i64 acked;
+7: optional i64 failed;
 }
 
 struct SpoutAggregateStats {
@@ -279,9 +280,10 @@ struct ComponentAggregateStats {
 struct TopologyStats {
 1: optional map<string, i64> window_to_emitted;
 2: optional map<string, i64> window_to_transferred;
-3: optional map<string, double> window_to_complete_latencies_ms;
-4: optional map<string, i64> window_to_acked;
-5: optional map<string, i64> window_to_failed;
+3: optional map<string, double> window_to_throughput;
+4: optional map<string, double> window_to_complete_latencies_ms;
+5: optional map<string, i64> window_to_acked;
+6: optional map<string, i64> window_to_failed;
 }
 
 struct TopologyPageInfo {
