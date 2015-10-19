@@ -49,6 +49,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  void activate(string name)')
   print('  void deactivate(string name)')
   print('  void rebalance(string name, RebalanceOptions options)')
+  print('  void migrateExecutor(string name, ExecutorMigrationOptions options)')
   print('  void setLogConfig(string name, LogConfig config)')
   print('  LogConfig getLogConfig(string name)')
   print('  void debug(string name, string component, bool enable, double samplingPercentage)')
@@ -164,6 +165,12 @@ elif cmd == 'rebalance':
     print('rebalance requires 2 args')
     sys.exit(1)
   pp.pprint(client.rebalance(args[0],eval(args[1]),))
+
+elif cmd == 'migrateExecutor':
+  if len(args) != 2:
+    print('migrateExecutor requires 2 args')
+    sys.exit(1)
+  pp.pprint(client.migrateExecutor(args[0],eval(args[1]),))
 
 elif cmd == 'setLogConfig':
   if len(args) != 2:

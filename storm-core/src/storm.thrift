@@ -384,6 +384,16 @@ union TopologyActionOptions {
     2: optional RebalanceOptions rebalance_options;
 }
 
+struct ExecutorMigration {
+    1: optional ExecutorInfo executor;
+    2: optional string desc_ip;
+    3: optional string desc_port;
+}
+
+struct ExecutorMigrationOptions {
+    1: optional list<ExecutorMigration> migrations;
+}
+
 struct StormBase {
     1: required string name;
     2: required TopologyStatus status;
@@ -486,6 +496,7 @@ service Nimbus {
   void activate(1: string name) throws (1: NotAliveException e, 2: AuthorizationException aze);
   void deactivate(1: string name) throws (1: NotAliveException e, 2: AuthorizationException aze);
   void rebalance(1: string name, 2: RebalanceOptions options) throws (1: NotAliveException e, 2: InvalidTopologyException ite, 3: AuthorizationException aze);
+  void migrateExecutor(1: string name, 2: ExecutorMigrationOptions options);
 
   // dynamic log levels
   void setLogConfig(1: string name, 2: LogConfig config);
@@ -505,7 +516,7 @@ service Nimbus {
   string beginFileUpload() throws (1: AuthorizationException aze);
   void uploadChunk(1: string location, 2: binary chunk) throws (1: AuthorizationException aze);
   void finishFileUpload(1: string location) throws (1: AuthorizationException aze);
-  
+
   string beginFileDownload(1: string file) throws (1: AuthorizationException aze);
   //can stop downloading chunks when receive 0-length byte array back
   binary downloadChunk(1: string id) throws (1: AuthorizationException aze);
@@ -528,6 +539,7 @@ service Nimbus {
    * Returns the user specified topology as submitted originally. Compare {@link #getTopology(String id)}.
    */
   StormTopology getUserTopology(1: string id) throws (1: NotAliveException e, 2: AuthorizationException aze);
+
 }
 
 struct DRPCRequest {

@@ -36,7 +36,8 @@
             ExecutorInfo InvalidTopologyException Nimbus$Iface Nimbus$Processor SubmitOptions TopologyInitialStatus
             KillOptions RebalanceOptions ClusterSummary SupervisorSummary TopologySummary TopologyInfo
             ExecutorSummary AuthorizationException GetInfoOptions NumErrorsChoice
-            ComponentPageInfo TopologyPageInfo LogConfig LogLevel LogLevelAction])
+            ComponentPageInfo TopologyPageInfo LogConfig LogLevel LogLevelAction
+            ExecutorMigrationOptions ExecutorMigration])
   (:import [backtype.storm.daemon Shutdownable])
   (:use [backtype.storm util config log timer zookeeper])
   (:require [backtype.storm [cluster :as cluster]
@@ -1259,6 +1260,23 @@
                          )]
           (transition-name! nimbus storm-name [:kill wait-amt] true)
           ))
+
+      (^void migrateExecutor [this ^String name ^ExecutorMigrationOptions options]
+        (do
+          (log-message "received executor migration command for" name)
+          (doseq [executor-migration (.get_migrations options)]
+            (log-message
+              (str (.get_task_start ^ExecutorInfo (.get_executor ^ExecutorMigration executor-migration)))
+;              (->> executor-migration
+;                           (.get_executor ^ExecutorMigration)
+;                           (.get_task_start ^ExecutorInfo)
+;                           (str)
+;                         )
+              "will be migrated"
+            )
+          )
+        )
+      )
 
       (^void rebalance [this ^String storm-name ^RebalanceOptions options]
         (check-storm-active! nimbus storm-name true)
