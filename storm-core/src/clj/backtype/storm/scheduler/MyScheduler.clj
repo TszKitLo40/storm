@@ -54,20 +54,20 @@
 ;This function switch two executors from two different slots in purpose
 (defn switch-executor [^String topology-id ^Cluster cluster]
   (let [assignment (.getAssignmentById cluster topology-id)
-        _ (log-message "assignment:" (.getAssignments cluster))
+        ;_ (log-message "assignment:" (.getAssignments cluster))
         executor->slot (hashmap-to-persistent (.getExecutorToSlot assignment))
-        _ (log-message "topology-id:" topology-id)
-        _ (log-message "executor->slot:" executor->slot)
+        ;_ (log-message "topology-id:" topology-id)
+        ;_ (log-message "executor->slot:" executor->slot)
         slots (set (.getSlots assignment))
-        _ (log-message "slots:" slots)
+        ;_ (log-message "slots:" slots)
         first-slot (first slots)
-        _ (log-message "first-slot:" first-slot)
+        ;_ (log-message "first-slot:" first-slot)
         second-slot (second slots)
-        _ (log-message "second-slot:" second-slot)
+        ;_ (log-message "second-slot:" second-slot)
         first-slot-first-executor (if first-slot (first (keys (filter #(= (second %) first-slot) executor->slot))))
-        _ (log-message "first-slot-first-executor:" first-slot-first-executor)
+        ;_ (log-message "first-slot-first-executor:" first-slot-first-executor)
         second-slot-first-executor (if second-slot (first (keys (filter #(= (second %) second-slot) executor->slot))))
-        _ (log-message "second-slot-first-executor:" second-slot-first-executor)
+        ;_ (log-message "second-slot-first-executor:" second-slot-first-executor)
         ]
     (if (and first-slot-first-executor second-slot-first-executor)
       (do (.freeSlot cluster first-slot)
@@ -87,7 +87,7 @@
 
 (defn my-default-schedule [^Topologies topologies ^Cluster cluster]
   (let [needs-scheduling-topologies (.needsSchedulingTopologies cluster topologies)]
-    (doseq [^TopologyDetails topology needs-scheduling-topologies
+    (doseq [^TopologyDetails topology (.getTopologies topologies)             ;@Li: the original value for the last argument is needs-scheduling-topologies. I just use topologies, becuase I want every topology can be interchanged
             :let [topology-id (.getId topology)
                   available-slots (->> (.getAvailableSlots cluster)
                                     (map #(vector (.getNodeId %) (.getPort %))))
@@ -109,4 +109,5 @@
       (switch-executor topology-id cluster))))
 
 (defn -schedule [this ^Topologies topologies ^Cluster cluster]
+  (log-message "my-default-schedule will be called!")
   (my-default-schedule topologies cluster))
