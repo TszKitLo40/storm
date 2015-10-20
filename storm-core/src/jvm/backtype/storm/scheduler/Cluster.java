@@ -317,6 +317,21 @@ public class Cluster {
     }
 
     /**
+     * Migrate the set of executors to an existing worker in the topology.
+     *
+     * @throws RuntimeException if the worker belong to another topology.
+     */
+    public void reassignExecutorsToExistingWorker(WorkerSlot slot, String topologyId, Collection<ExecutorDetails> executors) {
+        Set<WorkerSlot> slotSet = new HashSet<>(this.assignments.get(topologyId).executorToSlot.values());
+        if (!slotSet.contains(slot)) {
+            throw new RuntimeException("slot: [" + slot.getNodeId() + ", " + slot.getPort() + "] dose not belong to " + topologyId);
+        }
+        for(ExecutorDetails executor: executors) {
+            this.assignments.get(topologyId).assign(slot,executors);
+        }
+    }
+
+    /**
      * Gets all the available slots in the cluster.
      * 
      * @return

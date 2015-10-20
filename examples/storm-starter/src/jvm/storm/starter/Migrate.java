@@ -1,5 +1,6 @@
 package storm.starter;
 
+import backtype.storm.generated.ExecutorInfo;
 import backtype.storm.generated.ExecutorMigration;
 import backtype.storm.generated.ExecutorMigrationOptions;
 import backtype.storm.generated.Nimbus;
@@ -15,7 +16,7 @@ import java.util.Vector;
  * Created by robert on 10/19/15.
  */
 public class Migrate {
-    public static void main(String[] args) throws TException {
+    public static void main(String[] args){
         Map conf = Utils.readStormConfig();
 
         NimbusClient Nimbusclient = NimbusClient.getConfiguredClient(conf);
@@ -25,10 +26,18 @@ public class Migrate {
         ExecutorMigration executorMigration = new ExecutorMigration();
         executorMigration.set_desc_ip("desc_ip");
         executorMigration.set_desc_port("desc_port");
-        List<ExecutorMigration> executorMigrations = new Vector<ExecutorMigration>();
+        ExecutorInfo executorInfo = new ExecutorInfo();
+        executorInfo.set_task_start(10);
+        executorInfo.set_task_end(11);
+        executorMigration.set_executor(executorInfo);
+        List < ExecutorMigration > executorMigrations = new Vector<>();
         executorMigrations.add(executorMigration);
         options.set_migrations(executorMigrations);
-        client.migrateExecutor(args[0],options);
-        System.out.println("submitted!");
+        try {
+            client.migrateExecutor(args[0], options);
+            System.out.println("submitted!");
+        } catch (Exception e ) {
+            e.printStackTrace();
+        }
     }
 }

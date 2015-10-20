@@ -1262,18 +1262,25 @@
           ))
 
       (^void migrateExecutor [this ^String name ^ExecutorMigrationOptions options]
+        ;(locking (:submit-lock nimbus)
+        ;  (mk-assignments nimbus))
+        ;(let [slot (^WorkerSlot)])
         (do
-          (log-message "received executor migration command for" name)
-          (doseq [executor-migration (.get_migrations options)]
-            (log-message
-              (str (.get_task_start ^ExecutorInfo (.get_executor ^ExecutorMigration executor-migration)))
+          (doseq [executor-migration (.get_migrations options) :let
+                  [executor (.get_executor ^ExecutorMigration executor-migration)]]
+            (if executor
+              (do
+                (log-message (str (.get_task_start ^ExecutorInfo executor)))
+                ( )
+                )
+              (log-message "executor is emepty! executor-migration: " executor-migration))
 ;              (->> executor-migration
 ;                           (.get_executor ^ExecutorMigration)
 ;                           (.get_task_start ^ExecutorInfo)
 ;                           (str)
 ;                         )
-              "will be migrated"
-            )
+;              "will be migrated"
+;            )
           )
         )
       )
