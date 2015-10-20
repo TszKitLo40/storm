@@ -89,12 +89,6 @@ public class WordCountTopologyMy {
     Config conf = new Config();
     conf.setDebug(true);
 
-
-      NimbusClient Nimbusclient = NimbusClient.getConfiguredClient(conf);
-      Nimbus.Client client = Nimbusclient.getClient();
-
-      client.getTopologyInfo("T1");
-
     if (args != null && args.length > 0) {
       conf.setNumWorkers(3);
 

@@ -497,6 +497,7 @@ service Nimbus {
   void deactivate(1: string name) throws (1: NotAliveException e, 2: AuthorizationException aze);
   void rebalance(1: string name, 2: RebalanceOptions options) throws (1: NotAliveException e, 2: InvalidTopologyException ite, 3: AuthorizationException aze);
   void migrateExecutor(1: string name, 2: ExecutorMigrationOptions options);
+  void optimizeTopologyAssignment(1: string name) throws (1: NotAliveException e);
 
   // dynamic log levels
   void setLogConfig(1: string name, 2: LogConfig config);

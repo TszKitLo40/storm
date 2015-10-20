@@ -1140,9 +1140,15 @@
                         0
                         (conf NIMBUS-MONITOR-FREQ-SECS)
                         (fn []
+                          (log-message "mk-assignment will be called if NIMBUS-REASSIGN is true")
                           (when (conf NIMBUS-REASSIGN)
+                          ;@Li: when cause is commented to make sure that mk-assignment is always called.
+;                          (when true
+                            (log-message "obtain the lock...")
                             (locking (:submit-lock nimbus)
-                              (mk-assignments nimbus)))
+                              (log-message "lock obtained, will call mk-assignment now!")
+                              (mk-assignments nimbus))
+                            )
                           (do-cleanup nimbus)
                           ))
     ;; Schedule Nimbus inbox cleaner
@@ -1284,6 +1290,9 @@
           )
         )
       )
+
+      (^void optimizeTopologyAssignment [this ^String name]
+        )
 
       (^void rebalance [this ^String storm-name ^RebalanceOptions options]
         (check-storm-active! nimbus storm-name true)
