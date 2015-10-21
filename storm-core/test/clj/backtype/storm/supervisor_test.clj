@@ -52,7 +52,7 @@
     (worker/do-heartbeat {:conf conf
                           :port port
                           :storm-id storm-id
-                          :executors executors
+                          :executors (atom executors)
                           :worker-id (find-worker-id conf port)})))
 
 (defn heartbeat-workers [cluster supervisor-id ports]

@@ -45,7 +45,7 @@
       (worker-pids-root conf (:worker-id worker))
       (int %)
       (:port worker)
-      (:task-ids worker)
+      (seq @(:task-ids worker)) ;(:task-ids worker)
       (:default-shared-resources worker)
       (:user-shared-resources worker)
       (:shared-executor-data executor-data)

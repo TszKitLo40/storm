@@ -121,13 +121,22 @@
         [id (read-worker-heartbeat conf id)]))
     ))
 
-
 (defn matches-an-assignment? [worker-heartbeat assigned-executors]
-  (let [local-assignment (assigned-executors (:port worker-heartbeat))]
+  (let [local-assignment (assigned-executors (:port worker-heartbeat))
+        _ (if (empty? (:executors local-assignment))
+            (do
+              (log-message "empty executor for :" (:port worker-heartbeat))
+              (log-message "assignmed-executors: " assigned-executors)
+              )
+            )]
     (and local-assignment
          (= (:storm-id worker-heartbeat) (:storm-id local-assignment))
-         (= (disj (set (:executors worker-heartbeat)) Constants/SYSTEM_EXECUTOR_ID)
-            (set (:executors local-assignment))))))
+         ;@Li: to enable executor migration among workers, the following condition
+         ;     is no longer necessary.
+         ;(= (disj (set (:executors worker-heartbeat)) Constants/SYSTEM_EXECUTOR_ID)
+         ;   (set (:executors local-assignment))))
+         ;(not (empty? (:executor local-assignment)))
+         )))
 
 (let [dead-workers (atom #{})]
   (defn get-dead-workers []
@@ -402,6 +411,7 @@
                                (:storm-id assignment)
                                port
                                id)
+                (log-message "launch worker :" port)
                 (catch java.io.FileNotFoundException e
                   (log-message "Unable to launch worker due to "
                                (.getMessage e)))

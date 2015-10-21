@@ -236,7 +236,7 @@
      :component-id component-id
      :open-or-prepare-was-called? (atom false)
      :storm-conf storm-conf
-     :receive-queue ((:executor-receive-queue-map worker) executor-id)
+     :receive-queue (@(:executor-receive-queue-map worker) executor-id)
      :storm-id (:storm-id worker)
      :conf (:conf worker)
      :shared-executor-data (HashMap.)
@@ -262,6 +262,7 @@
                                (log-message "Got interrupted excpetion shutting thread down...")
                                ((:suicide-fn <>))))
      :deserializer (KryoTupleDeserializer. storm-conf worker-context)
+     :shutting-down (atom false)
      :sampler (mk-stats-sampler storm-conf)
      :backpressure (atom false)
      :spout-throttling-metrics (if (= executor-type :spout) 
@@ -412,6 +413,7 @@
       (shutdown
         [this]
         (log-message "Shutting down executor " component-id ":" (pr-str executor-id))
+        (reset! (:shutting-down executor-data) true)
         (disruptor/halt-with-interrupt! (:receive-queue executor-data))
         (disruptor/halt-with-interrupt! (:batch-transfer-queue executor-data))
         (doseq [t threads]
@@ -463,12 +465,13 @@
         (fast-list-iter [[task-id msg] tuple-batch]
           (let [^TupleImpl tuple (if (instance? Tuple msg) msg (.deserialize deserializer msg))]
             (when debug? (log-message "Processing received message FOR " task-id " TUPLE: " tuple))
-            (if task-id
-              (tuple-action-fn task-id tuple)
-              ;; null task ids are broadcast tuples
-              (fast-list-iter [task-id task-ids]
+            (if (not @(:shutting-down executor-data))
+              (if task-id
                 (tuple-action-fn task-id tuple)
-                ))
+                ;; null task ids are broadcast tuples
+                (fast-list-iter [task-id task-ids]
+                  (tuple-action-fn task-id tuple)
+                  )))
             ))))))
 
 (defn executor-max-spout-pending [storm-conf num-tasks]

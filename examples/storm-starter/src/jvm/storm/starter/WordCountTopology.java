@@ -85,16 +85,16 @@ public class WordCountTopology {
     builder.setBolt("count", new WordCount(), 12).fieldsGrouping("split", new Fields("word"));
 
     Config conf = new Config();
-    conf.setDebug(true);
+    conf.setDebug(false);
 
 
     if (args != null && args.length > 0) {
-      conf.setNumWorkers(3);
+      conf.setNumWorkers(2);
 
       StormSubmitter.submitTopologyWithProgressBar(args[0], conf, builder.createTopology());
     }
     else {
-      conf.setMaxTaskParallelism(3);
+      conf.setMaxTaskParallelism(2);
 
       LocalCluster cluster = new LocalCluster();
       cluster.submitTopology("word-count", conf, builder.createTopology());
