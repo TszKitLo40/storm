@@ -388,6 +388,8 @@
                             (:data new-assignment)))
              ;@Li: new line
              update-executors (if version-changed? (sync-executor) (fn []))
+
+             ;@Li: my-assignent is a map task->node/port.
              my-assignment (-> assignment
                                :executor->node+port
                                to-task->node+port

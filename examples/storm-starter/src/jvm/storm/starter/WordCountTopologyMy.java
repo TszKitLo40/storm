@@ -27,6 +27,7 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.topology.base.BaseBasicBolt;
+import backtype.storm.topology.base.BaseElasticBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
@@ -57,23 +58,29 @@ public class WordCountTopologyMy {
     }
   }
 
-  public static class WordCount extends BaseBasicBolt {
-    Map<String, Integer> counts = new HashMap<String, Integer>();
+  public static class WordCount extends BaseElasticBolt {
 
     @Override
     public void execute(Tuple tuple, BasicOutputCollector collector) {
       String word = tuple.getString(0);
-      Integer count = counts.get(word);
+      Integer count = (Integer)getValueByKey(word);
       if (count == null)
         count = 0;
       count++;
-      counts.put(word, count);
+      setValueByKey(word,count);
       collector.emit(new Values(word, count));
     }
+
+
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
       declarer.declare(new Fields("word", "count"));
+    }
+
+    @Override
+    public Object getKey(Tuple tuple) {
+      return tuple.getString(0);
     }
   }
 
