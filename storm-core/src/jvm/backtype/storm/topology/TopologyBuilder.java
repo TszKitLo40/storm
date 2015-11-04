@@ -18,6 +18,8 @@
 package backtype.storm.topology;
 
 import backtype.storm.Config;
+import backtype.storm.elasticity.BaseElasticBolt;
+import backtype.storm.elasticity.BaseElasticBoltExecutor;
 import backtype.storm.generated.Bolt;
 import backtype.storm.generated.ComponentCommon;
 import backtype.storm.generated.ComponentObject;
@@ -174,6 +176,14 @@ public class TopologyBuilder {
      */
     public BoltDeclarer setBolt(String id, IBasicBolt bolt, Number parallelism_hint) throws IllegalArgumentException {
         return setBolt(id, new BasicBoltExecutor(bolt), parallelism_hint);
+    }
+
+    public BoltDeclarer setBolt(String id, BaseElasticBolt bolt) throws IllegalArgumentException {
+        return setBolt(id, new BaseElasticBoltExecutor(bolt), null);
+    }
+
+    public BoltDeclarer setBolt(String id, BaseElasticBolt bolt, Number parallelism_hint) throws IllegalArgumentException {
+        return setBolt(id, new BaseElasticBoltExecutor(bolt), parallelism_hint);
     }
 
     /**

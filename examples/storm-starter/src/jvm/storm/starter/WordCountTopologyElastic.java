@@ -23,9 +23,11 @@ import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputBuffer;
 import backtype.storm.task.ShellBolt;
+import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
@@ -36,7 +38,7 @@ import java.util.Map;
 /**
  * This topology demonstrates Storm's stream groupings and multilang capabilities.
  */
-public class WordCountTopologyMy {
+public class WordCountTopologyElastic {
   public static class SplitSentence extends ShellBolt implements IRichBolt {
 
     public SplitSentence() {
@@ -80,14 +82,28 @@ public class WordCountTopologyMy {
     }
   }
 
+  public static class Printer extends BaseBasicBolt {
+
+    @Override
+    public void execute(Tuple input, BasicOutputCollector collector) {
+      System.out.println(input.getString(0)+"--->"+input.getInteger(1));
+    }
+
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+
+    }
+  }
+
   public static void main(String[] args) throws Exception {
 
     TopologyBuilder builder = new TopologyBuilder();
 
-    builder.setSpout("spout", new RandomSentenceSpout(), 5);
+    builder.setSpout("spout", new RandomSentenceSpout(), 1);
 
-    builder.setBolt("split", new SplitSentence(), 8).shuffleGrouping("spout");
-    builder.setBolt("count", new WordCount(), 12).fieldsGrouping("split", new Fields("word"));
+    builder.setBolt("split", new SplitSentence(), 1).shuffleGrouping("spout");
+    builder.setBolt("count", new WordCount(), 1).fieldsGrouping("split", new Fields("word"));
+    builder.setBolt("print", new Printer(),1).globalGrouping("count");
 
     Config conf = new Config();
     conf.setDebug(true);
