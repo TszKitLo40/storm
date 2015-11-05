@@ -25,7 +25,7 @@ public abstract class BaseElasticBolt implements Serializable {
         state.setValueBySey(key, value);
     }
 
-    public abstract void execute(Tuple input, ElasticOutputBuffer collector);
+    public abstract void execute(Tuple input, ElasticOutputCollector collector);
 
     public abstract void declareOutputFields(OutputFieldsDeclarer declarer);
 

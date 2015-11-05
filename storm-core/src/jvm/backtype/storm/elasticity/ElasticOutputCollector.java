@@ -10,11 +10,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 /**
  * Created by Robert on 11/4/15.
  */
-public class ElasticOutputBuffer {
+public class ElasticOutputCollector {
 
     private LinkedBlockingQueue<TupleExecuteResult> _outputQueue;
 
-    public ElasticOutputBuffer(LinkedBlockingQueue<TupleExecuteResult> outputQueue) {
+    public ElasticOutputCollector(LinkedBlockingQueue<TupleExecuteResult> outputQueue) {
         _outputQueue = outputQueue;
     }
 

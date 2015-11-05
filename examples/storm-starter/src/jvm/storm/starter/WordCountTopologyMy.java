@@ -21,7 +21,7 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
-import backtype.storm.elasticity.ElasticOutputBuffer;
+import backtype.storm.elasticity.ElasticOutputCollector;
 import backtype.storm.task.ShellBolt;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -57,7 +57,7 @@ public class WordCountTopologyMy {
   public static class WordCount extends BaseElasticBolt {
 
     @Override
-    public void execute(Tuple tuple, ElasticOutputBuffer collector) {
+    public void execute(Tuple tuple, ElasticOutputCollector collector) {
       String word = tuple.getString(0);
       Integer count = (Integer)getValueByKey(word);
       if (count == null)
