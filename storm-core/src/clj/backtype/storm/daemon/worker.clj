@@ -325,7 +325,8 @@
       (let [old-executor-ids @(:executors worker)
             assignment-info (:data (@assignment-versions storm-id))
             new-executor-ids (set (read-worker-executors assignment-info assignment-id port))]
-        (if (not= new-executor-ids old-executor-ids)
+        (if (= new-executor-ids old-executor-ids)
+          (fn [] )
           (let [_ (log-message "Syncing executors " old-executor-ids " -> " new-executor-ids)
                 executors-to-launch (set/difference new-executor-ids old-executor-ids)
                 _ (log-message "executor-to-launch: " executors-to-launch)
@@ -360,7 +361,7 @@
                                                         (into {})
                                                         (HashMap.)))
             (reset! (:outbound-tasks worker) (worker-outbound-tasks worker))
-            #(swap! executors update-executors-fn)))))))
+            (fn [] (swap! executors update-executors-fn))))))))
 
 (defn mk-refresh-connections [worker executors credentials]
   ;defn mk-refresh-connections [worker]
