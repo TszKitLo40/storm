@@ -26,7 +26,7 @@ public class HashingRouting implements RoutingTable {
      */
     @Override
     public int route(Object key) {
-        return key.hashCode()%(numberOfRoutes + 1) - 1;
+        return Math.abs(key.hashCode())%(numberOfRoutes + 1) - 1;
     }
 
     @Override

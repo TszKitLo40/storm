@@ -34,6 +34,23 @@ public class ElasticTasks {
         }
     }
 
+    public synchronized boolean tryHandleTuple(Tuple tuple, Object key) {
+        int route = _routingTable.route(key);
+        if(route==RoutingTable.origin)
+            return false;
+        else {
+            try {
+                _queues.get(route).put(tuple);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (NullPointerException ne) {
+                ne.printStackTrace();
+                System.err.println("route:"+route+", queue size: "+_queues.size());
+            }
+            return true;
+        }
+    }
+
 
     public boolean handleTuple(Tuple tuple, Object key){
         int route = _routingTable.route(key);
@@ -66,7 +83,7 @@ public class ElasticTasks {
         return ret;
     }
 
-    public void setHashRouting(int numberOfRoutes, BaseElasticBolt bolt, ElasticOutputCollector collector) throws IllegalArgumentException {
+    public synchronized void setHashRouting(int numberOfRoutes, BaseElasticBolt bolt, ElasticOutputCollector collector) throws IllegalArgumentException {
 
         if(numberOfRoutes <= 0)
             throw new IllegalArgumentException("number of routes should be positive");

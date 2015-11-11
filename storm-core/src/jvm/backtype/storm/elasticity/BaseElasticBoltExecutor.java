@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Robert on 11/4/15.
@@ -69,7 +70,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _resultHandleThread = new Thread(new ResultHandler()) ;
         _resultHandleThread.start();
         _elasticTasks = ElasticTasks.createHashRouting(3,_bolt, _outputCollector);
-//        createTest();
+        createTest();
         ElasticTaskHolder holder = ElasticTaskHolder.instance();
         if(holder!=null) {
             int taskId = context.getThisTaskId();
@@ -80,14 +81,15 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     @Override
     public void execute(Tuple input) {
 
-        if(_elasticTasks!=null && _elasticTasks._routingTable!=null) {
-            int route=_elasticTasks._routingTable.route(_bolt.getKey(input));
-            if(route != RoutingTable.origin) {
-                _elasticTasks.handleTuple(input,_bolt.getKey(input));
-                return;
-            }
-        }
-        _bolt.execute(input, _outputCollector);
+//        if(_elasticTasks!=null && _elasticTasks._routingTable!=null) {
+//            int route=_elasticTasks._routingTable.route(_bolt.getKey(input));
+//            if(route != RoutingTable.origin) {
+//                _elasticTasks.handleTuple(input,_bolt.getKey(input));
+//                return;
+//            }
+//        }
+        if(_elasticTasks==null||!_elasticTasks.tryHandleTuple(input,_bolt.getKey(input)))
+            _bolt.execute(input, _outputCollector);
     }
 
     @Override

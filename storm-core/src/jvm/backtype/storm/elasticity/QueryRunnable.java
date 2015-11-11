@@ -49,7 +49,7 @@ public class QueryRunnable implements Runnable {
     public void run() {
         try {
             while (!_terminationRequest || !_pendingTuples.isEmpty()) {
-                Tuple input = _pendingTuples.poll(1, TimeUnit.MILLISECONDS);
+                Tuple input = _pendingTuples.poll(100, TimeUnit.MILLISECONDS);
                 if(input!=null)
                     _bolt.execute(input, _outputCollector);
             }
