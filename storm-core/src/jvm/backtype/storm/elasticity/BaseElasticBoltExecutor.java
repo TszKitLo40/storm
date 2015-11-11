@@ -69,8 +69,12 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _resultHandleThread = new Thread(new ResultHandler()) ;
         _resultHandleThread.start();
         _elasticTasks = ElasticTasks.createHashRouting(3,_bolt, _outputCollector);
-        createTest();
-        System.out.println("testing thread is created!");
+//        createTest();
+        ElasticTaskHolder holder = ElasticTaskHolder.instance();
+        if(holder!=null) {
+            int taskId = context.getThisTaskId();
+            holder.registerElasticBolt(this, taskId);
+        }
     }
 
     @Override
@@ -120,5 +124,6 @@ public class BaseElasticBoltExecutor implements IRichBolt {
                 }
             }
         }).start();
+        System.out.println("testing thread is created!");
     }
 }

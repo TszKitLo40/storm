@@ -22,7 +22,8 @@
   (:require [backtype.storm [disruptor :as disruptor] [cluster :as cluster]])
   (:require [clojure.set :as set])
   (:require [backtype.storm.messaging.loader :as msg-loader])
-  (:import [java.util.concurrent Executors])
+  (:import [java.util.concurrent Executors]
+           [backtype.storm.elasticity ElasticTaskHolder])
   (:import [java.util ArrayList HashMap])
   (:import [backtype.storm.utils Utils TransferDrainer ThriftTopologyUtils WorkerBackpressureThread DisruptorQueue])
   (:import [backtype.storm.messaging TransportFactory])
@@ -229,6 +230,8 @@
                        (exit-process! 20 "Error when processing an event")
                        )
             :timer-name timer-name))
+(defn mk-task-holder [context storm-id port]
+  (ElasticTaskHolder/createAndGetInstance context storm-id port ))
 
 (defn worker-data [conf mq-context storm-id assignment-id port worker-id storm-conf cluster-state storm-cluster-state]
   (let [assignment-versions (atom {})
@@ -245,6 +248,7 @@
         ;                       (into {}))
 
         topology (read-supervisor-topology conf storm-id)
+        _ (log-message "storm-id:" storm-id "port:" port)
         mq-context (if mq-context
                      mq-context
                      (TransportFactory/makeContext storm-conf))]
@@ -304,6 +308,7 @@
       :transfer-backpressure (atom false)                   ;; if the transfer queue is backed-up
       :backpressure-trigger (atom false)                    ;; a trigger for synchronization with executors
       :throttle-on (atom false)                             ;; whether throttle is activated for spouts
+      :task-holder (mk-task-holder mq-context storm-id port)
       )))
 
 (defn- endpoint->string [[node port]]
@@ -325,7 +330,8 @@
       (let [old-executor-ids @(:executors worker)
             assignment-info (:data (@assignment-versions storm-id))
             new-executor-ids (set (read-worker-executors assignment-info assignment-id port))]
-        (if (not= new-executor-ids old-executor-ids)
+        (if (= new-executor-ids old-executor-ids)
+          (fn [])
           (let [_ (log-message "Syncing executors " old-executor-ids " -> " new-executor-ids)
                 executors-to-launch (set/difference new-executor-ids old-executor-ids)
                 _ (log-message "executor-to-launch: " executors-to-launch)
@@ -360,7 +366,7 @@
                                                         (into {})
                                                         (HashMap.)))
             (reset! (:outbound-tasks worker) (worker-outbound-tasks worker))
-            #(swap! executors update-executors-fn)))))))
+            (fn[] (swap! executors update-executors-fn))))))))
 
 (defn mk-refresh-connections [worker executors credentials]
   ;defn mk-refresh-connections [worker]
@@ -443,6 +449,8 @@
              (log-warn "Missing assignment for following tasks: " (pr-str missing-tasks))))
 
          ;; this needs to be done last as executor initialization may require connections
+         (if version-changed? (println "version changed") (println "version is not changed"))
+         (println "the function is " update-executors)
          (update-executors))))))
 
 (defn refresh-storm-active
