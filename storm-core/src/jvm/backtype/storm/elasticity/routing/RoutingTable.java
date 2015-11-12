@@ -1,4 +1,4 @@
-package backtype.storm.elasticity;
+package backtype.storm.elasticity.routing;
 
 import backtype.storm.state.KeyValueState;
 import backtype.storm.topology.base.BaseBasicBolt;

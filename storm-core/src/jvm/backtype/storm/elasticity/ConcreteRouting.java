@@ -1,6 +1,6 @@
 package backtype.storm.elasticity;
 
-import backtype.storm.tuple.Tuple;
+import backtype.storm.elasticity.routing.RoutingTable;
 
 import java.util.*;
 

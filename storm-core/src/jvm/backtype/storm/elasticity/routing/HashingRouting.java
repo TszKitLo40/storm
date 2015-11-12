@@ -1,6 +1,4 @@
-package backtype.storm.elasticity;
-
-import backtype.storm.tuple.Tuple;
+package backtype.storm.elasticity.routing;
 
 import java.util.ArrayList;
 
@@ -17,6 +15,10 @@ public class HashingRouting implements RoutingTable {
      */
     public HashingRouting(int nRoutes) {
         numberOfRoutes = nRoutes;
+    }
+
+    public HashingRouting(HashingRouting hashingRouting) {
+        numberOfRoutes = hashingRouting.getNumberOfRoutes();
     }
 
     /**

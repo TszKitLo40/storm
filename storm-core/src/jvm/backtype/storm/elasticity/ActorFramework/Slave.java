@@ -1,9 +1,6 @@
 package backtype.storm.elasticity.ActorFramework;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
+import akka.actor.*;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
@@ -26,6 +23,8 @@ public class Slave extends UntypedActor {
     Map<String, ActorRef> _nameToActors = new HashMap<>();
 
     String _name;
+
+    ActorSelection _master;
 
     static Slave _instance;
 
@@ -73,14 +72,18 @@ public class Slave extends UntypedActor {
 
     void register(Member member) {
         if(member.hasRole("master")) {
-            getContext().actorSelection(member.address()+"/user/master")
-                    .tell(new HelloMessage(_name),getSelf());
+            _master = getContext().actorSelection(member.address()+"/user/master");
+            _master.tell(new HelloMessage(_name),getSelf());
             System.out.println("I have sent registration message to master.");
         } else if (member.hasRole("slave")) {
             getContext().actorSelection(member.address()+"/user/slave")
                     .tell(new HelloMessage(_name),getSender());
             System.out.format("I have sent registration message to %s\n", member.address());
         }
+    }
+
+    public void sendMessageToMaster(String message) {
+        _master.tell(message, getSelf());
     }
 
     static public Slave createActor(String name, String port) {

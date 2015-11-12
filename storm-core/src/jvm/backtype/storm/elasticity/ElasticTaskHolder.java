@@ -55,4 +55,10 @@ public class ElasticTaskHolder {
         _bolts.put(taskId, bolt);
         LOG.info("A new ElasticTask is registered." + taskId);
     }
+
+    public void sendMessageToMaster(String message) {
+        _slaveActor.sendMessageToMaster(message);
+    }
+    
+
 }

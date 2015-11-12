@@ -1,4 +1,4 @@
-package backtype.storm.elasticity;
+package backtype.storm.elasticity.routing;
 
 import java.util.ArrayList;
 
@@ -8,7 +8,7 @@ import java.util.ArrayList;
 public class VoidRouting implements RoutingTable {
     @Override
     public int route(Object key) {
-        return RoutingTable.origin;
+        return origin;
     }
 
     @Override

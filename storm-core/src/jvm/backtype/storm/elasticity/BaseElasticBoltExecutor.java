@@ -30,7 +30,10 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     private transient Thread _resultHandleThread;
 
+    private transient int _taskId;
+
     private transient ElasticTasks _elasticTasks;
+    private transient ElasticTaskHolder _holder;
 
     public BaseElasticBoltExecutor(BaseElasticBolt bolt) {
         _bolt = bolt;
@@ -69,12 +72,14 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _originalCollector = collector;
         _resultHandleThread = new Thread(new ResultHandler()) ;
         _resultHandleThread.start();
+//        _elasticTasks = new ElasticTasks(_bolt);
+//        _elasticTasks.prepare(_outputCollector);
         _elasticTasks = ElasticTasks.createHashRouting(3,_bolt, _outputCollector);
         createTest();
-        ElasticTaskHolder holder = ElasticTaskHolder.instance();
-        if(holder!=null) {
-            int taskId = context.getThisTaskId();
-            holder.registerElasticBolt(this, taskId);
+        _holder = ElasticTaskHolder.instance();
+        if(_holder!=null) {
+            _taskId = context.getThisTaskId();
+            _holder.registerElasticBolt(this, _taskId);
         }
     }
 
@@ -115,11 +120,12 @@ public class BaseElasticBoltExecutor implements IRichBolt {
                     while(true) {
                         System.out.print("Started!");
                         Thread.sleep(1000);
-                        LOG.info("Before setting! P="+_elasticTasks._routingTable.getNumberOfRoutes());
-                        System.out.format("Before setting! P=%d", _elasticTasks._routingTable.getNumberOfRoutes());
-                        LOG.info("After setting! P="+_elasticTasks._routingTable.getNumberOfRoutes());
-                        _elasticTasks.setHashRouting(new Random().nextInt(10)+1, _bolt, _outputCollector);
-                        System.out.format("After setting! P=%d", _elasticTasks._routingTable.getNumberOfRoutes());
+                        LOG.info("Before setting! P="+_elasticTasks.get_routingTable().getNumberOfRoutes());
+                        System.out.format("Before setting! P=%d", _elasticTasks.get_routingTable().getNumberOfRoutes());
+                        LOG.info("After setting! P="+_elasticTasks.get_routingTable().getNumberOfRoutes());
+                        _elasticTasks.setHashRouting(new Random().nextInt(10)+1);
+                        _holder.sendMessageToMaster("Task["+_taskId+"] changed is parallelism to "+_elasticTasks.get_routingTable().getNumberOfRoutes());
+                        System.out.format("After setting! P=%d", _elasticTasks.get_routingTable().getNumberOfRoutes());
                     }
                 } catch (Exception e) {
 
