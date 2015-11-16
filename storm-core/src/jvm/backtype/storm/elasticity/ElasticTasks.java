@@ -11,6 +11,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import backtype.storm.elasticity.state.*;
 
 /**
  * Created by Robert on 11/3/15.
@@ -55,6 +56,17 @@ public class ElasticTasks implements Serializable {
 //    }
 
     public void prepare(ElasticOutputCollector elasticOutputCollector) {
+        _queues = new HashMap<>();
+        _queryThreads = new HashMap<>();
+        _queryRunnables = new HashMap<>();
+        _elasticOutputCollector = elasticOutputCollector;
+    }
+
+    public void prepare(ElasticOutputCollector elasticOutputCollector, KeyValueState state) {
+        _bolt.setState(state);
+        for(Object key: state.getState().keySet()) {
+            System.out.println("State <"+key+", "+state.getValueByKey(key)+"> has been restored!");
+        }
         _queues = new HashMap<>();
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();

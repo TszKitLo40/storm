@@ -1,10 +1,9 @@
 package backtype.storm.elasticity;
 
-import backtype.storm.state.KeyValueState;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
-
+import backtype.storm.elasticity.state.*;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -13,7 +12,7 @@ import java.util.Map;
  */
 public abstract class BaseElasticBolt implements Serializable {
 
-    private KeyValueState state = new KeyValueState();
+    private transient KeyValueState state;
 
     public abstract Object getKey(Tuple tuple);
 
@@ -29,9 +28,19 @@ public abstract class BaseElasticBolt implements Serializable {
 
     public abstract void declareOutputFields(OutputFieldsDeclarer declarer);
 
-    public void prepare(Map stormConf, TopologyContext context) {};
+    public void prepare(Map stormConf, TopologyContext context) {
+        state = new KeyValueState();
+    };
 
     public void cleanup() {
 
+    }
+
+    public KeyValueState getState() {
+        return state;
+    }
+
+    public void setState(KeyValueState s) {
+        state = s;
     }
 }

@@ -3,6 +3,7 @@ package backtype.storm.elasticity;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.elasticity.state.*;
 
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -32,9 +33,9 @@ public class ElasticRemoteTaskExecutor {
         _bolt = bolt;
     }
 
-    public void prepare() {
+    public void prepare(KeyValueState state ) {
         _outputCollector = new RemoteElasticOutputCollector(_resultQueue, _elasticTasks.get_taskID());
-        _elasticTasks.prepare(_outputCollector);
+        _elasticTasks.prepare(_outputCollector, state);
         _elasticTasks.createAndLaunchElasticTasks();
     }
 

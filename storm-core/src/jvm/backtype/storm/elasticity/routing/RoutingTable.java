@@ -1,9 +1,5 @@
 package backtype.storm.elasticity.routing;
 
-import backtype.storm.state.KeyValueState;
-import backtype.storm.topology.base.BaseBasicBolt;
-import backtype.storm.tuple.Tuple;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 

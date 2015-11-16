@@ -4,6 +4,7 @@ import backtype.storm.elasticity.ActorFramework.Message.ElasticTaskMigrationConf
 import backtype.storm.elasticity.ActorFramework.Message.ElasticTaskMigrationMessage;
 import backtype.storm.elasticity.ActorFramework.Slave;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
+import backtype.storm.elasticity.state.*;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
@@ -106,7 +107,20 @@ public class ElasticTaskHolder {
         ElasticTasks remoteElasticTasks = new ElasticTasks(existingElasticTasks.get_bolt(),existingElasticTasks.get_taskID());
         remoteElasticTasks.set_routingTable(complementHashingRouting);
 
-        return new ElasticTaskMigrationMessage(remoteElasticTasks, _port);
+        KeyValueState existingState = existingElasticTasks.get_bolt().getState();
+
+        KeyValueState state = new KeyValueState();
+
+        for(Object key: existingState.getState().keySet()) {
+            if(complementHashingRouting.route(key)>=0) {
+                state.setValueBySey(key, existingState.getValueByKey(key));
+                System.out.println("State <"+key+","+existingState.getValueByKey(key)+"> will be migrated!");
+            } else {
+                System.out.println("State <"+key+","+existingState.getValueByKey(key)+"> will be ignored!");
+            }
+        }
+
+        return new ElasticTaskMigrationMessage(remoteElasticTasks, _port, state);
     }
 
     public ElasticTaskMigrationConfirmMessage handleGuestElasticTasks(ElasticTaskMigrationMessage message) {
@@ -127,7 +141,7 @@ public class ElasticTaskHolder {
             _originalTaskIdToRemoteTaskExecutor.put(message._elasticTask.get_taskID(), remoteTaskExecutor);
 
             System.out.println("ElasticRemoteTaskExecutor is added to the map!");
-            remoteTaskExecutor.prepare();
+            remoteTaskExecutor.prepare(message.state);
             System.out.println("ElasticRemoteTaskExecutor is prepared!");
             remoteTaskExecutor.createProcessingThread();
             System.out.println("Remote Task Executor is launched");
@@ -135,7 +149,12 @@ public class ElasticTaskHolder {
             //There is already a RemoteTasks for that tasks on this host, so we just need to update the routing table
             //and create processing thread accordingly.
 
+
             ElasticRemoteTaskExecutor remoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(message._elasticTask.get_taskID());
+            remoteTaskExecutor._elasticTasks.get_bolt().getState().update(message.state);
+            for(Object key: message.state.getState().keySet()) {
+                System.out.println("State <"+key+", "+ message.state.getValueByKey(key)+"> has been restored!");
+            }
             remoteTaskExecutor.mergeRoutingTableAndCreateCreateWorkerThreads(message._elasticTask.get_routingTable());
 
 
