@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.ActorFramework.Message.ElasticTaskMigrationMessage;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
@@ -74,11 +75,11 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _resultHandleThread.start();
 //        _elasticTasks = new ElasticTasks(_bolt);
 //        _elasticTasks.prepare(_outputCollector);
-        _elasticTasks = ElasticTasks.createHashRouting(3,_bolt, _outputCollector);
-        createTest();
+        _taskId = context.getThisTaskId();
+        _elasticTasks = ElasticTasks.createHashRouting(3,_bolt,_taskId, _outputCollector);
+//        createTest();
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
-            _taskId = context.getThisTaskId();
             _holder.registerElasticBolt(this, _taskId);
         }
     }
@@ -112,6 +113,14 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         return null;
     }
 
+    public BaseElasticBolt get_bolt() {
+        return _bolt;
+    }
+
+    public ElasticTasks get_elasticTasks() {
+        return _elasticTasks;
+    }
+
     private void createTest() {
         new Thread(new Runnable() {
             @Override
@@ -119,7 +128,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
                 try {
                     while(true) {
                         System.out.print("Started!");
-                        Thread.sleep(1000);
+                        Thread.sleep(10000);
                         LOG.info("Before setting! P="+_elasticTasks.get_routingTable().getNumberOfRoutes());
                         System.out.format("Before setting! P=%d", _elasticTasks.get_routingTable().getNumberOfRoutes());
                         LOG.info("After setting! P="+_elasticTasks.get_routingTable().getNumberOfRoutes());
@@ -133,5 +142,13 @@ public class BaseElasticBoltExecutor implements IRichBolt {
             }
         }).start();
         System.out.println("testing thread is created!");
+    }
+
+    public void insertToResultQueue(TupleExecuteResult result) {
+        try {
+            _resultQueue.put(result);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }

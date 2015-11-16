@@ -12,9 +12,9 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class ElasticOutputCollector {
 
-    private LinkedBlockingQueue<TupleExecuteResult> _outputQueue;
+    protected LinkedBlockingQueue<TupleExecuteResult> _outputQueue;
 
-    public ElasticOutputCollector(LinkedBlockingQueue<TupleExecuteResult> outputQueue) {
+    public ElasticOutputCollector(LinkedBlockingQueue outputQueue) {
         _outputQueue = outputQueue;
     }
 

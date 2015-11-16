@@ -18,6 +18,8 @@
 package backtype.storm.tuple;
 
 import backtype.storm.generated.GlobalStreamId;
+
+import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -32,7 +34,7 @@ import java.util.List;
  *
  * @see <a href="http://storm.apache.org/documentation/Serialization.html">Serialization</a>
  */
-public interface Tuple extends ITuple{
+public interface Tuple extends ITuple, Serializable{
 
     /**
      * Returns the global stream id (component + stream) of this tuple.

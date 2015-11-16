@@ -230,8 +230,8 @@
                        (exit-process! 20 "Error when processing an event")
                        )
             :timer-name timer-name))
-(defn mk-task-holder [context storm-id port]
-  (ElasticTaskHolder/createAndGetInstance context storm-id port ))
+(defn mk-task-holder [storm-conf storm-id port]
+  (ElasticTaskHolder/createAndGetInstance storm-conf storm-id port ))
 
 (defn worker-data [conf mq-context storm-id assignment-id port worker-id storm-conf cluster-state storm-cluster-state]
   (let [assignment-versions (atom {})
@@ -308,7 +308,7 @@
       :transfer-backpressure (atom false)                   ;; if the transfer queue is backed-up
       :backpressure-trigger (atom false)                    ;; a trigger for synchronization with executors
       :throttle-on (atom false)                             ;; whether throttle is activated for spouts
-      :task-holder (mk-task-holder mq-context storm-id port)
+      :task-holder (mk-task-holder storm-conf storm-id port)
       )))
 
 (defn- endpoint->string [[node port]]
@@ -413,9 +413,9 @@
              new-connections (set/difference needed-connections current-connections)
              remove-connections (set/difference current-connections needed-connections)]
          ;(log-message "refresh-connections: " current-connections " -> " needed-connections)
-         (log-message "current-connections:" current-connections)
-         (log-message "new-connection:" new-connections)
-         (log-message "remove-connections" remove-connections)
+;         (log-message "current-connections:" current-connections)
+;         (log-message "new-connection:" new-connections)
+;         (log-message "remove-connections" remove-connections)
          (swap! (:cached-node+port->socket worker)
                 #(HashMap. (merge (into {} %1) %2))
                 (into {}
@@ -431,7 +431,7 @@
                                   ])
 
                              )))
-         (log-message "connected!!!!!!!!!!")
+;         (log-message "connected!!!!!!!!!!")
          (write-locked (:endpoint-socket-lock worker)
                        (reset! (:cached-task->node+port worker)
                                (HashMap. my-assignment)))
@@ -449,8 +449,8 @@
              (log-warn "Missing assignment for following tasks: " (pr-str missing-tasks))))
 
          ;; this needs to be done last as executor initialization may require connections
-         (if version-changed? (println "version changed") (println "version is not changed"))
-         (println "the function is " update-executors)
+;         (if version-changed? (println "version changed") (println "version is not changed"))
+;         (println "the function is " update-executors)
          (update-executors))))))
 
 (defn refresh-storm-active

@@ -99,7 +99,7 @@ public class WordCountTopologyElastic {
 
     TopologyBuilder builder = new TopologyBuilder();
 
-    builder.setSpout("spout", new RandomSentenceSpout(), 1);
+    builder.setSpout("spout", new RandomSentenceSpout(Integer.parseInt(args[1])), 1);
 
     builder.setBolt("split", new SplitSentence(), 1).shuffleGrouping("spout");
     builder.setBolt("count", new WordCount(), 1).fieldsGrouping("split", new Fields("word"));

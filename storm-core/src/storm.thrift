@@ -135,6 +135,10 @@ exception InvalidTopologyException {
   1: required string msg;
 }
 
+exception MigrationException {
+  1: required string msg;
+}
+
 struct TopologySummary {
   1: required string id;
   2: required string name;
@@ -560,4 +564,9 @@ service DistributedRPCInvocations {
   void result(1: string id, 2: string result) throws (1: AuthorizationException aze);
   DRPCRequest fetchRequest(1: string functionName) throws (1: AuthorizationException aze);
   void failRequest(1: string id) throws (1: AuthorizationException aze);  
+}
+
+service MasterService {
+  list<string> getAllHostNames();
+  void migrateTasks(1: string originalHostName, 2: string targetHostName, 3: i32 taskId, 4: i32 routeNo) throws (1: MigrationException me);
 }
