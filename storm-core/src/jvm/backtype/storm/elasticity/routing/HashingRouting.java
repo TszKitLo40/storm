@@ -18,7 +18,7 @@ public class HashingRouting implements RoutingTable {
     }
 
     public HashingRouting(HashingRouting hashingRouting) {
-        numberOfRoutes = hashingRouting.getNumberOfRoutes();
+        numberOfRoutes = hashingRouting.numberOfRoutes;
     }
 
     /**

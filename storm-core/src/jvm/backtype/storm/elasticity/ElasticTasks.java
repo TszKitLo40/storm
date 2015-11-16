@@ -140,16 +140,32 @@ public class ElasticTasks implements Serializable {
     public void createAndLaunchElasticTasks() {
         for(int i : get_routingTable().getRoutes())
         {
-            LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
-            _queues.put(i, inputQueue);
-
-            QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
-            _queryRunnables.put(i, query);
-            Thread newThread = new Thread(query);
-            newThread.start();
-            _queryThreads.put(i, newThread);
-            System.out.println("created elastic worker threads for route "+i);
+//            LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
+//            _queues.put(i, inputQueue);
+//
+//            QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
+//            _queryRunnables.put(i, query);
+//            Thread newThread = new Thread(query);
+//            newThread.start();
+//            _queryThreads.put(i, newThread);
+//            System.out.println("created elastic worker threads for route "+i);
+            createAndLaunchElasticTasksForGivenRoute(i);
         }
+    }
+
+    public void createAndLaunchElasticTasksForGivenRoute(int i) {
+        if(!_routingTable.getRoutes().contains(i)) {
+            System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
+        }
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
+        _queues.put(i, inputQueue);
+
+        QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
+        _queryRunnables.put(i, query);
+        Thread newThread = new Thread(query);
+        newThread.start();
+        _queryThreads.put(i, newThread);
+        System.out.println("created elastic worker threads for route "+i);
     }
 
     /**
@@ -176,14 +192,20 @@ public class ElasticTasks implements Serializable {
         if(!(_routingTable instanceof PartialHashingRouting)) {
             _routingTable = new PartialHashingRouting(routing);
         }
+
+        System.out.println("Original Routing (Before adding exception): getRoutes:" +get_routingTable().getRoutes());
         ((PartialHashingRouting)_routingTable).addExceptionRoutes(list);
 
         for(int i: list) {
             terminateGivenQuery(i);
         }
+        System.out.println("Original Routing (After adding exception): getRoutes:" +get_routingTable().getRoutes());
         PartialHashingRouting ret = ((PartialHashingRouting)_routingTable).createComplementRouting();
+        System.out.println("Complement Routing: getRoutes:" + ret.getRoutes());
         ret.invalidAllRoutes();
         ret.addValidRoutes(list);
+        System.out.println("Complement Routing: getRoutes:" +ret.getRoutes());
+
         return ret;
     }
 
@@ -240,6 +262,7 @@ public class ElasticTasks implements Serializable {
         _queryRunnables.get(route).terminate();
         try {
             _queryThreads.get(route).join();
+            System.out.println("Query thread for "+_taskID+"."+route + "is terminated!");
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

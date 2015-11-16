@@ -87,31 +87,21 @@ public class PartialHashingRouting extends HashingRouting {
         for(int i: routes) {
             if(super.getRoutes().contains(i)) {
                 _validRoutes.add(i);
+            } else {
+                System.out.println("Cannot added routes "+i+", because it is not a valid route");
             }
         }
     }
 
     public static void main(String[] args) {
-        System.out.println("hello world");
-        ArrayList<Integer> exceptions = new ArrayList<>();
-        exceptions.add(1);
-        exceptions.add(15);
-        exceptions.add(4);
 
-        RoutingTable routingTable = new PartialHashingRouting(10);
-        System.out.println("Routes:"+routingTable.getRoutes());
+        HashingRouting routing = new HashingRouting(3);
 
-        ((PartialHashingRouting)routingTable).setExceptionRoutes(exceptions);
+        PartialHashingRouting partialHashingRouting = new PartialHashingRouting(routing);
 
-        System.out.println("100:"+routingTable.route(100));
-        System.out.println("300:"+routingTable.route(300));
-        System.out.println("Routes:"+routingTable.getRoutes());
+        PartialHashingRouting complement = partialHashingRouting.addExceptionRoute(2).createComplementRouting();
 
-        ((PartialHashingRouting)routingTable).addExceptionRoute(3);
-        ((PartialHashingRouting)routingTable).addExceptionRoute(1000);
-        ((PartialHashingRouting)routingTable).addExceptionRoute(7);
-        System.out.println("Routes:"+routingTable.getRoutes());
-
+        System.out.println("Complement:"+complement.getRoutes());
 
 
 

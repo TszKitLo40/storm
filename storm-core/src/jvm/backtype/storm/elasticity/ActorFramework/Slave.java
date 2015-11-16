@@ -79,8 +79,8 @@ public class Slave extends UntypedActor {
             }
 
             ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommandMessage._taskID, taskMigrationCommandMessage._route);
-            System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
             if(migrationMessage!=null) {
+                System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
 
                 _nameToActors.get(taskMigrationCommandMessage._targetHostName).tell(migrationMessage, getSelf());
                 System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommandMessage._targetHostName)+"["+_nameToActors.get(taskMigrationCommandMessage._targetHostName).path()+"]");

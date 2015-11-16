@@ -1,7 +1,10 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.routing.PartialHashingRouting;
+import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.tuple.Tuple;
 
+import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -57,6 +60,8 @@ public class ElasticRemoteTaskExecutor {
 
                     boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
 
+                    System.out.println("@"+hashCode()+"A remote tuple for " + _elasticTasks.get_taskID()+"."+_elasticTasks.get_routingTable().route(_bolt.getKey(input))+"has been processed");
+
                     assert(handled);
 
                 } catch (InterruptedException e) {
@@ -68,6 +73,20 @@ public class ElasticRemoteTaskExecutor {
 
     public LinkedBlockingQueue<Tuple> get_inputQueue() {
         return _inputQueue;
+    }
+
+    public void mergeRoutingTableAndCreateCreateWorkerThreads(RoutingTable routingTable) {
+
+        if(!(routingTable instanceof PartialHashingRouting) || !(_elasticTasks.get_routingTable() instanceof PartialHashingRouting)) {
+            System.out.println("Routing table cannot be merged, when either of the routing table is not an instance of PartialHashingRouting");
+            return;
+        }
+        ArrayList<Integer> newRoutes = routingTable.getRoutes();
+        ((PartialHashingRouting)_elasticTasks.get_routingTable()).addValidRoutes(newRoutes);
+        for(int i:routingTable.getRoutes()) {
+            _elasticTasks.createAndLaunchElasticTasksForGivenRoute(i);
+        }
+        System.out.println("routing table is merged and the worker threads are created!");
     }
 
 }

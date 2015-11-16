@@ -97,6 +97,10 @@ public class ElasticTaskHolder {
         /* set exceptions for existing routing table and get the complement routing table */
         PartialHashingRouting complementHashingRouting = _bolts.get(taskid).get_elasticTasks().addExceptionForHashRouting(route, _sendingQueue);
 
+        if(complementHashingRouting==null) {
+            return null;
+        }
+
         /* construct the instance of ElasticTasks to be executed remotely */
         ElasticTasks existingElasticTasks = _bolts.get(taskid).get_elasticTasks();
         ElasticTasks remoteElasticTasks = new ElasticTasks(existingElasticTasks.get_bolt(),existingElasticTasks.get_taskID());
@@ -108,23 +112,34 @@ public class ElasticTaskHolder {
     public ElasticTaskMigrationConfirmMessage handleGuestElasticTasks(ElasticTaskMigrationMessage message) {
         System.out.println("ElasticTaskMigrationMessage: "+ message.getString());
         System.out.println("#. of routes"+message._elasticTask.get_routingTable().getRoutes().size());
-        _remoteTasks.put(message._elasticTask.get_taskID(), message._elasticTask);
+//        _remoteTasks.put(message._elasticTask.get_taskID(), message._elasticTask);
         IConnection iConnection = _context.connect(message._ip + ":" + message._port + "-" + message._elasticTask.get_taskID(),message._ip,message._port);
         _originalTaskIdToConnection.put(message._elasticTask.get_taskID(),iConnection);
         System.out.println("Connected with orignal Task Holders");
 
-        ElasticRemoteTaskExecutor remoteTaskExecutor = new ElasticRemoteTaskExecutor(message._elasticTask, _sendingQueue, message._elasticTask.get_bolt());
+        if(!_originalTaskIdToRemoteTaskExecutor.containsKey(message._elasticTask.get_taskID())) {
+            //This is the first RemoteTasks assigned to this host.
 
-        System.out.println("ElasticRemoteTaskExecutor is created!");
+            ElasticRemoteTaskExecutor remoteTaskExecutor = new ElasticRemoteTaskExecutor(message._elasticTask, _sendingQueue, message._elasticTask.get_bolt());
 
-        _originalTaskIdToRemoteTaskExecutor.put(message._elasticTask.get_taskID(),remoteTaskExecutor);
+            System.out.println("ElasticRemoteTaskExecutor is created!");
 
-        System.out.println("ElasticRemoteTaskExecutor is added to the map!");
-        remoteTaskExecutor.prepare();
-        System.out.println("ElasticRemoteTaskExecutor is prepared!");
-        remoteTaskExecutor.createProcessingThread();
-        System.out.println("Remote Task Executor is launched");
+            _originalTaskIdToRemoteTaskExecutor.put(message._elasticTask.get_taskID(), remoteTaskExecutor);
 
+            System.out.println("ElasticRemoteTaskExecutor is added to the map!");
+            remoteTaskExecutor.prepare();
+            System.out.println("ElasticRemoteTaskExecutor is prepared!");
+            remoteTaskExecutor.createProcessingThread();
+            System.out.println("Remote Task Executor is launched");
+        } else {
+            //There is already a RemoteTasks for that tasks on this host, so we just need to update the routing table
+            //and create processing thread accordingly.
+
+            ElasticRemoteTaskExecutor remoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(message._elasticTask.get_taskID());
+            remoteTaskExecutor.mergeRoutingTableAndCreateCreateWorkerThreads(message._elasticTask.get_routingTable());
+
+
+        }
 //
 //        System.out.println("I have established IConnection with " + message._ip + ":" + message._port );
 //        byte[] bytes = new byte[5];
@@ -132,7 +147,7 @@ public class ElasticTaskHolder {
 //        iConnection.send(message._elasticTask.get_taskID(), SerializationUtils.serialize("string"));
 //        System.out.println("I have sent something to " + message._ip + ":" + message._port );
 
-        ElasticTaskMigrationConfirmMessage confirmMessage = new ElasticTaskMigrationConfirmMessage(remoteTaskExecutor._elasticTasks.get_taskID(),"",_port, remoteTaskExecutor._elasticTasks.get_routingTable().getRoutes() );
+        ElasticTaskMigrationConfirmMessage confirmMessage = new ElasticTaskMigrationConfirmMessage(message._elasticTask.get_taskID(),"",_port, message._elasticTask.get_routingTable().getRoutes() );
 
 
         return confirmMessage;
@@ -202,14 +217,14 @@ public class ElasticTaskHolder {
 
                         Object object = SerializationUtils.deserialize(message.message());
                         if(object instanceof RemoteTupleExecuteResult) {
-                            System.out.println("A query result is received!");
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
+                            System.out.println("A query result is received for "+result._originalTaskID);
                             _bolts.get(targetTaskId).insertToResultQueue(result);
                             System.out.println("a query result tuple is added into the input queue");
                         } else if (object instanceof RemoteTuple) {
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
-                                System.out.print("A remote tuple is received!");
+                                System.out.format("A remote tuple %d.%d is received!\n",remoteTuple._taskId,remoteTuple._route);
                                 _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId).get_inputQueue().put(remoteTuple._tuple);
                                 System.out.print("A remote tuple is added to the queue!");
 
