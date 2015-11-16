@@ -15,7 +15,7 @@ public class ElasticRemoteTaskExecutor {
 
     ElasticTasks _elasticTasks;
 
-    LinkedBlockingQueue _resultQueue;
+    LinkedBlockingQueue<ITaskMessage> _resultQueue;
 
     LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(1024*1024);
 
@@ -27,6 +27,10 @@ public class ElasticRemoteTaskExecutor {
 
     Runnable _processingRunnable;
 
+    Thread _stateCheckpointingThread;
+
+    Runnable _stateCheckpointRunnable;
+
     public ElasticRemoteTaskExecutor(ElasticTasks tasks, LinkedBlockingQueue resultQueue, BaseElasticBolt bolt ) {
         _elasticTasks = tasks;
         _resultQueue = resultQueue;
@@ -37,6 +41,8 @@ public class ElasticRemoteTaskExecutor {
         _outputCollector = new RemoteElasticOutputCollector(_resultQueue, _elasticTasks.get_taskID());
         _elasticTasks.prepare(_outputCollector, state);
         _elasticTasks.createAndLaunchElasticTasks();
+        createProcessingThread();
+        createStateCheckpointingThread();
     }
 
     public void createProcessingThread() {
@@ -45,7 +51,14 @@ public class ElasticRemoteTaskExecutor {
         _processingThread.start();
 
         System.out.println("processing thread is created!");
+    }
 
+    public void createStateCheckpointingThread() {
+        _stateCheckpointRunnable = new StateCheckoutPointing(10);
+        _stateCheckpointingThread = new Thread(_stateCheckpointRunnable);
+        _stateCheckpointingThread.start();
+
+        System.out.println("state checkpointing thread is created");
     }
 
     class InputTupleRouting implements Runnable {
@@ -66,6 +79,40 @@ public class ElasticRemoteTaskExecutor {
                     assert(handled);
 
                 } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    class StateCheckoutPointing implements Runnable {
+
+        boolean _terminated = false;
+        int _cycleInSecs;
+
+        public StateCheckoutPointing(int cycleInSecs) {
+            _cycleInSecs = cycleInSecs;
+        }
+
+        public StateCheckoutPointing() {
+            this(10);
+        }
+        @Override
+        public void run() {
+            while(!_terminated) {
+                try {
+                    Thread.sleep(1000*_cycleInSecs);
+                    KeyValueState state = _elasticTasks.get_bolt().getState();
+                    for (Object key : state.getState().keySet()) {
+                        if (_elasticTasks.get_routingTable().route(key) < 0) {
+                            state.getState().remove(key);
+                            System.out.println("Key " + key + "will be removed before migration, because it belongs to an invalid route");
+                        }
+                    }
+                    RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(), state);
+                    System.out.println("State ("+state.getState().size()+" element) has been added into the sending queue!");
+                    _resultQueue.put(remoteState);
+                } catch (InterruptedException e ) {
                     e.printStackTrace();
                 }
             }

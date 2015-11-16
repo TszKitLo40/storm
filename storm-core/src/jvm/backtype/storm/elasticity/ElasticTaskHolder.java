@@ -143,7 +143,7 @@ public class ElasticTaskHolder {
             System.out.println("ElasticRemoteTaskExecutor is added to the map!");
             remoteTaskExecutor.prepare(message.state);
             System.out.println("ElasticRemoteTaskExecutor is prepared!");
-            remoteTaskExecutor.createProcessingThread();
+//            remoteTaskExecutor.createProcessingThread();
             System.out.println("Remote Task Executor is launched");
         } else {
             //There is already a RemoteTasks for that tasks on this host, so we just need to update the routing table
@@ -191,7 +191,7 @@ public class ElasticTaskHolder {
                                 _originalTaskIdToConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
                                 System.out.println("RemoteTupleExecutorResult is send back!");
                             } else {
-                                System.err.println("Cannot find the connection for tasks " + remoteTupleExecuteResult._originalTaskID);
+                                System.err.println("RemoteTupleExecuteResult will be ignored, because we cannot find the connection for tasks " + remoteTupleExecuteResult._originalTaskID);
                             }
                         } else if (message instanceof RemoteTuple) {
                             System.out.println("The element is RemoteTuple");
@@ -205,7 +205,17 @@ public class ElasticTaskHolder {
                                 _taskidRouteToConnection.get(key).send(remoteTuple._taskId, bytes);
                                 System.out.println("RemoteTuple is send!");
                             } else {
-                                System.err.println("cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
+                                System.err.println("RemoteTuple will be ignored, because we cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
+                            }
+
+                        } else if (message instanceof RemoteState) {
+                            RemoteState remoteState = (RemoteState) message;
+                            if(_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
+                                byte[] bytes = SerializationUtils.serialize(remoteState);
+                                _originalTaskIdToConnection.get(remoteState._taskId).send(remoteState._taskId,bytes);
+                                System.out.println("RemoteState is sent back!");
+                            } else {
+                                System.err.println("Cannot find the connection for task " + remoteState._state);
                             }
 
                         } else {
@@ -251,6 +261,15 @@ public class ElasticTaskHolder {
                                 e.printStackTrace();
                             }
 
+                        } else if (object instanceof RemoteState) {
+                            System.out.println("Received RemoteState!");
+                            RemoteState remoteState = (RemoteState) object;
+                            if(_bolts.containsKey(remoteState._taskId)) {
+                                _bolts.get(remoteState._taskId).get_elasticTasks().get_bolt().getState().update(remoteState._state);
+                                System.out.println("State ("+remoteState._state.getState().size()+ " elements) has been updated!");
+                            } else {
+                                System.err.println("Cannot update State, because task ["+remoteState._taskId+"] does not exist");
+                            }
                         }
 
                     }
