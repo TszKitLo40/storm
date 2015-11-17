@@ -5,7 +5,9 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import backtype.storm.elasticity.ActorFramework.Message.HelloMessage;
-import backtype.storm.elasticity.ActorFramework.Message.TaskMigrationCommandMessage;
+import backtype.storm.elasticity.ActorFramework.Message.RoutingCreatingCommand;
+import backtype.storm.elasticity.ActorFramework.Message.TaskMigrationCommand;
+import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
 import backtype.storm.generated.MigrationException;
 import com.typesafe.config.Config;
@@ -105,8 +107,18 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new MigrationException("originalHostName " + originalHostName + " does not exists!");
         if(!_nameToActors.containsKey(targetHostName))
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
-        _nameToActors.get(originalHostName).tell(new TaskMigrationCommandMessage(originalHostName,targetHostName,taskId,routeNo),getSelf());
-        System.out.println("[Elastic]: Migration message has been set!");
+        _nameToActors.get(originalHostName).tell(new TaskMigrationCommand(originalHostName,targetHostName,taskId,routeNo),getSelf());
+        System.out.println("[Elastic]: Migration message has been sent!");
+    }
+
+    @Override
+    public void createRouting(String hostName, int taskid, int routeNo, String type) throws TException {
+        if(!_nameToActors.containsKey(hostName)) {
+            throw new HostNotExistException("Host " + hostName + " does not exist!");
+        }
+
+        _nameToActors.get(hostName).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
+        System.out.println("RoutingCreatingCommand has been sent!");
     }
 
 

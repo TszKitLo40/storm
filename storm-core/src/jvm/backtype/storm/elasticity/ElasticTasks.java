@@ -100,6 +100,7 @@ public class ElasticTasks implements Serializable {
         }
         else {
             try {
+                System.out.println("A tuple is route to "+route+ "by the routing table!");
                 _queues.get(route).put(tuple);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -130,8 +131,8 @@ public class ElasticTasks implements Serializable {
     public static ElasticTasks createHashRouting(int numberOfRoutes, BaseElasticBolt bolt, int taskID, ElasticOutputCollector collector) {
         RoutingTable routingTable = new HashingRouting(numberOfRoutes);
         ElasticTasks ret = new ElasticTasks(bolt, taskID);
-        ret.prepare(collector);
         ret._routingTable = routingTable;
+        ret.prepare(collector);
         ret.createAndLaunchElasticTasks();
 ////        ElasticTasks ret = new ElasticTasks(bolt, routingTable, collector);
 //        for(int i : routingTable.getRoutes())
@@ -146,6 +147,12 @@ public class ElasticTasks implements Serializable {
 //            newThread.start();
 //            ret._queryThreads.add(newThread);
 //        }
+        return ret;
+    }
+
+    public static ElasticTasks createVoidRouting(BaseElasticBolt bolt, int taskID,ElasticOutputCollector collector ) {
+        ElasticTasks ret = new ElasticTasks(bolt, taskID);
+        ret.prepare(collector);
         return ret;
     }
 
@@ -168,6 +175,7 @@ public class ElasticTasks implements Serializable {
     public void createAndLaunchElasticTasksForGivenRoute(int i) {
         if(!_routingTable.getRoutes().contains(i)) {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
+            return;
         }
         LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
         _queues.put(i, inputQueue);
@@ -209,6 +217,7 @@ public class ElasticTasks implements Serializable {
         ((PartialHashingRouting)_routingTable).addExceptionRoutes(list);
 
         for(int i: list) {
+            System.out.println("Terminating the thread for route " + i);
             terminateGivenQuery(i);
         }
         System.out.println("Original Routing (After adding exception): getRoutes:" +get_routingTable().getRoutes());

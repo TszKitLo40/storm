@@ -139,6 +139,10 @@ exception MigrationException {
   1: required string msg;
 }
 
+exception HostNotExistException {
+  1: required string msg;
+ }
+
 struct TopologySummary {
   1: required string id;
   2: required string name;
@@ -569,4 +573,5 @@ service DistributedRPCInvocations {
 service MasterService {
   list<string> getAllHostNames();
   void migrateTasks(1: string originalHostName, 2: string targetHostName, 3: i32 taskId, 4: i32 routeNo) throws (1: MigrationException me);
+  void createRouting(1: string hostName, 2: i32 taskid, 3: i32 routeNo, 4: string type) throws (1: HostNotExistException hmee);
 }

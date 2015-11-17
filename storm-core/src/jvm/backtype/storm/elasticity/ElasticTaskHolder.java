@@ -3,6 +3,8 @@ package backtype.storm.elasticity;
 import backtype.storm.elasticity.ActorFramework.Message.ElasticTaskMigrationConfirmMessage;
 import backtype.storm.elasticity.ActorFramework.Message.ElasticTaskMigrationMessage;
 import backtype.storm.elasticity.ActorFramework.Slave;
+import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
+import backtype.storm.elasticity.exceptions.TaskNotExistingException;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.messaging.IConnection;
@@ -282,6 +284,17 @@ public class ElasticTaskHolder {
         IConnection connection = _context.connect("",remoteIp,remotePort);
         _taskidRouteToConnection.put(taksId+"."+route, connection);
         System.out.println("Established connection with remote task holder!");
+    }
+
+    public void handleRoutingCreation(int taskid, int numberOfRouting, String type) throws TaskNotExistingException,RoutingTypeNotSupportedException {
+        if(!_bolts.containsKey(taskid)) {
+            throw new TaskNotExistingException(taskid);
+        }
+        if(!type.equals("hash"))
+            throw new RoutingTypeNotSupportedException("Only support hash routing now!");
+        _bolts.get(taskid).get_elasticTasks().setHashRouting(numberOfRouting);
+        System.out.println("RoutingTable has been created");
+
     }
 
 }

@@ -38,7 +38,9 @@ public class QueryRunnable implements Runnable {
         _terminationRequest = true;
         try {
             while (!interrupted) {
-                Thread.sleep(1);
+//                System.out.println("Waiting for the termination of the worker thread...");
+//                System.out.println(_pendingTuples.size()+" elements remaining in the pending list!");
+                Thread.sleep(100);
             }
         } catch (InterruptedException e) {
 
@@ -56,8 +58,12 @@ public class QueryRunnable implements Runnable {
             interrupted = true;
 
         }catch (InterruptedException e) {
-
+            e.printStackTrace();
+        }catch (Exception ee) {
+            System.err.print("Something is wrong in the query thread!");
+            ee.printStackTrace();
         }
+        System.out.println("A query thread is terminated!");
 
     }
 }

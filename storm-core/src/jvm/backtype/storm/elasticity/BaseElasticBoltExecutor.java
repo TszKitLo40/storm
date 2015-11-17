@@ -76,8 +76,9 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 //        _elasticTasks = new ElasticTasks(_bolt);
 //        _elasticTasks.prepare(_outputCollector);
         _taskId = context.getThisTaskId();
-        _elasticTasks = ElasticTasks.createHashRouting(3,_bolt,_taskId, _outputCollector);
+//        _elasticTasks = ElasticTasks.createHashRouting(3,_bolt,_taskId, _outputCollector);
 //        createTest();
+        _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
             _holder.registerElasticBolt(this, _taskId);

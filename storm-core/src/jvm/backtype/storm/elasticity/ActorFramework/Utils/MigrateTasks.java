@@ -1,4 +1,4 @@
-package backtype.storm.elasticity.ActorFramework;
+package backtype.storm.elasticity.ActorFramework.Utils;
 
 import backtype.storm.generated.MasterService;
 import org.apache.thrift.TException;
@@ -10,7 +10,7 @@ import org.apache.thrift.transport.TTransport;
 /**
  * Created by Robert on 11/13/15.
  */
-public class ThriftClient {
+public class MigrateTasks {
 
     public static void main(String[] args) {
         TTransport transport = new TSocket("127.0.0.1",9090);
