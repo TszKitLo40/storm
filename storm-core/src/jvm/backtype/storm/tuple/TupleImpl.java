@@ -39,7 +39,7 @@ public class TupleImpl extends IndifferentAccessMap implements Seqable, Indexed,
     private int taskId;
     private String streamId;
     private transient GeneralTopologyContext context;
-    private transient MessageId id;
+    private MessageId id;
     private transient IPersistentMap _meta = null;
     
     public TupleImpl(GeneralTopologyContext context, List<Object> values, int taskId, String streamId, MessageId id) {
@@ -351,6 +351,10 @@ public class TupleImpl extends IndifferentAccessMap implements Seqable, Indexed,
             setMap(toMap());
         }
         return _map;
-    }    
+    }
+
+    public void setContext(GeneralTopologyContext context) {
+        this.context = context;
+    }
     
 }

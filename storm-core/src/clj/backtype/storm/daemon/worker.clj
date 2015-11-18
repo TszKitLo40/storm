@@ -646,6 +646,9 @@
                (Subject/doAs subject (reify PrivilegedExceptionAction
                                        (run [this]
                                          (let [worker (worker-data conf shared-mq-context storm-id assignment-id port worker-id storm-conf cluster-state storm-cluster-state)
+
+                                               _ (.setworkerTopologyContext (:task-holder worker) (worker-context worker))
+
                                                heartbeat-fn #(do-heartbeat worker)
 
                                                ;; do this here so that the worker process dies if this fails

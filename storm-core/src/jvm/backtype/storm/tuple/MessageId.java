@@ -21,13 +21,14 @@ import backtype.storm.utils.Utils;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 
-public class MessageId {
+public class MessageId implements Serializable{
     private Map<Long, Long> _anchorsToIds;
     
     public static long generateId(Random rand) {

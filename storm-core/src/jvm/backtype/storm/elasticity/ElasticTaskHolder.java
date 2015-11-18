@@ -14,6 +14,8 @@ import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
 import backtype.storm.messaging.netty.Context;
+import backtype.storm.task.WorkerTopologyContext;
+import backtype.storm.tuple.TupleImpl;
 import org.apache.commons.lang.SerializationException;
 import org.apache.commons.lang.SerializationUtils;
 import org.slf4j.Logger;
@@ -43,6 +45,8 @@ public class ElasticTaskHolder {
     private int _port;
 
     public Slave _slaveActor;
+
+    private WorkerTopologyContext _workerTopologyContext;
 
     Map<Integer, BaseElasticBoltExecutor> _bolts = new HashMap<>();
 
@@ -265,6 +269,7 @@ public class ElasticTaskHolder {
                         Object object = SerializationUtils.deserialize(message.message());
                         if(object instanceof RemoteTupleExecuteResult) {
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
+                            ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
                             System.out.println("A query result is received for "+result._originalTaskID);
                             _bolts.get(targetTaskId).insertToResultQueue(result);
                             System.out.println("a query result tuple is added into the input queue");
@@ -272,6 +277,7 @@ public class ElasticTaskHolder {
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
                                 System.out.format("A remote tuple %d.%d is received!\n",remoteTuple._taskId,remoteTuple._route);
+                                ((TupleImpl)remoteTuple._tuple).setContext(_workerTopologyContext);
                                 _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId).get_inputQueue().put(remoteTuple._tuple);
                                 System.out.print("A remote tuple is added to the queue!");
 
@@ -409,6 +415,14 @@ public class ElasticTaskHolder {
         _originalTaskIdToRemoteTaskExecutor.remove(taskid);
 
         System.out.println("RemoteTaskExecutor " + taskid + " is interrupted!");
+    }
+
+    public void setworkerTopologyContext(WorkerTopologyContext context) {
+        _workerTopologyContext = context;
+    }
+
+    public WorkerTopologyContext getWorkerTopologyContext() {
+        return _workerTopologyContext;
     }
 
 }
