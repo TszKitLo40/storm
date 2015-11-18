@@ -1,5 +1,6 @@
-package backtype.storm.elasticity;
+package backtype.storm.elasticity.message.taksmessage;
 
+import backtype.storm.elasticity.TupleExecuteResult;
 import backtype.storm.tuple.Tuple;
 
 import java.util.List;

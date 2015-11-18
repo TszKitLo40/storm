@@ -62,6 +62,8 @@ public class MasterService {
 
     public void createRouting(String hostName, int taskid, int routeNo, String type) throws HostNotExistException, org.apache.thrift.TException;
 
+    public void withdrawRemoteRoute(String remoteHostName, int taskid, int route) throws TaskNotExistException, HostNotExistException, org.apache.thrift.TException;
+
   }
 
   public interface AsyncIface {
@@ -71,6 +73,8 @@ public class MasterService {
     public void migrateTasks(String originalHostName, String targetHostName, int taskId, int routeNo, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
     public void createRouting(String hostName, int taskid, int routeNo, String type, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
+
+    public void withdrawRemoteRoute(String remoteHostName, int taskid, int route, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException;
 
   }
 
@@ -164,6 +168,34 @@ public class MasterService {
       receiveBase(result, "createRouting");
       if (result.hmee != null) {
         throw result.hmee;
+      }
+      return;
+    }
+
+    public void withdrawRemoteRoute(String remoteHostName, int taskid, int route) throws TaskNotExistException, HostNotExistException, org.apache.thrift.TException
+    {
+      send_withdrawRemoteRoute(remoteHostName, taskid, route);
+      recv_withdrawRemoteRoute();
+    }
+
+    public void send_withdrawRemoteRoute(String remoteHostName, int taskid, int route) throws org.apache.thrift.TException
+    {
+      withdrawRemoteRoute_args args = new withdrawRemoteRoute_args();
+      args.set_remoteHostName(remoteHostName);
+      args.set_taskid(taskid);
+      args.set_route(route);
+      sendBase("withdrawRemoteRoute", args);
+    }
+
+    public void recv_withdrawRemoteRoute() throws TaskNotExistException, HostNotExistException, org.apache.thrift.TException
+    {
+      withdrawRemoteRoute_result result = new withdrawRemoteRoute_result();
+      receiveBase(result, "withdrawRemoteRoute");
+      if (result.e != null) {
+        throw result.e;
+      }
+      if (result.hnee != null) {
+        throw result.hnee;
       }
       return;
     }
@@ -297,6 +329,44 @@ public class MasterService {
       }
     }
 
+    public void withdrawRemoteRoute(String remoteHostName, int taskid, int route, org.apache.thrift.async.AsyncMethodCallback resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      withdrawRemoteRoute_call method_call = new withdrawRemoteRoute_call(remoteHostName, taskid, route, resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class withdrawRemoteRoute_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private String remoteHostName;
+      private int taskid;
+      private int route;
+      public withdrawRemoteRoute_call(String remoteHostName, int taskid, int route, org.apache.thrift.async.AsyncMethodCallback resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.remoteHostName = remoteHostName;
+        this.taskid = taskid;
+        this.route = route;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("withdrawRemoteRoute", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        withdrawRemoteRoute_args args = new withdrawRemoteRoute_args();
+        args.set_remoteHostName(remoteHostName);
+        args.set_taskid(taskid);
+        args.set_route(route);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public void getResult() throws TaskNotExistException, HostNotExistException, org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        (new Client(prot)).recv_withdrawRemoteRoute();
+      }
+    }
+
   }
 
   public static class Processor<I extends Iface> extends org.apache.thrift.TBaseProcessor<I> implements org.apache.thrift.TProcessor {
@@ -313,6 +383,7 @@ public class MasterService {
       processMap.put("getAllHostNames", new getAllHostNames());
       processMap.put("migrateTasks", new migrateTasks());
       processMap.put("createRouting", new createRouting());
+      processMap.put("withdrawRemoteRoute", new withdrawRemoteRoute());
       return processMap;
     }
 
@@ -384,6 +455,32 @@ public class MasterService {
       }
     }
 
+    public static class withdrawRemoteRoute<I extends Iface> extends org.apache.thrift.ProcessFunction<I, withdrawRemoteRoute_args> {
+      public withdrawRemoteRoute() {
+        super("withdrawRemoteRoute");
+      }
+
+      public withdrawRemoteRoute_args getEmptyArgsInstance() {
+        return new withdrawRemoteRoute_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public withdrawRemoteRoute_result getResult(I iface, withdrawRemoteRoute_args args) throws org.apache.thrift.TException {
+        withdrawRemoteRoute_result result = new withdrawRemoteRoute_result();
+        try {
+          iface.withdrawRemoteRoute(args.remoteHostName, args.taskid, args.route);
+        } catch (TaskNotExistException e) {
+          result.e = e;
+        } catch (HostNotExistException hnee) {
+          result.hnee = hnee;
+        }
+        return result;
+      }
+    }
+
   }
 
   public static class AsyncProcessor<I extends AsyncIface> extends org.apache.thrift.TBaseAsyncProcessor<I> {
@@ -400,6 +497,7 @@ public class MasterService {
       processMap.put("getAllHostNames", new getAllHostNames());
       processMap.put("migrateTasks", new migrateTasks());
       processMap.put("createRouting", new createRouting());
+      processMap.put("withdrawRemoteRoute", new withdrawRemoteRoute());
       return processMap;
     }
 
@@ -563,6 +661,67 @@ public class MasterService {
 
       public void start(I iface, createRouting_args args, org.apache.thrift.async.AsyncMethodCallback<Void> resultHandler) throws TException {
         iface.createRouting(args.hostName, args.taskid, args.routeNo, args.type,resultHandler);
+      }
+    }
+
+    public static class withdrawRemoteRoute<I extends AsyncIface> extends org.apache.thrift.AsyncProcessFunction<I, withdrawRemoteRoute_args, Void> {
+      public withdrawRemoteRoute() {
+        super("withdrawRemoteRoute");
+      }
+
+      public withdrawRemoteRoute_args getEmptyArgsInstance() {
+        return new withdrawRemoteRoute_args();
+      }
+
+      public AsyncMethodCallback<Void> getResultHandler(final AsyncFrameBuffer fb, final int seqid) {
+        final org.apache.thrift.AsyncProcessFunction fcall = this;
+        return new AsyncMethodCallback<Void>() { 
+          public void onComplete(Void o) {
+            withdrawRemoteRoute_result result = new withdrawRemoteRoute_result();
+            try {
+              fcall.sendResponse(fb,result, org.apache.thrift.protocol.TMessageType.REPLY,seqid);
+              return;
+            } catch (Exception e) {
+              LOGGER.error("Exception writing to internal frame buffer", e);
+            }
+            fb.close();
+          }
+          public void onError(Exception e) {
+            byte msgType = org.apache.thrift.protocol.TMessageType.REPLY;
+            org.apache.thrift.TBase msg;
+            withdrawRemoteRoute_result result = new withdrawRemoteRoute_result();
+            if (e instanceof TaskNotExistException) {
+                        result.e = (TaskNotExistException) e;
+                        result.set_e_isSet(true);
+                        msg = result;
+            }
+            else             if (e instanceof HostNotExistException) {
+                        result.hnee = (HostNotExistException) e;
+                        result.set_hnee_isSet(true);
+                        msg = result;
+            }
+             else 
+            {
+              msgType = org.apache.thrift.protocol.TMessageType.EXCEPTION;
+              msg = (org.apache.thrift.TBase)new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, e.getMessage());
+            }
+            try {
+              fcall.sendResponse(fb,msg,msgType,seqid);
+              return;
+            } catch (Exception ex) {
+              LOGGER.error("Exception writing to internal frame buffer", ex);
+            }
+            fb.close();
+          }
+        };
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public void start(I iface, withdrawRemoteRoute_args args, org.apache.thrift.async.AsyncMethodCallback<Void> resultHandler) throws TException {
+        iface.withdrawRemoteRoute(args.remoteHostName, args.taskid, args.route,resultHandler);
       }
     }
 
@@ -3259,6 +3418,1030 @@ public class MasterService {
           struct.hmee = new HostNotExistException();
           struct.hmee.read(iprot);
           struct.set_hmee_isSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class withdrawRemoteRoute_args implements org.apache.thrift.TBase<withdrawRemoteRoute_args, withdrawRemoteRoute_args._Fields>, java.io.Serializable, Cloneable, Comparable<withdrawRemoteRoute_args>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("withdrawRemoteRoute_args");
+
+    private static final org.apache.thrift.protocol.TField REMOTE_HOST_NAME_FIELD_DESC = new org.apache.thrift.protocol.TField("remoteHostName", org.apache.thrift.protocol.TType.STRING, (short)1);
+    private static final org.apache.thrift.protocol.TField TASKID_FIELD_DESC = new org.apache.thrift.protocol.TField("taskid", org.apache.thrift.protocol.TType.I32, (short)2);
+    private static final org.apache.thrift.protocol.TField ROUTE_FIELD_DESC = new org.apache.thrift.protocol.TField("route", org.apache.thrift.protocol.TType.I32, (short)3);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new withdrawRemoteRoute_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new withdrawRemoteRoute_argsTupleSchemeFactory());
+    }
+
+    private String remoteHostName; // required
+    private int taskid; // required
+    private int route; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      REMOTE_HOST_NAME((short)1, "remoteHostName"),
+      TASKID((short)2, "taskid"),
+      ROUTE((short)3, "route");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // REMOTE_HOST_NAME
+            return REMOTE_HOST_NAME;
+          case 2: // TASKID
+            return TASKID;
+          case 3: // ROUTE
+            return ROUTE;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    private static final int __TASKID_ISSET_ID = 0;
+    private static final int __ROUTE_ISSET_ID = 1;
+    private byte __isset_bitfield = 0;
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.REMOTE_HOST_NAME, new org.apache.thrift.meta_data.FieldMetaData("remoteHostName", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.TASKID, new org.apache.thrift.meta_data.FieldMetaData("taskid", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
+      tmpMap.put(_Fields.ROUTE, new org.apache.thrift.meta_data.FieldMetaData("route", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I32)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(withdrawRemoteRoute_args.class, metaDataMap);
+    }
+
+    public withdrawRemoteRoute_args() {
+    }
+
+    public withdrawRemoteRoute_args(
+      String remoteHostName,
+      int taskid,
+      int route)
+    {
+      this();
+      this.remoteHostName = remoteHostName;
+      this.taskid = taskid;
+      set_taskid_isSet(true);
+      this.route = route;
+      set_route_isSet(true);
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public withdrawRemoteRoute_args(withdrawRemoteRoute_args other) {
+      __isset_bitfield = other.__isset_bitfield;
+      if (other.is_set_remoteHostName()) {
+        this.remoteHostName = other.remoteHostName;
+      }
+      this.taskid = other.taskid;
+      this.route = other.route;
+    }
+
+    public withdrawRemoteRoute_args deepCopy() {
+      return new withdrawRemoteRoute_args(this);
+    }
+
+    @Override
+    public void clear() {
+      this.remoteHostName = null;
+      set_taskid_isSet(false);
+      this.taskid = 0;
+      set_route_isSet(false);
+      this.route = 0;
+    }
+
+    public String get_remoteHostName() {
+      return this.remoteHostName;
+    }
+
+    public void set_remoteHostName(String remoteHostName) {
+      this.remoteHostName = remoteHostName;
+    }
+
+    public void unset_remoteHostName() {
+      this.remoteHostName = null;
+    }
+
+    /** Returns true if field remoteHostName is set (has been assigned a value) and false otherwise */
+    public boolean is_set_remoteHostName() {
+      return this.remoteHostName != null;
+    }
+
+    public void set_remoteHostName_isSet(boolean value) {
+      if (!value) {
+        this.remoteHostName = null;
+      }
+    }
+
+    public int get_taskid() {
+      return this.taskid;
+    }
+
+    public void set_taskid(int taskid) {
+      this.taskid = taskid;
+      set_taskid_isSet(true);
+    }
+
+    public void unset_taskid() {
+      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __TASKID_ISSET_ID);
+    }
+
+    /** Returns true if field taskid is set (has been assigned a value) and false otherwise */
+    public boolean is_set_taskid() {
+      return EncodingUtils.testBit(__isset_bitfield, __TASKID_ISSET_ID);
+    }
+
+    public void set_taskid_isSet(boolean value) {
+      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __TASKID_ISSET_ID, value);
+    }
+
+    public int get_route() {
+      return this.route;
+    }
+
+    public void set_route(int route) {
+      this.route = route;
+      set_route_isSet(true);
+    }
+
+    public void unset_route() {
+      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __ROUTE_ISSET_ID);
+    }
+
+    /** Returns true if field route is set (has been assigned a value) and false otherwise */
+    public boolean is_set_route() {
+      return EncodingUtils.testBit(__isset_bitfield, __ROUTE_ISSET_ID);
+    }
+
+    public void set_route_isSet(boolean value) {
+      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __ROUTE_ISSET_ID, value);
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case REMOTE_HOST_NAME:
+        if (value == null) {
+          unset_remoteHostName();
+        } else {
+          set_remoteHostName((String)value);
+        }
+        break;
+
+      case TASKID:
+        if (value == null) {
+          unset_taskid();
+        } else {
+          set_taskid((Integer)value);
+        }
+        break;
+
+      case ROUTE:
+        if (value == null) {
+          unset_route();
+        } else {
+          set_route((Integer)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case REMOTE_HOST_NAME:
+        return get_remoteHostName();
+
+      case TASKID:
+        return Integer.valueOf(get_taskid());
+
+      case ROUTE:
+        return Integer.valueOf(get_route());
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case REMOTE_HOST_NAME:
+        return is_set_remoteHostName();
+      case TASKID:
+        return is_set_taskid();
+      case ROUTE:
+        return is_set_route();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof withdrawRemoteRoute_args)
+        return this.equals((withdrawRemoteRoute_args)that);
+      return false;
+    }
+
+    public boolean equals(withdrawRemoteRoute_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_remoteHostName = true && this.is_set_remoteHostName();
+      boolean that_present_remoteHostName = true && that.is_set_remoteHostName();
+      if (this_present_remoteHostName || that_present_remoteHostName) {
+        if (!(this_present_remoteHostName && that_present_remoteHostName))
+          return false;
+        if (!this.remoteHostName.equals(that.remoteHostName))
+          return false;
+      }
+
+      boolean this_present_taskid = true;
+      boolean that_present_taskid = true;
+      if (this_present_taskid || that_present_taskid) {
+        if (!(this_present_taskid && that_present_taskid))
+          return false;
+        if (this.taskid != that.taskid)
+          return false;
+      }
+
+      boolean this_present_route = true;
+      boolean that_present_route = true;
+      if (this_present_route || that_present_route) {
+        if (!(this_present_route && that_present_route))
+          return false;
+        if (this.route != that.route)
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      List<Object> list = new ArrayList<Object>();
+
+      boolean present_remoteHostName = true && (is_set_remoteHostName());
+      list.add(present_remoteHostName);
+      if (present_remoteHostName)
+        list.add(remoteHostName);
+
+      boolean present_taskid = true;
+      list.add(present_taskid);
+      if (present_taskid)
+        list.add(taskid);
+
+      boolean present_route = true;
+      list.add(present_route);
+      if (present_route)
+        list.add(route);
+
+      return list.hashCode();
+    }
+
+    @Override
+    public int compareTo(withdrawRemoteRoute_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(is_set_remoteHostName()).compareTo(other.is_set_remoteHostName());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_remoteHostName()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.remoteHostName, other.remoteHostName);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_taskid()).compareTo(other.is_set_taskid());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_taskid()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.taskid, other.taskid);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_route()).compareTo(other.is_set_route());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_route()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.route, other.route);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("withdrawRemoteRoute_args(");
+      boolean first = true;
+
+      sb.append("remoteHostName:");
+      if (this.remoteHostName == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.remoteHostName);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("taskid:");
+      sb.append(this.taskid);
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("route:");
+      sb.append(this.route);
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        // it doesn't seem like you should have to do this, but java serialization is wacky, and doesn't call the default constructor.
+        __isset_bitfield = 0;
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class withdrawRemoteRoute_argsStandardSchemeFactory implements SchemeFactory {
+      public withdrawRemoteRoute_argsStandardScheme getScheme() {
+        return new withdrawRemoteRoute_argsStandardScheme();
+      }
+    }
+
+    private static class withdrawRemoteRoute_argsStandardScheme extends StandardScheme<withdrawRemoteRoute_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, withdrawRemoteRoute_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // REMOTE_HOST_NAME
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+                struct.remoteHostName = iprot.readString();
+                struct.set_remoteHostName_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // TASKID
+              if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+                struct.taskid = iprot.readI32();
+                struct.set_taskid_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // ROUTE
+              if (schemeField.type == org.apache.thrift.protocol.TType.I32) {
+                struct.route = iprot.readI32();
+                struct.set_route_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, withdrawRemoteRoute_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.remoteHostName != null) {
+          oprot.writeFieldBegin(REMOTE_HOST_NAME_FIELD_DESC);
+          oprot.writeString(struct.remoteHostName);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldBegin(TASKID_FIELD_DESC);
+        oprot.writeI32(struct.taskid);
+        oprot.writeFieldEnd();
+        oprot.writeFieldBegin(ROUTE_FIELD_DESC);
+        oprot.writeI32(struct.route);
+        oprot.writeFieldEnd();
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class withdrawRemoteRoute_argsTupleSchemeFactory implements SchemeFactory {
+      public withdrawRemoteRoute_argsTupleScheme getScheme() {
+        return new withdrawRemoteRoute_argsTupleScheme();
+      }
+    }
+
+    private static class withdrawRemoteRoute_argsTupleScheme extends TupleScheme<withdrawRemoteRoute_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, withdrawRemoteRoute_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.is_set_remoteHostName()) {
+          optionals.set(0);
+        }
+        if (struct.is_set_taskid()) {
+          optionals.set(1);
+        }
+        if (struct.is_set_route()) {
+          optionals.set(2);
+        }
+        oprot.writeBitSet(optionals, 3);
+        if (struct.is_set_remoteHostName()) {
+          oprot.writeString(struct.remoteHostName);
+        }
+        if (struct.is_set_taskid()) {
+          oprot.writeI32(struct.taskid);
+        }
+        if (struct.is_set_route()) {
+          oprot.writeI32(struct.route);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, withdrawRemoteRoute_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(3);
+        if (incoming.get(0)) {
+          struct.remoteHostName = iprot.readString();
+          struct.set_remoteHostName_isSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.taskid = iprot.readI32();
+          struct.set_taskid_isSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.route = iprot.readI32();
+          struct.set_route_isSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class withdrawRemoteRoute_result implements org.apache.thrift.TBase<withdrawRemoteRoute_result, withdrawRemoteRoute_result._Fields>, java.io.Serializable, Cloneable, Comparable<withdrawRemoteRoute_result>   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("withdrawRemoteRoute_result");
+
+    private static final org.apache.thrift.protocol.TField E_FIELD_DESC = new org.apache.thrift.protocol.TField("e", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+    private static final org.apache.thrift.protocol.TField HNEE_FIELD_DESC = new org.apache.thrift.protocol.TField("hnee", org.apache.thrift.protocol.TType.STRUCT, (short)2);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new withdrawRemoteRoute_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new withdrawRemoteRoute_resultTupleSchemeFactory());
+    }
+
+    private TaskNotExistException e; // required
+    private HostNotExistException hnee; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      E((short)1, "e"),
+      HNEE((short)2, "hnee");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // E
+            return E;
+          case 2: // HNEE
+            return HNEE;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.E, new org.apache.thrift.meta_data.FieldMetaData("e", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.HNEE, new org.apache.thrift.meta_data.FieldMetaData("hnee", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(withdrawRemoteRoute_result.class, metaDataMap);
+    }
+
+    public withdrawRemoteRoute_result() {
+    }
+
+    public withdrawRemoteRoute_result(
+      TaskNotExistException e,
+      HostNotExistException hnee)
+    {
+      this();
+      this.e = e;
+      this.hnee = hnee;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public withdrawRemoteRoute_result(withdrawRemoteRoute_result other) {
+      if (other.is_set_e()) {
+        this.e = new TaskNotExistException(other.e);
+      }
+      if (other.is_set_hnee()) {
+        this.hnee = new HostNotExistException(other.hnee);
+      }
+    }
+
+    public withdrawRemoteRoute_result deepCopy() {
+      return new withdrawRemoteRoute_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.e = null;
+      this.hnee = null;
+    }
+
+    public TaskNotExistException get_e() {
+      return this.e;
+    }
+
+    public void set_e(TaskNotExistException e) {
+      this.e = e;
+    }
+
+    public void unset_e() {
+      this.e = null;
+    }
+
+    /** Returns true if field e is set (has been assigned a value) and false otherwise */
+    public boolean is_set_e() {
+      return this.e != null;
+    }
+
+    public void set_e_isSet(boolean value) {
+      if (!value) {
+        this.e = null;
+      }
+    }
+
+    public HostNotExistException get_hnee() {
+      return this.hnee;
+    }
+
+    public void set_hnee(HostNotExistException hnee) {
+      this.hnee = hnee;
+    }
+
+    public void unset_hnee() {
+      this.hnee = null;
+    }
+
+    /** Returns true if field hnee is set (has been assigned a value) and false otherwise */
+    public boolean is_set_hnee() {
+      return this.hnee != null;
+    }
+
+    public void set_hnee_isSet(boolean value) {
+      if (!value) {
+        this.hnee = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case E:
+        if (value == null) {
+          unset_e();
+        } else {
+          set_e((TaskNotExistException)value);
+        }
+        break;
+
+      case HNEE:
+        if (value == null) {
+          unset_hnee();
+        } else {
+          set_hnee((HostNotExistException)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case E:
+        return get_e();
+
+      case HNEE:
+        return get_hnee();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case E:
+        return is_set_e();
+      case HNEE:
+        return is_set_hnee();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof withdrawRemoteRoute_result)
+        return this.equals((withdrawRemoteRoute_result)that);
+      return false;
+    }
+
+    public boolean equals(withdrawRemoteRoute_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_e = true && this.is_set_e();
+      boolean that_present_e = true && that.is_set_e();
+      if (this_present_e || that_present_e) {
+        if (!(this_present_e && that_present_e))
+          return false;
+        if (!this.e.equals(that.e))
+          return false;
+      }
+
+      boolean this_present_hnee = true && this.is_set_hnee();
+      boolean that_present_hnee = true && that.is_set_hnee();
+      if (this_present_hnee || that_present_hnee) {
+        if (!(this_present_hnee && that_present_hnee))
+          return false;
+        if (!this.hnee.equals(that.hnee))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      List<Object> list = new ArrayList<Object>();
+
+      boolean present_e = true && (is_set_e());
+      list.add(present_e);
+      if (present_e)
+        list.add(e);
+
+      boolean present_hnee = true && (is_set_hnee());
+      list.add(present_hnee);
+      if (present_hnee)
+        list.add(hnee);
+
+      return list.hashCode();
+    }
+
+    @Override
+    public int compareTo(withdrawRemoteRoute_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+
+      lastComparison = Boolean.valueOf(is_set_e()).compareTo(other.is_set_e());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_e()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.e, other.e);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(is_set_hnee()).compareTo(other.is_set_hnee());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (is_set_hnee()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.hnee, other.hnee);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("withdrawRemoteRoute_result(");
+      boolean first = true;
+
+      sb.append("e:");
+      if (this.e == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.e);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("hnee:");
+      if (this.hnee == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.hnee);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class withdrawRemoteRoute_resultStandardSchemeFactory implements SchemeFactory {
+      public withdrawRemoteRoute_resultStandardScheme getScheme() {
+        return new withdrawRemoteRoute_resultStandardScheme();
+      }
+    }
+
+    private static class withdrawRemoteRoute_resultStandardScheme extends StandardScheme<withdrawRemoteRoute_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, withdrawRemoteRoute_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // E
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.e = new TaskNotExistException();
+                struct.e.read(iprot);
+                struct.set_e_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // HNEE
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.hnee = new HostNotExistException();
+                struct.hnee.read(iprot);
+                struct.set_hnee_isSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, withdrawRemoteRoute_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.e != null) {
+          oprot.writeFieldBegin(E_FIELD_DESC);
+          struct.e.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.hnee != null) {
+          oprot.writeFieldBegin(HNEE_FIELD_DESC);
+          struct.hnee.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class withdrawRemoteRoute_resultTupleSchemeFactory implements SchemeFactory {
+      public withdrawRemoteRoute_resultTupleScheme getScheme() {
+        return new withdrawRemoteRoute_resultTupleScheme();
+      }
+    }
+
+    private static class withdrawRemoteRoute_resultTupleScheme extends TupleScheme<withdrawRemoteRoute_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, withdrawRemoteRoute_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.is_set_e()) {
+          optionals.set(0);
+        }
+        if (struct.is_set_hnee()) {
+          optionals.set(1);
+        }
+        oprot.writeBitSet(optionals, 2);
+        if (struct.is_set_e()) {
+          struct.e.write(oprot);
+        }
+        if (struct.is_set_hnee()) {
+          struct.hnee.write(oprot);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, withdrawRemoteRoute_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(2);
+        if (incoming.get(0)) {
+          struct.e = new TaskNotExistException();
+          struct.e.read(iprot);
+          struct.set_e_isSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.hnee = new HostNotExistException();
+          struct.hnee.read(iprot);
+          struct.set_hnee_isSet(true);
         }
       }
     }

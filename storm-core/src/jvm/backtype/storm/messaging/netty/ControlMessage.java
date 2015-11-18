@@ -55,7 +55,7 @@ enum ControlMessage {
     }
     
     /**
-     * encode the current Control Message into a channel buffer
+     * encode the current Control message into a channel buffer
      * @throws Exception
      */
     ChannelBuffer buffer() throws IOException {

@@ -1,4 +1,4 @@
-package backtype.storm.elasticity.ActorFramework.Message;
+package backtype.storm.elasticity.message.actormessage;
 
 /**
  * Created by Robert on 11/17/15.

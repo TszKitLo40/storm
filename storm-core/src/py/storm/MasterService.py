@@ -59,6 +59,15 @@ class Iface:
     """
     pass
 
+  def withdrawRemoteRoute(self, remoteHostName, taskid, route):
+    """
+    Parameters:
+     - remoteHostName
+     - taskid
+     - route
+    """
+    pass
+
 
 class Client(Iface):
   def __init__(self, iprot, oprot=None):
@@ -167,6 +176,43 @@ class Client(Iface):
       raise result.hmee
     return
 
+  def withdrawRemoteRoute(self, remoteHostName, taskid, route):
+    """
+    Parameters:
+     - remoteHostName
+     - taskid
+     - route
+    """
+    self.send_withdrawRemoteRoute(remoteHostName, taskid, route)
+    self.recv_withdrawRemoteRoute()
+
+  def send_withdrawRemoteRoute(self, remoteHostName, taskid, route):
+    self._oprot.writeMessageBegin('withdrawRemoteRoute', TMessageType.CALL, self._seqid)
+    args = withdrawRemoteRoute_args()
+    args.remoteHostName = remoteHostName
+    args.taskid = taskid
+    args.route = route
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_withdrawRemoteRoute(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = withdrawRemoteRoute_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    if result.e is not None:
+      raise result.e
+    if result.hnee is not None:
+      raise result.hnee
+    return
+
 
 class Processor(Iface, TProcessor):
   def __init__(self, handler):
@@ -175,6 +221,7 @@ class Processor(Iface, TProcessor):
     self._processMap["getAllHostNames"] = Processor.process_getAllHostNames
     self._processMap["migrateTasks"] = Processor.process_migrateTasks
     self._processMap["createRouting"] = Processor.process_createRouting
+    self._processMap["withdrawRemoteRoute"] = Processor.process_withdrawRemoteRoute
 
   def process(self, iprot, oprot):
     (name, type, seqid) = iprot.readMessageBegin()
@@ -226,6 +273,22 @@ class Processor(Iface, TProcessor):
     except HostNotExistException, hmee:
       result.hmee = hmee
     oprot.writeMessageBegin("createRouting", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_withdrawRemoteRoute(self, seqid, iprot, oprot):
+    args = withdrawRemoteRoute_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = withdrawRemoteRoute_result()
+    try:
+      self._handler.withdrawRemoteRoute(args.remoteHostName, args.taskid, args.route)
+    except TaskNotExistException, e:
+      result.e = e
+    except HostNotExistException, hnee:
+      result.hnee = hnee
+    oprot.writeMessageBegin("withdrawRemoteRoute", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -678,6 +741,177 @@ class createRouting_result:
   def __hash__(self):
     value = 17
     value = (value * 31) ^ hash(self.hmee)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class withdrawRemoteRoute_args:
+  """
+  Attributes:
+   - remoteHostName
+   - taskid
+   - route
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.STRING, 'remoteHostName', None, None, ), # 1
+    (2, TType.I32, 'taskid', None, None, ), # 2
+    (3, TType.I32, 'route', None, None, ), # 3
+  )
+
+  def __init__(self, remoteHostName=None, taskid=None, route=None,):
+    self.remoteHostName = remoteHostName
+    self.taskid = taskid
+    self.route = route
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.STRING:
+          self.remoteHostName = iprot.readString().decode('utf-8')
+        else:
+          iprot.skip(ftype)
+      elif fid == 2:
+        if ftype == TType.I32:
+          self.taskid = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      elif fid == 3:
+        if ftype == TType.I32:
+          self.route = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('withdrawRemoteRoute_args')
+    if self.remoteHostName is not None:
+      oprot.writeFieldBegin('remoteHostName', TType.STRING, 1)
+      oprot.writeString(self.remoteHostName.encode('utf-8'))
+      oprot.writeFieldEnd()
+    if self.taskid is not None:
+      oprot.writeFieldBegin('taskid', TType.I32, 2)
+      oprot.writeI32(self.taskid)
+      oprot.writeFieldEnd()
+    if self.route is not None:
+      oprot.writeFieldBegin('route', TType.I32, 3)
+      oprot.writeI32(self.route)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.remoteHostName)
+    value = (value * 31) ^ hash(self.taskid)
+    value = (value * 31) ^ hash(self.route)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class withdrawRemoteRoute_result:
+  """
+  Attributes:
+   - e
+   - hnee
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.STRUCT, 'e', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
+    (2, TType.STRUCT, 'hnee', (HostNotExistException, HostNotExistException.thrift_spec), None, ), # 2
+  )
+
+  def __init__(self, e=None, hnee=None,):
+    self.e = e
+    self.hnee = hnee
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.STRUCT:
+          self.e = TaskNotExistException()
+          self.e.read(iprot)
+        else:
+          iprot.skip(ftype)
+      elif fid == 2:
+        if ftype == TType.STRUCT:
+          self.hnee = HostNotExistException()
+          self.hnee.read(iprot)
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('withdrawRemoteRoute_result')
+    if self.e is not None:
+      oprot.writeFieldBegin('e', TType.STRUCT, 1)
+      self.e.write(oprot)
+      oprot.writeFieldEnd()
+    if self.hnee is not None:
+      oprot.writeFieldBegin('hnee', TType.STRUCT, 2)
+      self.hnee.write(oprot)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.e)
+    value = (value * 31) ^ hash(self.hnee)
     return value
 
   def __repr__(self):

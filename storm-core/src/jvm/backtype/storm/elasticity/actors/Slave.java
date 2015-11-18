@@ -1,12 +1,12 @@
-package backtype.storm.elasticity.ActorFramework;
+package backtype.storm.elasticity.actors;
 
 import akka.actor.*;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
-import backtype.storm.elasticity.ActorFramework.Message.*;
 import backtype.storm.elasticity.ElasticTaskHolder;
+import backtype.storm.elasticity.message.actormessage.*;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -52,20 +52,20 @@ public class Slave extends UntypedActor {
 
     @Override
     public void onReceive(Object message) throws Exception {
-        if(message instanceof ClusterEvent.CurrentClusterState) {
-            ClusterEvent.CurrentClusterState state = (ClusterEvent.CurrentClusterState)message;
-            for(Member member: state.getMembers()) {
-                if(member.status().equals(MemberStatus.up())) {
+        if (message instanceof ClusterEvent.CurrentClusterState) {
+            ClusterEvent.CurrentClusterState state = (ClusterEvent.CurrentClusterState) message;
+            for (Member member : state.getMembers()) {
+                if (member.status().equals(MemberStatus.up())) {
                     register(member);
                 }
             }
         } else if (message instanceof ClusterEvent.MemberUp) {
-            ClusterEvent.MemberUp memberUp = (ClusterEvent.MemberUp)message;
+            ClusterEvent.MemberUp memberUp = (ClusterEvent.MemberUp) message;
             register(memberUp.member());
         } else if (message instanceof HelloMessage) {
-            HelloMessage helloMessage = (HelloMessage)message;
-            _nameToActors.put(helloMessage.getName(),getSender());
-            System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() +"["+getSender()+"]");
+            HelloMessage helloMessage = (HelloMessage) message;
+            _nameToActors.put(helloMessage.getName(), getSender());
+            System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
         } else if (message instanceof TaskMigrationCommand) {
             System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
             TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
@@ -87,7 +87,7 @@ public class Slave extends UntypedActor {
 //            }
 
         } else if (message instanceof ElasticTaskMigrationMessage) {
-            handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage)message);
+            handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
 //            System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
 //            _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
 //            ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo((ElasticTaskMigrationMessage)message,getSender().path().toString()));
@@ -101,7 +101,7 @@ public class Slave extends UntypedActor {
 //                _master.tell("Failed to deploy elastic tasks", null);
 //            }
         } else if (message instanceof ElasticTaskMigrationConfirmMessage) {
-            ElasticTaskMigrationConfirmMessage confirmMessage = (ElasticTaskMigrationConfirmMessage)message;
+            ElasticTaskMigrationConfirmMessage confirmMessage = (ElasticTaskMigrationConfirmMessage) message;
             handleElasticTaskMigrationConfirmMessage(confirmMessage);
 //            confirmMessage._ip=extractIpFromActorAddress(getSender().path().toString());
 //
@@ -119,7 +119,10 @@ public class Slave extends UntypedActor {
             RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
             handleRoutingCreatingCommand(creatingCommand);
 
-        }else if (message instanceof String) {
+        } else if (message instanceof RemoteRouteWithdrawCommand) {
+            RemoteRouteWithdrawCommand withdrawCommand = (RemoteRouteWithdrawCommand) message;
+            handleWithdrawRemoteElasticTasks(withdrawCommand);
+        } else if (message instanceof String) {
             System.out.println("I received message "+ message);
         }
 
@@ -160,6 +163,10 @@ public class Slave extends UntypedActor {
 
     public void sendMessageToMaster(String message) {
         _master.tell(message, getSelf());
+    }
+
+    public void registerOriginalElasticTaskToMaster(int taskId) {
+        _master.tell(new ElasticTaskRegistrationMessage(taskId, _name),getSelf());
     }
 
     private void handleTaskMigrationCommandMessage(TaskMigrationCommand taskMigrationCommand) {
@@ -211,7 +218,15 @@ public class Slave extends UntypedActor {
 
     private void handleRoutingCreatingCommand(RoutingCreatingCommand creatingCommand) {
         try {
-            ElasticTaskHolder.instance().handleRoutingCreation(creatingCommand._task, creatingCommand._numberOfRoutes, creatingCommand._routingType);
+            ElasticTaskHolder.instance().createRouting(creatingCommand._task, creatingCommand._numberOfRoutes, creatingCommand._routingType);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
+    private void handleWithdrawRemoteElasticTasks(RemoteRouteWithdrawCommand withdrawCommand) {
+        try {
+            ElasticTaskHolder.instance().withdrawRemoteElasticTasks(withdrawCommand.host, withdrawCommand.taskId, withdrawCommand.route);
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }

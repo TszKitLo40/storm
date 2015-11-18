@@ -141,7 +141,11 @@ exception MigrationException {
 
 exception HostNotExistException {
   1: required string msg;
- }
+}
+
+exception TaskNotExistException{
+  1: required string msg;
+}
 
 struct TopologySummary {
   1: required string id;
@@ -574,4 +578,5 @@ service MasterService {
   list<string> getAllHostNames();
   void migrateTasks(1: string originalHostName, 2: string targetHostName, 3: i32 taskId, 4: i32 routeNo) throws (1: MigrationException me);
   void createRouting(1: string hostName, 2: i32 taskid, 3: i32 routeNo, 4: string type) throws (1: HostNotExistException hmee);
+  void withdrawRemoteRoute(1: string remoteHostName, 2: i32 taskid, 3: i32 route) throws (1: TaskNotExistException e, 2: HostNotExistException hnee);
 }

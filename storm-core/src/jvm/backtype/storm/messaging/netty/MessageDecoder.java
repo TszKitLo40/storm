@@ -99,7 +99,7 @@ public class MessageDecoder extends FrameDecoder {
                 return new SaslMessageToken(payload.array());
             }
 
-            // case 3: task Message
+            // case 3: task message
             short task = code;
 
             // Make sure that we have received at least an integer (length)

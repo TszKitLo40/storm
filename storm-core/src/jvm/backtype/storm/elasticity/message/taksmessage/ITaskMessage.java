@@ -1,4 +1,4 @@
-package backtype.storm.elasticity;
+package backtype.storm.elasticity.message.taksmessage;
 
 import java.io.Serializable;
 

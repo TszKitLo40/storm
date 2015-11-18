@@ -82,7 +82,7 @@ import org.json.simple.JSONValue;
  *
  * LocalCluster cluster = new LocalCluster();
  * cluster.submitTopology("mytopology", conf, builder.createTopology());
- * Utils.sleep(10000);
+ * utils.sleep(10000);
  * cluster.shutdown();
  * </pre>
  *

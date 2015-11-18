@@ -1,6 +1,6 @@
 package backtype.storm.elasticity;
 
-import backtype.storm.elasticity.ActorFramework.Master;
+import backtype.storm.elasticity.actors.Master;
 
 /**
  * Created by Robert on 11/11/15.

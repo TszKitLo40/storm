@@ -1,11 +1,15 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.exceptions.InvalidRouteException;
+import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
+import backtype.storm.elasticity.exceptions.TaskNotExistingException;
+import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
+import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
 import backtype.storm.elasticity.routing.HashingRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.routing.VoidRouting;
 import backtype.storm.tuple.Tuple;
-import org.apache.logging.log4j.core.appender.routing.Route;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -168,8 +172,30 @@ public class ElasticTasks implements Serializable {
 //            newThread.start();
 //            _queryThreads.put(i, newThread);
 //            System.out.println("created elastic worker threads for route "+i);
-            createAndLaunchElasticTasksForGivenRoute(i);
+//            createAndLaunchElasticTasksForGivenRoute(i);
+            createElasticTasksForGivenRoute(i);
+            launchElasticTasksForGivenRoute(i);
         }
+
+    }
+
+    public void createElasticTasksForGivenRoute(int i) {
+        if(!_routingTable.getRoutes().contains(i)) {
+            System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
+            return;
+        }
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
+        _queues.put(i, inputQueue);
+    }
+
+    public void launchElasticTasksForGivenRoute(int i) {
+        LinkedBlockingQueue<Tuple> inputQueue = _queues.get(i);
+        QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
+        _queryRunnables.put(i, query);
+        Thread newThread = new Thread(query);
+        newThread.start();
+        _queryThreads.put(i, newThread);
+        System.out.println("created elastic worker threads for route "+i);
     }
 
     public void createAndLaunchElasticTasksForGivenRoute(int i) {
@@ -236,6 +262,26 @@ public class ElasticTasks implements Serializable {
         return addExceptionForHashRouting(list, exceptedRoutingQueue);
     }
 
+    /**
+     * add a valid route to the routing table, but does not create the processing thread.
+     * In fact, the processing thread can only be created when the remote state is merged with
+     * local state, which should be handled by the callee.
+     * @param route route to be added
+     */
+    public synchronized void addValidRoute(int route) throws RoutingTypeNotSupportedException {
+        if(!(_routingTable instanceof PartialHashingRouting)) {
+            System.err.println("can only add valid route for PartialHashRouting");
+            throw new RoutingTypeNotSupportedException("can only add valid route for PartialHashRouting!");
+        }
+
+        PartialHashingRouting partialHashingRouting = (PartialHashingRouting) _routingTable;
+
+        partialHashingRouting.addValidRoute(route);
+
+        createElasticTasksForGivenRoute(route);
+
+    }
+
     public synchronized void setHashRouting(int numberOfRoutes) throws IllegalArgumentException {
 
         if(numberOfRoutes <= 0)
@@ -279,7 +325,7 @@ public class ElasticTasks implements Serializable {
     }
 
 
-    private void terminateGivenQuery(int route) {
+    public void terminateGivenQuery(int route) {
         _queryRunnables.get(route).terminate();
         try {
             _queryThreads.get(route).join();
@@ -287,6 +333,11 @@ public class ElasticTasks implements Serializable {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+
+        _queryRunnables.remove(route);
+        _queryThreads.remove(route);
+        _queues.remove(route);
+
     }
 
     private void terminateQueries() {
@@ -304,6 +355,21 @@ public class ElasticTasks implements Serializable {
         _queryThreads.clear();
         _queues.clear();
     }
+//
+//    public void terminateAGivenQuery(int route) throws InvalidRouteException {
+//        if(!_queryThreads.containsKey(route)&&!_queryRunnables.containsKey(route)||!_queues.containsKey(route)) {
+//            throw new InvalidRouteException("ElasticTasks does not have route " + route + ".");
+//        }
+//        _queryRunnables.get(route).terminate();
+//        try {
+//            _queryThreads.get(route).join();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//        _queryRunnables.remove(route);
+//        _queryThreads.remove(route);
+//        _queues.remove(route);
+//    }
 
 
 

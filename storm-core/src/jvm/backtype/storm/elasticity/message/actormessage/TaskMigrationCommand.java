@@ -1,6 +1,4 @@
-package backtype.storm.elasticity.ActorFramework.Message;
-
-import backtype.storm.elasticity.ElasticTasks;
+package backtype.storm.elasticity.message.actormessage;
 
 /**
  * Created by Robert on 11/12/15.

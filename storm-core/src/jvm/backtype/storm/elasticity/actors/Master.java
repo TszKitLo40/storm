@@ -1,15 +1,14 @@
-package backtype.storm.elasticity.ActorFramework;
+package backtype.storm.elasticity.actors;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
-import backtype.storm.elasticity.ActorFramework.Message.HelloMessage;
-import backtype.storm.elasticity.ActorFramework.Message.RoutingCreatingCommand;
-import backtype.storm.elasticity.ActorFramework.Message.TaskMigrationCommand;
+import backtype.storm.elasticity.message.actormessage.*;
 import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
 import backtype.storm.generated.MigrationException;
+import backtype.storm.generated.TaskNotExistException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import org.apache.thrift.TException;
@@ -29,6 +28,8 @@ import java.util.Map;
 public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<String, ActorRef> _nameToActors = new HashMap<>();
+
+    private Map<Integer, String> _taskidToActorName = new HashMap<>();
 
     static Master _instance;
 
@@ -66,11 +67,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(message instanceof HelloMessage) {
             HelloMessage helloMessage = (HelloMessage)message;
             if(_nameToActors.containsKey(helloMessage.getName()))
-                System.out.println(helloMessage.getName()+" is registered again!");
+                System.out.println(helloMessage.getName()+" is registered again! ");
             _nameToActors.put(helloMessage.getName(), getSender());
             System.out.format("[%s] is registered!\n",helloMessage.getName());
+        } else if (message instanceof ElasticTaskRegistrationMessage) {
+            ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
+            _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
+            System.out.println("Task " + registrationMessage.taskId + " is launched on " + registrationMessage.hostName +".");
+
         } else if (message instanceof String) {
-            System.out.println("Message received: " + message);
+            System.out.println("message received: " + message);
         }
     }
 
@@ -119,6 +125,21 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
         _nameToActors.get(hostName).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
         System.out.println("RoutingCreatingCommand has been sent!");
+    }
+
+    @Override
+    public void withdrawRemoteRoute(String remoteHostName, int taskid, int route) throws TException {
+        if(!_taskidToActorName.containsKey(taskid)) {
+            throw new TaskNotExistException("task "+ taskid + " does not exist!");
+        }
+        String hostName = _taskidToActorName.get(taskid);
+        if(!_nameToActors.containsKey(hostName)) {
+            throw new HostNotExistException("host " + hostName + " does not exist!");
+        }
+        RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(remoteHostName, taskid, route);
+        _nameToActors.get(hostName).tell(command, getSelf());
+        System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
+
     }
 
 

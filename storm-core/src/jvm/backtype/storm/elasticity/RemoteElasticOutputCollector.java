@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.message.taksmessage.RemoteTupleExecuteResult;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.Utils;
 

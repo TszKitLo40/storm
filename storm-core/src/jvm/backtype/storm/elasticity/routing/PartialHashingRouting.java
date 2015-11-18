@@ -63,6 +63,10 @@ public class PartialHashingRouting extends HashingRouting {
             return RoutingTable.remote;
     }
 
+    public ArrayList<Integer> getOriginalRoutes() {
+        return super.getRoutes();
+    }
+
     public int getOrignalRoute(Object key) {
         return super.route(key);
     }

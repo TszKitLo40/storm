@@ -1,5 +1,6 @@
-package backtype.storm.elasticity;
+package backtype.storm.elasticity.message.taksmessage;
 
+import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.tuple.Tuple;
 
 

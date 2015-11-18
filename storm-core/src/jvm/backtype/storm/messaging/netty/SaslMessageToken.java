@@ -74,7 +74,7 @@ public class SaslMessageToken {
     }
 
     /**
-     * encode the current SaslToken Message into a channel buffer
+     * encode the current SaslToken message into a channel buffer
      * SaslTokenMessageRequest is encoded as: identifier .... short(2) always it
      * is -500 payload length .... int payload .... byte[]
      * 

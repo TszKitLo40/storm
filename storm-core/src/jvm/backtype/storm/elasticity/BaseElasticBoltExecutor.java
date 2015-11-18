@@ -1,6 +1,5 @@
 package backtype.storm.elasticity;
 
-import backtype.storm.elasticity.ActorFramework.Message.ElasticTaskMigrationMessage;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
@@ -12,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Robert on 11/4/15.

@@ -1,4 +1,4 @@
-package backtype.storm.elasticity.ActorFramework.Message;
+package backtype.storm.elasticity.message.actormessage;
 
 import backtype.storm.elasticity.ElasticTasks;
 import backtype.storm.elasticity.state.*;

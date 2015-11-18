@@ -1,11 +1,14 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
+import backtype.storm.elasticity.message.taksmessage.RemoteState;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.elasticity.state.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -29,7 +32,7 @@ public class ElasticRemoteTaskExecutor {
 
     Thread _stateCheckpointingThread;
 
-    Runnable _stateCheckpointRunnable;
+//    Runnable _stateCheckpointRunnable;
 
     public ElasticRemoteTaskExecutor(ElasticTasks tasks, LinkedBlockingQueue resultQueue, BaseElasticBolt bolt ) {
         _elasticTasks = tasks;
@@ -54,8 +57,8 @@ public class ElasticRemoteTaskExecutor {
     }
 
     public void createStateCheckpointingThread() {
-        _stateCheckpointRunnable = new StateCheckoutPointing(10);
-        _stateCheckpointingThread = new Thread(_stateCheckpointRunnable);
+//        _stateCheckpointRunnable = new StateCheckoutPointing(10);
+        _stateCheckpointingThread = new Thread(new StateCheckoutPointing(10));
         _stateCheckpointingThread.start();
 
         System.out.println("state checkpointing thread is created");
@@ -67,20 +70,22 @@ public class ElasticRemoteTaskExecutor {
 
         @Override
         public void run() {
-            while(!_terminated) {
-                try {
+            try {
+                while (!_terminated) {
+
 
                     Tuple input = _inputQueue.take();
 
                     boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
 
-                    System.out.println("@"+hashCode()+"A remote tuple for " + _elasticTasks.get_taskID()+"."+_elasticTasks.get_routingTable().route(_bolt.getKey(input))+"has been processed");
+                    System.out.println("@" + hashCode() + "A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
 
-                    assert(handled);
+                    assert (handled);
 
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+
                 }
+            } catch (InterruptedException e) {
+                System.out.println("InputTupleRouting thread is interrupted!");
             }
         }
     }
@@ -99,24 +104,48 @@ public class ElasticRemoteTaskExecutor {
         }
         @Override
         public void run() {
-            while(!_terminated) {
-                try {
-                    Thread.sleep(1000*_cycleInSecs);
-                    KeyValueState state = _elasticTasks.get_bolt().getState();
-                    for (Object key : state.getState().keySet()) {
-                        if (_elasticTasks.get_routingTable().route(key) < 0) {
-                            state.getState().remove(key);
-                            System.out.println("Key " + key + "will be removed before migration, because it belongs to an invalid route");
-                        }
-                    }
-                    RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(), state);
-                    System.out.println("State ("+state.getState().size()+" element) has been added into the sending queue!");
-                    _resultQueue.put(remoteState);
-                } catch (InterruptedException e ) {
-                    e.printStackTrace();
+
+            try {
+                while (!_terminated) {
+                    Thread.sleep(1000 * _cycleInSecs);
+//                    KeyValueState state = _elasticTasks.get_bolt().getState();
+//                    for (Object key : state.getState().keySet()) {
+//                        if (_elasticTasks.get_routingTable().route(key) < 0) {
+//                            state.getState().remove(key);
+//                            System.out.println("Key " + key + "will be removed before migration, because it belongs to an invalid route");
+//                        }
+//                    }
+//                    RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(), state, _elasticTasks.get_routingTable().getRoutes() );
+                    RemoteState state = getStateForRoutes(_elasticTasks.get_routingTable().getRoutes());
+                    System.out.println("State (" + state._state.getState().size() + " element) has been added into the sending queue!");
+                    _resultQueue.put(state);
+
                 }
+            } catch (InterruptedException e) {
+                System.out.println("StateCheckoutPointing is interrupted!");
             }
         }
+    }
+
+
+    public RemoteState getStateForRoutes(ArrayList<Integer> routes) throws InterruptedException {
+        KeyValueState state = _elasticTasks.get_bolt().getState();
+        KeyValueState stateForRoutes = new KeyValueState();
+        HashSet<Integer> routeSet = new HashSet<>(routes);
+        for (Object key: state.getState().keySet()) {
+            if(routeSet.contains(_elasticTasks.get_routingTable().route(key))) {
+                stateForRoutes.setValueBySey(key, state.getValueByKey(key));
+            }
+        }
+        RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(),stateForRoutes,routes);
+//        _resultQueue.put(remoteState);
+        return remoteState;
+    }
+
+    public RemoteState getStateForRoutes(int i) throws InterruptedException {
+        ArrayList<Integer> routes = new ArrayList<>();
+        routes.add(i);
+        return getStateForRoutes(routes);
     }
 
     public LinkedBlockingQueue<Tuple> get_inputQueue() {
@@ -135,6 +164,13 @@ public class ElasticRemoteTaskExecutor {
             _elasticTasks.createAndLaunchElasticTasksForGivenRoute(i);
         }
         System.out.println("routing table is merged and the worker threads are created!");
+    }
+
+    public void close() {
+        _stateCheckpointingThread.interrupt();
+//        _stateCheckpointingThread.join();
+        _processingThread.interrupt();
+
     }
 
 }
