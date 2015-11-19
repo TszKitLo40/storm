@@ -150,7 +150,7 @@ public class MyWordCount {
                 count = 0L;
             count++;
             setValueByKey(key,count);
-            collector.emit(input,new Values(input, count));
+            collector.emit(input,new Values(key, count));
         }
 
         @Override
