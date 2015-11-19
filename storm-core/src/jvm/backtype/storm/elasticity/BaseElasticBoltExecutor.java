@@ -47,7 +47,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
                 while(true) {
                     TupleExecuteResult result = _resultQueue.take();
                     handle(result);
-                    System.out.println("an execution result is emit!");
+                    LOG.debug("an execution result is emit!");
                 }
             } catch (InterruptedException ie) {
                 LOG.info("ResultHandler is interrupted!");
@@ -57,7 +57,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         }
 
         private void handle(TupleExecuteResult result) {
-            System.out.println("Tuple content: "+result._streamId + " " + result._inputTuple + " "+ result._outputTuple);
+//            System.out.println("Tuple content: "+result._streamId + " " + result._inputTuple + " "+ result._outputTuple);
             switch (result._commandType) {
                 case TupleExecuteResult.Emit:
                     _originalCollector.emit(result._streamId, result._inputTuple, result._outputTuple);

@@ -190,31 +190,29 @@ public class ElasticTaskHolder {
             public void run() {
                 while (true) {
                     try {
-                        System.out.println("Try to fetch an element from sendingQueue");
                         ITaskMessage message = _sendingQueue.take();
-                        System.out.println("An element is taken from the sendingQueue");
+                        LOG.debug("An element is taken from the sendingQueue");
                         if(message instanceof RemoteTupleExecuteResult) {
-                            System.out.println("The element is RemoteTupleExecuteResult");
+                            LOG.debug("The element is RemoteTupleExecuteResult");
 
                             RemoteTupleExecuteResult remoteTupleExecuteResult = (RemoteTupleExecuteResult)message;
                             if (_originalTaskIdToConnection.containsKey(remoteTupleExecuteResult._originalTaskID)) {
                                 byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
                                 _originalTaskIdToConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
-                                System.out.println("RemoteTupleExecutorResult is send back!");
+                                LOG.debug("RemoteTupleExecutorResult is send back!");
                             } else {
                                 System.err.println("RemoteTupleExecuteResult will be ignored, because we cannot find the connection for tasks " + remoteTupleExecuteResult._originalTaskID);
                             }
                         } else if (message instanceof RemoteTuple) {
-                            System.out.println("The element is RemoteTuple");
+                            LOG.debug("The element is RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) message;
                             final String key = remoteTuple.taskIdAndRoutePair();
-                            System.out.println("Key :"+key);
+                            LOG.debug("Key :"+key);
                             if(_taskidRouteToConnection.containsKey(key)) {
-                                System.out.println("The element will be serialized!");
+                                LOG.debug("The element will be serialized!");
                                 final byte[] bytes = SerializationUtils.serialize(remoteTuple);
-                                System.out.println("RemoteTuple will be sent!");
                                 _taskidRouteToConnection.get(key).send(remoteTuple._taskId, bytes);
-                                System.out.println("RemoteTuple is sent!");
+                                LOG.debug("RemoteTuple is sent!");
                             } else {
                                 System.err.println("RemoteTuple will be ignored, because we cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
                             }
@@ -270,16 +268,16 @@ public class ElasticTaskHolder {
                         if(object instanceof RemoteTupleExecuteResult) {
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
                             ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
-                            System.out.println("A query result is received for "+result._originalTaskID);
+                            LOG.debug("A query result is received for "+result._originalTaskID);
                             _bolts.get(targetTaskId).insertToResultQueue(result);
-                            System.out.println("a query result tuple is added into the input queue");
+                            LOG.debug("a query result tuple is added into the input queue");
                         } else if (object instanceof RemoteTuple) {
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
-                                System.out.format("A remote tuple %d.%d is received!\n",remoteTuple._taskId,remoteTuple._route);
+                                LOG.debug("A remote tuple %d.%d is received!\n",remoteTuple._taskId,remoteTuple._route);
                                 ((TupleImpl)remoteTuple._tuple).setContext(_workerTopologyContext);
                                 _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId).get_inputQueue().put(remoteTuple._tuple);
-                                System.out.print("A remote tuple is added to the queue!");
+                                LOG.debug("A remote tuple is added to the queue!");
 
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
