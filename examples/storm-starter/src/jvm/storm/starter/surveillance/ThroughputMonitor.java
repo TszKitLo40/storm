@@ -47,12 +47,15 @@ public class ThroughputMonitor implements Runnable {
             transport.open();
         } catch (TTransportException e) {
             e.printStackTrace();
+            System.out.println("Failed to connect to the thrift server!");
             return false;
         }
 
         protocol = new TBinaryProtocol(transport);
 
         client  = new SurveillanceService.Client(protocol);
+
+        System.out.println("Thread server is successfully connected!");
 
         return true;
     }
@@ -74,6 +77,7 @@ public class ThroughputMonitor implements Runnable {
                 client.reportExecutorThroughput(executorID,rateTracker.reportRate());
             } catch (TException e ) {
                 e.printStackTrace();
+                System.out.println("try to connect....");
                 connectToServer();
             } catch (Exception ee) {
                 ee.printStackTrace();

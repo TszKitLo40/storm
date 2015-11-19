@@ -113,7 +113,7 @@ public class MyWordCount {
         @Override
         public void open(Map conf, TopologyContext context, SpoutOutputCollector collector){
             _collector=collector;
-            monitor = new ThroughputMonitor(""+context.getThisTaskId());
+//            monitor = new ThroughputMonitor(""+context.getThisTaskId());
         }
         @Override
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -126,7 +126,7 @@ public class MyWordCount {
 //            System.out.print("sending--->");
             _collector.emit(new Values(_dictionary.get(_random.nextInt(_dictionary.size()))));
             count++;
-            monitor.rateTracker.notify(1);
+//            monitor.rateTracker.notify(1);
 //            System.out.format("sent %d %d ms\n",count,System.currentTimeMillis() - start);
         }
         SpoutOutputCollector _collector;
@@ -143,6 +143,7 @@ public class MyWordCount {
 
         @Override
         public void execute(Tuple input, ElasticOutputCollector collector) {
+            Utils.sleep(10);
             Object key = getKey(input);
             Long count = (Long)getValueByKey(key);
             if (count == null)
@@ -184,13 +185,13 @@ public class MyWordCount {
     public static void main(String[] args){
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new WordGenerationSpout(), 2);
+        builder.setSpout("spout", new WordGenerationSpout(), 1);
         builder.setBolt("counter",new MyCounter(),1).fieldsGrouping("spout", new Fields("word"));
         builder.setBolt("printer", new ReportBolt(10000000000000L),1).fieldsGrouping("counter", new Fields("word"));
 
 
         Config conf = new Config();
-        conf.setDebug(false);
+        conf.setDebug(true);
         conf.put("backpressure.disruptor.high.watermark", 0.9);
         conf.put("backpressure.disruptor.low.watermark",0.85);
 
