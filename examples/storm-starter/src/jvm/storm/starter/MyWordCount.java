@@ -186,7 +186,7 @@ public class MyWordCount {
 
         builder.setSpout("spout", new WordGenerationSpout(), 2);
         builder.setBolt("counter",new MyCounter(),1).fieldsGrouping("spout", new Fields("word"));
-        builder.setBolt("printer", new ReportBolt(10000000000000L),16).fieldsGrouping("counter", new Fields("word"));
+        builder.setBolt("printer", new ReportBolt(10000000000000L),1).fieldsGrouping("counter", new Fields("word"));
 
 
         Config conf = new Config();
