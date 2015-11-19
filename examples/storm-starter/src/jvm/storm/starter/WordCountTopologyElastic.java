@@ -97,6 +97,10 @@ public class WordCountTopologyElastic {
 
   public static void main(String[] args) throws Exception {
 
+    if(args.length == 0) {
+      System.out.println("args: topology-name sleep-time-in-millis [debug|any other]");
+    }
+
     TopologyBuilder builder = new TopologyBuilder();
 
     builder.setSpout("spout", new RandomSentenceSpout(Integer.parseInt(args[1])), 1);
@@ -106,7 +110,8 @@ public class WordCountTopologyElastic {
     builder.setBolt("print", new Printer(),1).globalGrouping("count");
 
     Config conf = new Config();
-    conf.setDebug(true);
+    if(args[2]!=null&&args[2].equals("debug"))
+      conf.setDebug(true);
 
     if (args != null && args.length > 0) {
       conf.setNumWorkers(3);

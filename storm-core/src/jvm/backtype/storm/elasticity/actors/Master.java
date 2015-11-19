@@ -31,6 +31,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<Integer, String> _taskidToActorName = new HashMap<>();
 
+    private Map<String, String> _taskidRouteToHostName = new HashMap<>();
+
     static Master _instance;
 
     public static Master getInstance() {
@@ -74,6 +76,18 @@ public class Master extends UntypedActor implements MasterService.Iface {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
             System.out.println("Task " + registrationMessage.taskId + " is launched on " + registrationMessage.hostName +".");
+
+        } else if (message instanceof RemoteRouteRegistrationMessage) {
+            RemoteRouteRegistrationMessage registrationMessage = (RemoteRouteRegistrationMessage) message;
+            for(int i: registrationMessage.routes) {
+                if(!registrationMessage.unregister) {
+                    _taskidRouteToHostName.put(registrationMessage.taskid + "." + i, registrationMessage.host);
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + registrationMessage.host);
+                } else {
+                    _taskidRouteToHostName.remove(registrationMessage.taskid + "." + i);
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + registrationMessage.host);
+                }
+            }
 
         } else if (message instanceof String) {
             System.out.println("message received: " + message);

@@ -305,6 +305,7 @@ public class ElasticTaskHolder {
                             System.out.print("Received a FinalTuple!");
                             FinalTuple finalTuple = (FinalTuple) object;
                             terminateRemoteRoute(finalTuple.taskid,finalTuple.route);
+                            _slaveActor.unregisterRemoteRoutesOnMaster(finalTuple.taskid, finalTuple.route);
                         }
 
                     }
@@ -406,6 +407,8 @@ public class ElasticTaskHolder {
         if(remoteTaskExecutor._elasticTasks.get_routingTable().getRoutes().size()==0) {
             removeEmptyRemoteTaskExecutor(taskid);
         }
+
+
 
     }
 

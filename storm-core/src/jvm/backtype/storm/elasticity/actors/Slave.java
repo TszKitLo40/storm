@@ -10,6 +10,7 @@ import backtype.storm.elasticity.message.actormessage.*;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -193,6 +194,9 @@ public class Slave extends UntypedActor {
         ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo(elasticTaskMigrationMessage,getSender().path().toString()));
         _master.tell("I generate confirm message ",getSelf());
 
+
+        registerRemoteRoutesOnMaster(elasticTaskMigrationMessage._elasticTask.get_taskID(), elasticTaskMigrationMessage._elasticTask.get_routingTable().getRoutes());
+
         if(confirmMessage!=null) {
             getSender().tell(confirmMessage, getSelf());
             _master.tell("I have handled the mask migration message",getSelf());
@@ -256,5 +260,27 @@ public class Slave extends UntypedActor {
 
     }
 
+    public void registerRemoteRoutesOnMaster(int taskid, int route) {
+        ArrayList<Integer> routes = new ArrayList<>();
+        routes.add(route);
+        registerRemoteRoutesOnMaster(taskid, routes);
+    }
+
+    public void registerRemoteRoutesOnMaster(int taskid, ArrayList<Integer> routes) {
+        RemoteRouteRegistrationMessage registrationMessage = new RemoteRouteRegistrationMessage(taskid, routes, _name);
+        _master.tell(registrationMessage, getSelf());
+    }
+
+    public void unregisterRemoteRoutesOnMaster(int taskid, ArrayList<Integer> routes) {
+        RemoteRouteRegistrationMessage registrationMessage = new RemoteRouteRegistrationMessage(taskid, routes, _name);
+        registrationMessage.setUnregister();
+        _master.tell(registrationMessage, getSelf());
+    }
+
+    public void unregisterRemoteRoutesOnMaster(int taskid, int route) {
+        ArrayList<Integer> routes = new ArrayList<>();
+        routes.add(route);
+        unregisterRemoteRoutesOnMaster(taskid, routes);
+    }
 
 }
