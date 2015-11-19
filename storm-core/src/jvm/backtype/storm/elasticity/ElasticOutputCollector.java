@@ -20,13 +20,21 @@ public class ElasticOutputCollector {
 
     // As the emit is delayed, the destination tasks are unknown.
     public List<Integer> emit(String streamId, Tuple inputTuple, List<Object> tuple) {
-        _outputQueue.add(TupleExecuteResult.createEmit(streamId, inputTuple, tuple));
+        try {
+            _outputQueue.put(TupleExecuteResult.createEmit(streamId, inputTuple, tuple));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 
 
     public List<Integer> emit(Tuple inputTuple, List<Object> tuple) {
-        _outputQueue.add(TupleExecuteResult.createEmit(Utils.DEFAULT_STREAM_ID, inputTuple, tuple));
+        try {
+            _outputQueue.put(TupleExecuteResult.createEmit(Utils.DEFAULT_STREAM_ID, inputTuple, tuple));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         return null;
     }
 

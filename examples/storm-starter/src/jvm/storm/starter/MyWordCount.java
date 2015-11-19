@@ -144,9 +144,9 @@ public class MyWordCount {
         @Override
         public void execute(Tuple input, ElasticOutputCollector collector) {
             Object key = getKey(input);
-            Integer count = (Integer)getValueByKey(key);
+            Long count = (Long)getValueByKey(key);
             if (count == null)
-                count = 0;
+                count = 0L;
             count++;
             setValueByKey(key,count);
             collector.emit(input,new Values(input, count));
