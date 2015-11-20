@@ -31,14 +31,27 @@ import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 import storm.starter.spout.RandomSentenceSpout;
 
 import java.util.Map;
+import java.util.Random;
 
 /**
  * This topology demonstrates Storm's stream groupings and multilang capabilities.
  */
 public class WordCountTopologyElastic {
+
+  public static class ComputationSimulator {
+      public static long compute(int timeInMils) {
+          long start = System.currentTimeMillis();
+          long seed = start;
+          while(System.currentTimeMillis() - start < timeInMils) {
+              seed = (long) Math.sqrt(new Random().nextInt());
+          }
+          return seed;
+      }
+  }
   public static class SplitSentence extends ShellBolt implements IRichBolt {
 
     public SplitSentence() {
@@ -58,8 +71,16 @@ public class WordCountTopologyElastic {
 
   public static class WordCount extends BaseElasticBolt {
 
+    int sleepTimeInMilics;
+
+    public WordCount(int sleepTimeInSecs) {
+        this.sleepTimeInMilics = sleepTimeInSecs;
+    }
+
     @Override
     public void execute(Tuple tuple, ElasticOutputCollector collector) {
+//        Utils.sleep(sleepTimeInMilics);
+      ComputationSimulator.compute(sleepTimeInMilics);
       String word = tuple.getString(0);
       Integer count = (Integer)getValueByKey(word);
       if (count == null)
@@ -103,10 +124,10 @@ public class WordCountTopologyElastic {
 
     TopologyBuilder builder = new TopologyBuilder();
 
-    builder.setSpout("spout", new RandomSentenceSpout(Integer.parseInt(args[1])), 1);
+    builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 1);
 
-    builder.setBolt("split", new SplitSentence(), 1).shuffleGrouping("spout");
-    builder.setBolt("count", new WordCount(), 1).fieldsGrouping("split", new Fields("word"));
+//    builder.setBolt("split", new SplitSentence(), 1).shuffleGrouping("spout");
+    builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
     builder.setBolt("print", new Printer(),1).globalGrouping("count");
 
     Config conf = new Config();

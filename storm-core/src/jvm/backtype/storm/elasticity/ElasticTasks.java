@@ -184,7 +184,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(1024);
         _queues.put(i, inputQueue);
     }
 
@@ -196,6 +196,7 @@ public class ElasticTasks implements Serializable {
         newThread.start();
         _queryThreads.put(i, newThread);
         System.out.println("created elastic worker threads for route "+i);
+        ElasticTaskHolder.instance().sendMessageToMaster("created elastic worker threads for route "+i);
     }
 
     public void createAndLaunchElasticTasksForGivenRoute(int i) {
@@ -288,8 +289,19 @@ public class ElasticTasks implements Serializable {
             throw new IllegalArgumentException("number of routes should be positive");
 
         System.out.println("##########before termination!");
-        if(!(_routingTable instanceof VoidRouting)) {
+        if((_routingTable instanceof HashingRouting)) {
+
             terminateQueries();
+            if(_routingTable instanceof PartialHashingRouting) {
+                PartialHashingRouting partialHashingRouting = (PartialHashingRouting) _routingTable;
+                for(int i: partialHashingRouting.getExceptionRoutes()) {
+                    try {
+                        ElasticTaskHolder.instance().withdrawRemoteElasticTasks(get_taskID(), i);
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
         }
         System.out.println("##########after termination!");
         _routingTable = new HashingRouting(numberOfRoutes);
@@ -326,10 +338,12 @@ public class ElasticTasks implements Serializable {
 
 
     public void terminateGivenQuery(int route) {
+        ElasticTaskHolder.instance().sendMessageToMaster("Terminating "+_taskID+"."+route + " (" + _queues.get(route).size() + " pending elements)"+" ...");
         _queryRunnables.get(route).terminate();
         try {
             _queryThreads.get(route).join();
-            System.out.println("Query thread for "+_taskID+"."+route + "is terminated!");
+            System.out.println("Query thread for "+_taskID+"."+route + " is terminated!");
+            ElasticTaskHolder.instance().sendMessageToMaster("Query thread for "+_taskID+"."+route + " is terminated!");
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -341,19 +355,23 @@ public class ElasticTasks implements Serializable {
     }
 
     private void terminateQueries() {
-        for(QueryRunnable query: _queryRunnables.values()) {
-            query.terminate();
-        }
-        _queryRunnables.clear();
-        for(Thread thread: _queryThreads.values()) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
 
-            }
-        }
-        _queryThreads.clear();
-        _queues.clear();
+        for(int i: _routingTable.getRoutes())
+            terminateGivenQuery(i);
+//
+//        for(QueryRunnable query: _queryRunnables.values()) {
+//            query.terminate();
+//        }
+//        _queryRunnables.clear();
+//        for(Thread thread: _queryThreads.values()) {
+//            try {
+//                thread.join();
+//            } catch (InterruptedException e) {
+//
+//            }
+//        }
+//        _queryThreads.clear();
+//        _queues.clear();
     }
 //
 //    public void terminateAGivenQuery(int route) throws InvalidRouteException {

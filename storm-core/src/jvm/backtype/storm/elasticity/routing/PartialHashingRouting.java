@@ -67,6 +67,12 @@ public class PartialHashingRouting extends HashingRouting {
         return super.getRoutes();
     }
 
+    public ArrayList<Integer> getExceptionRoutes() {
+        ArrayList<Integer> ret = getOriginalRoutes();
+        ret.removeAll(getRoutes());
+        return ret;
+    }
+
     public int getOrignalRoute(Object key) {
         return super.route(key);
     }

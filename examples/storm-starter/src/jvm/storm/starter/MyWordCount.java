@@ -113,7 +113,7 @@ public class MyWordCount {
         @Override
         public void open(Map conf, TopologyContext context, SpoutOutputCollector collector){
             _collector=collector;
-//            monitor = new ThroughputMonitor(""+context.getThisTaskId());
+            monitor = new ThroughputMonitor(""+context.getThisTaskId());
         }
         @Override
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -126,7 +126,7 @@ public class MyWordCount {
 //            System.out.print("sending--->");
             _collector.emit(new Values(_dictionary.get(_random.nextInt(_dictionary.size()))));
             count++;
-//            monitor.rateTracker.notify(1);
+            monitor.rateTracker.notify(1);
 //            System.out.format("sent %d %d ms\n",count,System.currentTimeMillis() - start);
         }
         SpoutOutputCollector _collector;
@@ -143,7 +143,7 @@ public class MyWordCount {
 
         @Override
         public void execute(Tuple input, ElasticOutputCollector collector) {
-            Utils.sleep(10);
+            Utils.sleep(100);
             Object key = getKey(input);
             Long count = (Long)getValueByKey(key);
             if (count == null)

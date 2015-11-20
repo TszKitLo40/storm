@@ -15,11 +15,12 @@ import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
 import scala.concurrent.duration.FiniteDuration;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by Robert on 11/11/15.
@@ -31,6 +32,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
     private Map<Integer, String> _taskidToActorName = new HashMap<>();
 
     private Map<String, String> _taskidRouteToHostName = new HashMap<>();
+
+    private Map<String, String> _hostNameToIp = new HashMap<>();
 
     static Master _instance;
 
@@ -70,7 +73,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
             if(_nameToActors.containsKey(helloMessage.getName()))
                 System.out.println(helloMessage.getName()+" is registered again! ");
             _nameToActors.put(helloMessage.getName(), getSender());
-            System.out.format("[%s] is registered!\n",helloMessage.getName());
+            _hostNameToIp.put(helloMessage.getName(), extractIpFromActorAddress(getSender().path().toString()));
+            System.out.format("[%s] is registered on %s!\n",helloMessage.getName(), _hostNameToIp.get(helloMessage.getName()));
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
@@ -90,6 +94,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
         } else if (message instanceof String) {
             System.out.println("message received: " + message);
+        } else if (message instanceof LogMessage) {
+            LogMessage logMessage = (LogMessage) message;
+            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+            //get current date time with Date()
+            Date date = new Date();
+            System.out.println(dateFormat.format(date)+"[" + logMessage.host.split(":")[1] + ":] "+ logMessage.msg);
         }
     }
 
@@ -163,6 +173,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
         inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
         return (double)inbox.receive(new FiniteDuration(1, TimeUnit.SECONDS));
 
+    }
+    String extractIpFromActorAddress(String address) {
+        Pattern p = Pattern.compile( "@([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)" );
+        Matcher m = p.matcher(address);
+        if(m.find()) {
+            return m.group(1);
+        } else {
+            System.err.println("cannot extract valid ip from " + address);
+            return null;
+        }
     }
 
 

@@ -27,9 +27,14 @@ public class QueryThroughput {
             TProtocol protocol = new TBinaryProtocol(transport);
             while(true) {
                 Thread.sleep(1000*Integer.parseInt(args[1]));
+                try{
                 MasterService.Client thriftClient = new MasterService.Client(protocol);
+
                 double throughput = thriftClient.reportTaskThroughput(taskid);
                 System.out.println("Task "+ taskid + ": "+throughput);
+                } catch (TException e ) {
+                    e.printStackTrace();
+                }
             }
 
 //            transport.close();

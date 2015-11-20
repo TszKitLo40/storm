@@ -40,7 +40,7 @@ public class ElasticTaskHolder {
 
     private IConnection _inputConnection;
 
-    private String _stormId;
+    private String _workerId;
 
     private int _port;
 
@@ -66,27 +66,27 @@ public class ElasticTaskHolder {
         return _instance;
     }
 
-    static public ElasticTaskHolder createAndGetInstance(Map stormConf, String stormId, int port) {
+    static public ElasticTaskHolder createAndGetInstance(Map stormConf, String workerId, int port) {
         if(_instance==null) {
-            _instance = new ElasticTaskHolder(stormConf, stormId, port);
+            _instance = new ElasticTaskHolder(stormConf, workerId, port);
         }
         return _instance;
     }
 
 
 
-    private ElasticTaskHolder(Map stormConf, String stormId, int port) {
+    private ElasticTaskHolder(Map stormConf, String workerId, int port) {
         System.out.println("creating ElasticTaskHolder");
         _context = new Context();
         _port = port + 10000;
         _context.prepare(stormConf);
-        _inputConnection = _context.bind(stormId,_port);
-        _stormId = stormId;
-        _slaveActor = Slave.createActor(_stormId,Integer.toString(port));
+        _inputConnection = _context.bind(workerId,_port);
+        _workerId = workerId;
+        _slaveActor = Slave.createActor(_workerId,Integer.toString(port));
         createExecuteResultReceivingThread();
         createExecuteResultSendingThread();
         LOG.info("ElasticTaskHolder is launched.");
-        LOG.info("storm id:"+stormId+" port:" + port);
+        LOG.info("storm id:"+workerId+" port:" + port);
     }
 
     public void registerElasticBolt(BaseElasticBoltExecutor bolt, int taskId) {
@@ -325,11 +325,12 @@ public class ElasticTaskHolder {
         if(!type.equals("hash"))
             throw new RoutingTypeNotSupportedException("Only support hash routing now!");
         _bolts.get(taskid).get_elasticTasks().setHashRouting(numberOfRouting);
+        _slaveActor.sendMessageToMaster("New RoutingTable has been created!");
         System.out.println("RoutingTable has been created");
 
     }
 
-    public void withdrawRemoteElasticTasks(String host, int taskid, int route) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException {
+    public void withdrawRemoteElasticTasks(int taskid, int route) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException {
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException(taskid);
         }
@@ -361,6 +362,7 @@ public class ElasticTaskHolder {
             System.out.println("launch the thread for "+taskid+"."+route+".");
             _bolts.get(taskid).get_elasticTasks().launchElasticTasksForGivenRoute(route);
             System.out.println("Remote " + taskid + "." + route + "has been withdrawn!");
+            _slaveActor.sendMessageToMaster("Remote " + taskid + "." + route + "has been withdrawn!");
         } catch (InterruptedException e ) {
 
         }

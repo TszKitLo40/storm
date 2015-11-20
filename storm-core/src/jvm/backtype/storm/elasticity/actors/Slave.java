@@ -165,7 +165,7 @@ public class Slave extends UntypedActor {
     }
 
     public void sendMessageToMaster(String message) {
-        _master.tell(message, getSelf());
+        _master.tell(new LogMessage(message, _name ), getSelf());
     }
 
     public void registerOriginalElasticTaskToMaster(int taskId) {
@@ -232,7 +232,7 @@ public class Slave extends UntypedActor {
 
     private void handleWithdrawRemoteElasticTasks(RemoteRouteWithdrawCommand withdrawCommand) {
         try {
-            ElasticTaskHolder.instance().withdrawRemoteElasticTasks(withdrawCommand.host, withdrawCommand.taskId, withdrawCommand.route);
+            ElasticTaskHolder.instance().withdrawRemoteElasticTasks( withdrawCommand.taskId, withdrawCommand.route);
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }

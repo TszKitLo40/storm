@@ -308,7 +308,7 @@
       :transfer-backpressure (atom false)                   ;; if the transfer queue is backed-up
       :backpressure-trigger (atom false)                    ;; a trigger for synchronization with executors
       :throttle-on (atom false)                             ;; whether throttle is activated for spouts
-      :task-holder (mk-task-holder storm-conf storm-id port)
+      :task-holder (mk-task-holder storm-conf worker-id port)
       )))
 
 (defn- endpoint->string [[node port]]
