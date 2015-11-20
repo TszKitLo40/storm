@@ -110,7 +110,7 @@ public class WordCountTopologyElastic {
     builder.setBolt("print", new Printer(),1).globalGrouping("count");
 
     Config conf = new Config();
-    if(args[2]!=null&&args[2].equals("debug"))
+    if(args.length>2&&args[2].equals("debug"))
       conf.setDebug(true);
 
     if (args != null && args.length > 0) {

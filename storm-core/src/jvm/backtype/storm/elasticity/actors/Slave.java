@@ -125,9 +125,11 @@ public class Slave extends UntypedActor {
             handleWithdrawRemoteElasticTasks(withdrawCommand);
         } else if (message instanceof String) {
             System.out.println("I received message "+ message);
-        }
-
-        else {
+        } else if (message instanceof ThroughputQueryCommand) {
+            ThroughputQueryCommand throughputQueryCommand = (ThroughputQueryCommand) message;
+            double throughput = ElasticTaskHolder.instance().getThroughput(throughputQueryCommand.taskid);
+            getSender().tell(throughput, getSelf());
+        } else {
             System.out.println("[Elastic]: Unknown message.");
             unhandled(message);
         }

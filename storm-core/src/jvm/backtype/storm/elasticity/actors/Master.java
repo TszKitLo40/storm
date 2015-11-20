@@ -1,9 +1,6 @@
 package backtype.storm.elasticity.actors;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.actor.UntypedActor;
+import akka.actor.*;
 import backtype.storm.elasticity.message.actormessage.*;
 import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
@@ -16,11 +13,13 @@ import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
 import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by Robert on 11/11/15.
@@ -153,6 +152,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
         RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(remoteHostName, taskid, route);
         _nameToActors.get(hostName).tell(command, getSelf());
         System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
+
+    }
+
+    @Override
+    public double reportTaskThroughput(int taskid) throws TException {
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
+        return (double)inbox.receive(new FiniteDuration(1, TimeUnit.SECONDS));
 
     }
 

@@ -5,6 +5,7 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.utils.RateTracker;
 import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,8 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     private transient ElasticTasks _elasticTasks;
     private transient ElasticTaskHolder _holder;
+
+    private transient RateTracker _rateTracker;
 
     public BaseElasticBoltExecutor(BaseElasticBolt bolt) {
         _bolt = bolt;
@@ -82,6 +85,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 //        _elasticTasks = ElasticTasks.createHashRouting(3,_bolt,_taskId, _outputCollector);
 //        createTest();
         _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
+        _rateTracker = new RateTracker(10000, 5);
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
             _holder.registerElasticBolt(this, _taskId);
@@ -100,6 +104,8 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 //        }
         if(_elasticTasks==null||!_elasticTasks.tryHandleTuple(input,_bolt.getKey(input)))
             _bolt.execute(input, _outputCollector);
+        _rateTracker.notify(1);
+
     }
 
     @Override
@@ -154,5 +160,9 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public double getRate() {
+        return _rateTracker.reportRate();
     }
 }

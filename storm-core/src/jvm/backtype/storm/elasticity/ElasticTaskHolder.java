@@ -426,4 +426,10 @@ public class ElasticTaskHolder {
         return _workerTopologyContext;
     }
 
+    public double getThroughput(int taskid) {
+        if(!_bolts.containsKey(taskid))
+            return -1;
+        return _bolts.get(taskid).getRate();
+    }
+
 }

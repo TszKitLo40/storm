@@ -46,6 +46,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  void migrateTasks(string originalHostName, string targetHostName, i32 taskId, i32 routeNo)')
   print('  void createRouting(string hostName, i32 taskid, i32 routeNo, string type)')
   print('  void withdrawRemoteRoute(string remoteHostName, i32 taskid, i32 route)')
+  print('  double reportTaskThroughput(i32 taskid)')
   print('')
   sys.exit(0)
 
@@ -125,6 +126,12 @@ elif cmd == 'withdrawRemoteRoute':
     print('withdrawRemoteRoute requires 3 args')
     sys.exit(1)
   pp.pprint(client.withdrawRemoteRoute(args[0],eval(args[1]),eval(args[2]),))
+
+elif cmd == 'reportTaskThroughput':
+  if len(args) != 1:
+    print('reportTaskThroughput requires 1 args')
+    sys.exit(1)
+  pp.pprint(client.reportTaskThroughput(eval(args[0]),))
 
 else:
   print('Unrecognized method %s' % cmd)
