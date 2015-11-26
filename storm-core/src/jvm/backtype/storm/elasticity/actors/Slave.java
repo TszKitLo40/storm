@@ -129,6 +129,10 @@ public class Slave extends UntypedActor {
             ThroughputQueryCommand throughputQueryCommand = (ThroughputQueryCommand) message;
             double throughput = ElasticTaskHolder.instance().getThroughput(throughputQueryCommand.taskid);
             getSender().tell(throughput, getSelf());
+        } else if (message instanceof DistributionQueryCommand) {
+            DistributionQueryCommand distributionQueryCommand = (DistributionQueryCommand)message;
+            String distribution = ElasticTaskHolder.instance().getDistribution(distributionQueryCommand.taskid);
+            getSender().tell(distribution, getSelf());
         } else {
             System.out.println("[Elastic]: Unknown message.");
             unhandled(message);

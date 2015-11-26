@@ -44,9 +44,9 @@ public class WordCountTopologyElastic {
 
   public static class ComputationSimulator {
       public static long compute(int timeInMils) {
-          long start = System.currentTimeMillis();
+          final long start = System.nanoTime();
           long seed = start;
-          while(System.currentTimeMillis() - start < timeInMils) {
+          while(System.nanoTime() - start < timeInMils) {
               seed = (long) Math.sqrt(new Random().nextInt());
           }
           return seed;
@@ -79,7 +79,7 @@ public class WordCountTopologyElastic {
 
     @Override
     public void execute(Tuple tuple, ElasticOutputCollector collector) {
-//        Utils.sleep(sleepTimeInMilics);
+//        utils.sleep(sleepTimeInMilics);
       ComputationSimulator.compute(sleepTimeInMilics);
       String word = tuple.getString(0);
       Integer count = (Integer)getValueByKey(word);
@@ -107,7 +107,7 @@ public class WordCountTopologyElastic {
 
     @Override
     public void execute(Tuple input, BasicOutputCollector collector) {
-      System.out.println(input.getString(0)+"--->"+input.getInteger(1));
+//      System.out.println(input.getString(0)+"--->"+input.getInteger(1));
     }
 
     @Override

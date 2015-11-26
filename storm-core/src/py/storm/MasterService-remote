@@ -47,6 +47,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  void createRouting(string hostName, i32 taskid, i32 routeNo, string type)')
   print('  void withdrawRemoteRoute(string remoteHostName, i32 taskid, i32 route)')
   print('  double reportTaskThroughput(i32 taskid)')
+  print('  string getDistribution(i32 taskid)')
   print('')
   sys.exit(0)
 
@@ -132,6 +133,12 @@ elif cmd == 'reportTaskThroughput':
     print('reportTaskThroughput requires 1 args')
     sys.exit(1)
   pp.pprint(client.reportTaskThroughput(eval(args[0]),))
+
+elif cmd == 'getDistribution':
+  if len(args) != 1:
+    print('getDistribution requires 1 args')
+    sys.exit(1)
+  pp.pprint(client.getDistribution(eval(args[0]),))
 
 else:
   print('Unrecognized method %s' % cmd)

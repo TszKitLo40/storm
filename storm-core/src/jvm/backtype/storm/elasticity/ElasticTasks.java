@@ -1,19 +1,16 @@
 package backtype.storm.elasticity;
 
-import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
-import backtype.storm.elasticity.exceptions.TaskNotExistingException;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
-import backtype.storm.elasticity.routing.HashingRouting;
-import backtype.storm.elasticity.routing.PartialHashingRouting;
-import backtype.storm.elasticity.routing.RoutingTable;
-import backtype.storm.elasticity.routing.VoidRouting;
+import backtype.storm.elasticity.routing.*;
+import backtype.storm.elasticity.utils.KeyFrequencySampler;
 import backtype.storm.tuple.Tuple;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import backtype.storm.elasticity.state.*;
 
@@ -36,6 +33,8 @@ public class ElasticTasks implements Serializable {
     private transient ElasticOutputCollector _elasticOutputCollector;
 
     private transient LinkedBlockingQueue<ITaskMessage> _remoteTupleQueue;
+
+    public transient KeyFrequencySampler _sample;
 
     public ElasticTasks(BaseElasticBolt bolt, Integer taskID) {
         _bolt = bolt;
@@ -64,6 +63,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
+        _sample = new KeyFrequencySampler(0.05);
     }
 
     public void prepare(ElasticOutputCollector elasticOutputCollector, KeyValueState state) {
@@ -75,6 +75,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
+        _sample = new KeyFrequencySampler(0.05);
     }
 
     public RoutingTable get_routingTable() {
@@ -87,6 +88,7 @@ public class ElasticTasks implements Serializable {
 
     public synchronized boolean tryHandleTuple(Tuple tuple, Object key) {
         int route = _routingTable.route(key);
+        _sample.record(route);
         if(route==RoutingTable.origin)
             return false;
         else if (route == RoutingTable.remote) {
@@ -104,7 +106,7 @@ public class ElasticTasks implements Serializable {
         }
         else {
             try {
-                System.out.println("A tuple is route to "+route+ "by the routing table!");
+//                System.out.println("A tuple is route to "+route+ "by the routing table!");
                 _queues.get(route).put(tuple);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -176,6 +178,7 @@ public class ElasticTasks implements Serializable {
             createElasticTasksForGivenRoute(i);
             launchElasticTasksForGivenRoute(i);
         }
+        System.out.println("##########after launch tasks!");
 
     }
 
@@ -283,30 +286,46 @@ public class ElasticTasks implements Serializable {
 
     }
 
+    public synchronized void setHashBalancedRouting(int numberOfRoutes, Map<Integer, Integer> hashValueToPartition) {
+        if (numberOfRoutes < 0)
+            throw new IllegalArgumentException("number of routes should be positive!");
+        withDrawCurrentRouting();
+        _routingTable = new BalancedHashRouting(hashValueToPartition, numberOfRoutes);
+
+        createAndLaunchElasticTasks();
+
+
+    }
+
     public synchronized void setHashRouting(int numberOfRoutes) throws IllegalArgumentException {
 
-        if(numberOfRoutes <= 0)
+        if(numberOfRoutes < 0)
             throw new IllegalArgumentException("number of routes should be positive");
 
-        System.out.println("##########before termination!");
-        if((_routingTable instanceof HashingRouting)) {
+//        System.out.println("##########before termination!");
+//        if((_routingTable instanceof HashingRouting)) {
+//
+//            terminateQueries();
+//            if(_routingTable instanceof PartialHashingRouting) {
+//                PartialHashingRouting partialHashingRouting = (PartialHashingRouting) _routingTable;
+//                for(int i: partialHashingRouting.getExceptionRoutes()) {
+//                    try {
+//                        ElasticTaskHolder.instance().withdrawRemoteElasticTasks(get_taskID(), i);
+//                    } catch(Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }
+//        }
+//        System.out.println("##########after termination!");
+//        clearDistributionSample();
 
-            terminateQueries();
-            if(_routingTable instanceof PartialHashingRouting) {
-                PartialHashingRouting partialHashingRouting = (PartialHashingRouting) _routingTable;
-                for(int i: partialHashingRouting.getExceptionRoutes()) {
-                    try {
-                        ElasticTaskHolder.instance().withdrawRemoteElasticTasks(get_taskID(), i);
-                    } catch(Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-        System.out.println("##########after termination!");
+        withDrawCurrentRouting();
+
+
         _routingTable = new HashingRouting(numberOfRoutes);
         createAndLaunchElasticTasks();
-        System.out.println("##########after launch tasks!");
+
 //        for(int i: _routingTable.getRoutes())
 ////        for(int i = 0; i < numberOfRoutes; i++)
 //        {
@@ -354,6 +373,26 @@ public class ElasticTasks implements Serializable {
 
     }
 
+    private void withDrawCurrentRouting() {
+        System.out.println("##########before termination!");
+//        if((_routingTable instanceof RoutingTable)) {
+
+            terminateQueries();
+            if(_routingTable instanceof PartialHashingRouting) {
+                PartialHashingRouting partialHashingRouting = (PartialHashingRouting) _routingTable;
+                for(int i: partialHashingRouting.getExceptionRoutes()) {
+                    try {
+                        ElasticTaskHolder.instance().withdrawRemoteElasticTasks(get_taskID(), i);
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+//        }
+        System.out.println("##########after termination!");
+        clearDistributionSample();
+    }
+
     private void terminateQueries() {
 
         for(int i: _routingTable.getRoutes())
@@ -389,6 +428,11 @@ public class ElasticTasks implements Serializable {
 //        _queues.remove(route);
 //    }
 
+    private void clearDistributionSample() {
+        if(_sample!=null) {
+            _sample.clear();
+        }
+    }
 
 
 }

@@ -1,5 +1,8 @@
 package backtype.storm.elasticity.routing;
 
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
+
 import java.util.ArrayList;
 
 /**
@@ -9,16 +12,24 @@ public class HashingRouting implements RoutingTable {
 
     private int numberOfRoutes;
 
+    HashFunction hashFunction;
+
+
     /**
      *
      * @param nRoutes is the number of routes processed by elastic tasks.
      */
     public HashingRouting(int nRoutes) {
         numberOfRoutes = nRoutes;
+        hashFunction = Hashing.murmur3_32();
+
     }
 
     public HashingRouting(HashingRouting hashingRouting) {
         numberOfRoutes = hashingRouting.numberOfRoutes;
+        hashFunction = Hashing.murmur3_32();
+
+
     }
 
     /**
@@ -28,7 +39,15 @@ public class HashingRouting implements RoutingTable {
      */
     @Override
     public int route(Object key) {
-        return Math.abs(key.hashCode())%(numberOfRoutes + 1) - 1;
+//        if(key instanceof String) {
+//            final int hashvalue = hashFunction.hashString(key.toString()).asInt();
+//            return Math.abs(hashvalue%(numberOfRoutes + 1)) - 1;
+//        } else {
+            final int hashValue = key.hashCode();
+
+
+            return Math.abs((hashValue*1171+5843))%9973%(numberOfRoutes);
+//        }
     }
 
     @Override

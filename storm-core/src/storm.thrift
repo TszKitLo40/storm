@@ -580,4 +580,5 @@ service MasterService {
   void createRouting(1: string hostName, 2: i32 taskid, 3: i32 routeNo, 4: string type) throws (1: HostNotExistException hmee);
   void withdrawRemoteRoute(1: string remoteHostName, 2: i32 taskid, 3: i32 route) throws (1: TaskNotExistException e, 2: HostNotExistException hnee);
   double reportTaskThroughput(1: i32 taskid) throws (1: TaskNotExistException tnee);
+  string getDistribution(1: i32 taskid) throws (1: TaskNotExistException tnee)
 }

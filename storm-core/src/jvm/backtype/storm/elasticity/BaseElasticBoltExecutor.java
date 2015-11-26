@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.utils.KeyBucketSampler;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
@@ -19,6 +20,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class BaseElasticBoltExecutor implements IRichBolt {
 
+    static final long serialVersionUID = -3216586099702029175L;
+
     public static Logger LOG = LoggerFactory.getLogger(BaseElasticBoltExecutor.class);
 
     private BaseElasticBolt _bolt;
@@ -37,6 +40,8 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     private transient ElasticTaskHolder _holder;
 
     private transient RateTracker _rateTracker;
+
+    public transient KeyBucketSampler _keyBucketSampler;
 
     public BaseElasticBoltExecutor(BaseElasticBolt bolt) {
         _bolt = bolt;
@@ -73,6 +78,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+        _keyBucketSampler = new KeyBucketSampler(32);
         _resultQueue = new LinkedBlockingQueue<>(1024*1024);
         _outputCollector = new ElasticOutputCollector(_resultQueue);
         _bolt.prepare(stormConf, context);
@@ -82,9 +88,9 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 //        _elasticTasks = new ElasticTasks(_bolt);
 //        _elasticTasks.prepare(_outputCollector);
         _taskId = context.getThisTaskId();
-//        _elasticTasks = ElasticTasks.createHashRouting(3,_bolt,_taskId, _outputCollector);
+        _elasticTasks = ElasticTasks.createHashRouting(1,_bolt,_taskId, _outputCollector);
 //        createTest();
-        _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
+//        _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
         _rateTracker = new RateTracker(10000, 5);
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
@@ -95,14 +101,10 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     @Override
     public void execute(Tuple input) {
 
-//        if(_elasticTasks!=null && _elasticTasks._routingTable!=null) {
-//            int route=_elasticTasks._routingTable.route(_bolt.getKey(input));
-//            if(route != RoutingTable.origin) {
-//                _elasticTasks.handleTuple(input,_bolt.getKey(input));
-//                return;
-//            }
-//        }
-        if(_elasticTasks==null||!_elasticTasks.tryHandleTuple(input,_bolt.getKey(input)))
+        final Object key = _bolt.getKey(input);
+        _keyBucketSampler.record(key);
+
+        if(_elasticTasks==null||!_elasticTasks.tryHandleTuple(input,key))
             _bolt.execute(input, _outputCollector);
         _rateTracker.notify(1);
 

@@ -171,9 +171,19 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
-        return (double)inbox.receive(new FiniteDuration(1, TimeUnit.SECONDS));
+        return (double)inbox.receive(new FiniteDuration(5, TimeUnit.SECONDS));
 
     }
+
+    @Override
+    public String getDistribution(int taskid) throws TException {
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
+        return (String)inbox.receive(new FiniteDuration(5, TimeUnit.SECONDS));
+    }
+
     String extractIpFromActorAddress(String address) {
         Pattern p = Pattern.compile( "@([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)" );
         Matcher m = p.matcher(address);

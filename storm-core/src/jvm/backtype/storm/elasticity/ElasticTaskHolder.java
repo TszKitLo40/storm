@@ -10,17 +10,20 @@ import backtype.storm.elasticity.message.taksmessage.*;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.state.*;
+import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
 import backtype.storm.messaging.netty.Context;
 import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.tuple.TupleImpl;
+import backtype.storm.utils.Utils;
 import org.apache.commons.lang.SerializationException;
 import org.apache.commons.lang.SerializationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -322,11 +325,47 @@ public class ElasticTaskHolder {
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException(taskid);
         }
-        if(!type.equals("hash"))
-            throw new RoutingTypeNotSupportedException("Only support hash routing now!");
-        _bolts.get(taskid).get_elasticTasks().setHashRouting(numberOfRouting);
+
+        if(type.equals("balanced_hash")) {
+            createBalancedHashRouting(taskid, numberOfRouting);
+        } else {
+
+            if(!type.equals("hash"))
+                throw new RoutingTypeNotSupportedException("Only support hash routing now!");
+            _bolts.get(taskid).get_elasticTasks().setHashRouting(numberOfRouting);
+        }
         _slaveActor.sendMessageToMaster("New RoutingTable has been created!");
         System.out.println("RoutingTable has been created");
+
+
+    }
+
+    public void createBalancedHashRouting(int taskid, int numberOfRouting) throws TaskNotExistingException {
+        if(!_bolts.containsKey(taskid)) {
+            throw new TaskNotExistingException(taskid);
+        }
+        _slaveActor.sendMessageToMaster("phase 1");
+        _bolts.get(taskid)._keyBucketSampler.clear();
+        _bolts.get(taskid)._keyBucketSampler.enable();
+        _slaveActor.sendMessageToMaster("phase 2");
+        Utils.sleep(5000);
+        _bolts.get(taskid)._keyBucketSampler.disable();
+        _slaveActor.sendMessageToMaster("phase 3");
+//        _slaveActor.sendMessageToMaster("Distribution: " + _bolts.get(taskid)._keyBucketSampler.toString());
+
+        FirstFitDoubleDecreasing firstFitDoubleDecreasing = new FirstFitDoubleDecreasing(Arrays.asList(_bolts.get(taskid)._keyBucketSampler.buckets),numberOfRouting);
+
+        final int result = firstFitDoubleDecreasing.getResult();
+        if(result == numberOfRouting) {
+            _slaveActor.sendMessageToMaster(firstFitDoubleDecreasing.toString());
+            _bolts.get(taskid).get_elasticTasks().setHashBalancedRouting(numberOfRouting, firstFitDoubleDecreasing.getBucketToPartitionMap());
+
+
+
+        } else {
+            _slaveActor.sendMessageToMaster("Failed to partition the buckets!");
+        }
+
 
     }
 
@@ -432,6 +471,14 @@ public class ElasticTaskHolder {
         if(!_bolts.containsKey(taskid))
             return -1;
         return _bolts.get(taskid).getRate();
+    }
+
+    public String getDistribution(int taskid) {
+        if(!_bolts.containsKey(taskid)) {
+            return "task does not exist!";
+        } else {
+            return _bolts.get(taskid).get_elasticTasks()._sample.toString();
+        }
     }
 
 }
