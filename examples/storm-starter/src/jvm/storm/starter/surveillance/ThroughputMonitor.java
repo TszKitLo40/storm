@@ -28,7 +28,7 @@ public class ThroughputMonitor implements Runnable {
 
     public ThroughputMonitor(String executorId) {
 
-        rateTracker = new RateTracker(5000,10);
+        rateTracker = new RateTracker(30000,10);
         executorID = executorId;
         reportThread = new Thread(this);
         reportThread.start();
