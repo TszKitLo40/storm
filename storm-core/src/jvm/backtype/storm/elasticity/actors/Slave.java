@@ -31,9 +31,12 @@ public class Slave extends UntypedActor {
 
     static Slave _instance;
 
+    int _port;
+
     public Slave(String name, String port) {
 //        _name = name+":"+port+"-"+ ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
         _name = name + ":" + port;
+        _port = Integer.parseInt(port);
         _instance = this;
     }
 
@@ -159,11 +162,11 @@ public class Slave extends UntypedActor {
     void register(Member member) {
         if(member.hasRole("master")) {
             _master = getContext().actorSelection(member.address()+"/user/master");
-            _master.tell(new HelloMessage(_name),getSelf());
+            _master.tell(new HelloMessage(_name, _port),getSelf());
             System.out.println("I have sent registration message to master.");
         } else if (member.hasRole("slave")) {
             getContext().actorSelection(member.address()+"/user/slave")
-                    .tell(new HelloMessage(_name),getSelf());
+                    .tell(new HelloMessage(_name, _port),getSelf());
             System.out.format("I have sent registration message to %s\n", member.address());
         }
     }

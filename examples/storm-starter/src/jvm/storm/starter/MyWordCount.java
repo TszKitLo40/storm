@@ -34,7 +34,7 @@ public class MyWordCount {
 
         private int count = 0;
 
-        private ThroughputMonitor monitor;
+//        private ThroughputMonitor monitor;
 
         public WordGenerationSpout(){
             _emit_cycles=0;
@@ -113,7 +113,7 @@ public class MyWordCount {
         @Override
         public void open(Map conf, TopologyContext context, SpoutOutputCollector collector){
             _collector=collector;
-            monitor = new ThroughputMonitor(""+context.getThisTaskId());
+//            monitor = new ThroughputMonitor(""+context.getThisTaskId());
         }
         @Override
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
@@ -122,11 +122,11 @@ public class MyWordCount {
         @Override
         public void nextTuple(){
 //            utils.sleep(_emit_cycles);
-            long start = System.currentTimeMillis();
+//            long start = System.currentTimeMillis();
 //            System.out.print("sending--->");
             _collector.emit(new Values(_dictionary.get(_random.nextInt(_dictionary.size()))));
             count++;
-            monitor.rateTracker.notify(1);
+//            monitor.rateTracker.notify(1);
 //            System.out.format("sent %d %d ms\n",count,System.currentTimeMillis() - start);
         }
         SpoutOutputCollector _collector;

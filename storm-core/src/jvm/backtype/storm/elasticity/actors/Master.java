@@ -8,6 +8,7 @@ import backtype.storm.generated.MigrationException;
 import backtype.storm.generated.TaskNotExistException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
 import org.apache.thrift.TException;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
@@ -33,7 +34,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<String, String> _taskidRouteToHostName = new HashMap<>();
 
-    private Map<String, String> _hostNameToIp = new HashMap<>();
+    private Map<String, String> _hostNameToWorkerLogicalName = new HashMap<>();
 
     static Master _instance;
 
@@ -66,6 +67,24 @@ public class Master extends UntypedActor implements MasterService.Iface {
         }).start();
     }
 
+    private String getWorkerLogicalName(String hostName) {
+        if(_hostNameToWorkerLogicalName.containsKey(hostName)) {
+            return _hostNameToWorkerLogicalName.get(hostName);
+        }
+        else {
+            return "Unknown worker name";
+        }
+    }
+
+    private String getHostByWorkerLogicalName(String worker) {
+        for(String key: _hostNameToWorkerLogicalName.keySet()) {
+            if(_hostNameToWorkerLogicalName.get(key).equals(worker)) {
+                return key;
+            }
+        }
+            return "Unknown worker logical name";
+    }
+
     @Override
     public void onReceive(Object message) throws Exception {
         if(message instanceof HelloMessage) {
@@ -73,22 +92,22 @@ public class Master extends UntypedActor implements MasterService.Iface {
             if(_nameToActors.containsKey(helloMessage.getName()))
                 System.out.println(helloMessage.getName()+" is registered again! ");
             _nameToActors.put(helloMessage.getName(), getSender());
-            _hostNameToIp.put(helloMessage.getName(), extractIpFromActorAddress(getSender().path().toString()));
-            System.out.format("[%s] is registered on %s!\n",helloMessage.getName(), _hostNameToIp.get(helloMessage.getName()));
+            _hostNameToWorkerLogicalName.put(helloMessage.getName(), extractIpFromActorAddress(getSender().path().toString())+":"+helloMessage.getPort());
+            System.out.format("[%s] is registered on %s!\n", helloMessage.getName(), _hostNameToWorkerLogicalName.get(helloMessage.getName()));
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
-            System.out.println("Task " + registrationMessage.taskId + " is launched on " + registrationMessage.hostName +".");
+            System.out.println("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) +".");
 
         } else if (message instanceof RemoteRouteRegistrationMessage) {
             RemoteRouteRegistrationMessage registrationMessage = (RemoteRouteRegistrationMessage) message;
             for(int i: registrationMessage.routes) {
                 if(!registrationMessage.unregister) {
                     _taskidRouteToHostName.put(registrationMessage.taskid + "." + i, registrationMessage.host);
-                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + registrationMessage.host);
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
                 } else {
                     _taskidRouteToHostName.remove(registrationMessage.taskid + "." + i);
-                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + registrationMessage.host);
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
                 }
             }
 
@@ -99,7 +118,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
             //get current date time with Date()
             Date date = new Date();
-            System.out.println(dateFormat.format(date)+"[" + logMessage.host.split(":")[1] + ":] "+ logMessage.msg);
+            System.out.println(dateFormat.format(date)+"[" + getWorkerLogicalName(logMessage.host) + "] "+ logMessage.msg);
         }
     }
 
@@ -132,26 +151,26 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     @Override
     public void migrateTasks(String originalHostName, String targetHostName, int taskId, int routeNo) throws MigrationException, TException {
-        if(!_nameToActors.containsKey(originalHostName))
+        if(!_nameToActors.containsKey(getHostByWorkerLogicalName(originalHostName)))
             throw new MigrationException("originalHostName " + originalHostName + " does not exists!");
-        if(!_nameToActors.containsKey(targetHostName))
+        if(!_nameToActors.containsKey(getHostByWorkerLogicalName(targetHostName)))
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
-        _nameToActors.get(originalHostName).tell(new TaskMigrationCommand(originalHostName,targetHostName,taskId,routeNo),getSelf());
+        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(originalHostName,targetHostName,taskId,routeNo),getSelf());
         System.out.println("[Elastic]: Migration message has been sent!");
     }
 
     @Override
-    public void createRouting(String hostName, int taskid, int routeNo, String type) throws TException {
-        if(!_nameToActors.containsKey(hostName)) {
-            throw new HostNotExistException("Host " + hostName + " does not exist!");
+    public void createRouting(String workerName, int taskid, int routeNo, String type) throws TException {
+        if(!_nameToActors.containsKey(getHostByWorkerLogicalName(workerName))) {
+            throw new HostNotExistException("Host " + workerName + " does not exist!");
         }
 
-        _nameToActors.get(hostName).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
+        _nameToActors.get(getHostByWorkerLogicalName(workerName)).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
         System.out.println("RoutingCreatingCommand has been sent!");
     }
 
     @Override
-    public void withdrawRemoteRoute(String remoteHostName, int taskid, int route) throws TException {
+    public void withdrawRemoteRoute(String workerName, int taskid, int route) throws TException {
         if(!_taskidToActorName.containsKey(taskid)) {
             throw new TaskNotExistException("task "+ taskid + " does not exist!");
         }
@@ -159,7 +178,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_nameToActors.containsKey(hostName)) {
             throw new HostNotExistException("host " + hostName + " does not exist!");
         }
-        RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(remoteHostName, taskid, route);
+        RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(getHostByWorkerLogicalName(workerName), taskid, route);
         _nameToActors.get(hostName).tell(command, getSelf());
         System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
 
@@ -171,7 +190,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
-        return (double)inbox.receive(new FiniteDuration(5, TimeUnit.SECONDS));
+        return (double)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
 
     }
 
@@ -181,7 +200,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
-        return (String)inbox.receive(new FiniteDuration(5, TimeUnit.SECONDS));
+        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
     }
 
     String extractIpFromActorAddress(String address) {

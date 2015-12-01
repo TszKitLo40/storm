@@ -89,9 +89,10 @@ public class ElasticTasks implements Serializable {
     public synchronized boolean tryHandleTuple(Tuple tuple, Object key) {
         int route = _routingTable.route(key);
         _sample.record(route);
-        if(route==RoutingTable.origin)
-            return false;
-        else if (route == RoutingTable.remote) {
+//        if(route==RoutingTable.origin)
+//            return false;
+//        else
+        if (route == RoutingTable.remote) {
             System.out.println("a tuple is routed to remote!");
 
             RemoteTuple remoteTuple = new RemoteTuple(_taskID, ((PartialHashingRouting)_routingTable).getOrignalRoute(key), tuple);
