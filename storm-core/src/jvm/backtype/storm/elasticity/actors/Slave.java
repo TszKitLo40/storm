@@ -10,6 +10,8 @@ import backtype.storm.elasticity.message.actormessage.*;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -231,6 +233,7 @@ public class Slave extends UntypedActor {
 
     private void handleRoutingCreatingCommand(RoutingCreatingCommand creatingCommand) {
         try {
+            sendMessageToMaster("begin to handle crate routing command!");
             ElasticTaskHolder.instance().createRouting(creatingCommand._task, creatingCommand._numberOfRoutes, creatingCommand._routingType);
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -246,8 +249,9 @@ public class Slave extends UntypedActor {
     }
 
     static public Slave createActor(String name, String port) {
-
+        try{
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
+                .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
                 .withFallback(ConfigFactory.load());
         ActorSystem system = ActorSystem.create("ClusterSystem", config);
@@ -257,6 +261,10 @@ public class Slave extends UntypedActor {
         System.out.println("Slave actor is created!");
 
         return Slave.getInstance();
+        } catch (UnknownHostException e ) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static void main(String[] args) {

@@ -16,6 +16,8 @@ import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
 import scala.concurrent.duration.FiniteDuration;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -123,7 +125,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     public static Master createActor() {
+        try {
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
+                .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
                 .withFallback(ConfigFactory.load());
 
@@ -131,16 +135,27 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
         system.actorOf(Props.create(Master.class), "master");
         return Master.getInstance();
+        }
+        catch (UnknownHostException e ) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static void main(String[] args) {
+        try{
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
+                .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
                 .withFallback(ConfigFactory.load());
 
         ActorSystem system = ActorSystem.create("ClusterSystem", config);
 
         system.actorOf(Props.create(Master.class), "master");
+    }
+    catch (UnknownHostException e ) {
+        e.printStackTrace();
+    }
 
     }
 
@@ -155,7 +170,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new MigrationException("originalHostName " + originalHostName + " does not exists!");
         if(!_nameToActors.containsKey(getHostByWorkerLogicalName(targetHostName)))
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
-        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(originalHostName,targetHostName,taskId,routeNo),getSelf());
+        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
         System.out.println("[Elastic]: Migration message has been sent!");
     }
 
