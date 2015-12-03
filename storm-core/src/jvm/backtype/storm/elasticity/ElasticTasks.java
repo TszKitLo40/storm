@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
@@ -224,24 +225,26 @@ public class ElasticTasks implements Serializable {
      * @param list list of exception routes
      * @return a PartialHashRouting that routes the excepted routes
      */
-    public synchronized PartialHashingRouting addExceptionForHashRouting(ArrayList<Integer> list, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) {
+    public synchronized PartialHashingRouting addExceptionForHashRouting(ArrayList<Integer> list, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
 
-        if(!(_routingTable instanceof HashingRouting)) {
-            System.err.println("cannot set Exception for non-hash routing");
-            return null;
+        if(!(_routingTable instanceof HashingRouting)&&!(_routingTable instanceof BalancedHashRouting)) {
+            throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing");
+//            System.err.println("cannot set Exception for non-hash routing");
+//            return null;
         }
         for(int i: list) {
             if(!_routingTable.getRoutes().contains(i)) {
-                System.err.println("input route " + i + "is invalid");
-                return null;
+                throw new InvalidRouteException("input route " + i + "is invalid");
+//                System.err.println("input route " + i + "is invalid");
+//                return null;
             }
         }
 
         _remoteTupleQueue = exceptedRoutingQueue;
 
-        HashingRouting routing = (HashingRouting)_routingTable;
+//        HashingRouting routing = (HashingRouting)_routingTable;
         if(!(_routingTable instanceof PartialHashingRouting)) {
-            _routingTable = new PartialHashingRouting(routing);
+            _routingTable = new PartialHashingRouting(_routingTable);
         }
 
         System.out.println("Original Routing (Before adding exception): getRoutes:" +get_routingTable().getRoutes());
@@ -261,7 +264,7 @@ public class ElasticTasks implements Serializable {
         return ret;
     }
 
-    public PartialHashingRouting addExceptionForHashRouting(int r, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) {
+    public PartialHashingRouting addExceptionForHashRouting(int r, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
         ArrayList<Integer> list = new ArrayList<>();
         list.add(r);
         return addExceptionForHashRouting(list, exceptedRoutingQueue);

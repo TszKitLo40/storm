@@ -103,7 +103,7 @@ public class ElasticTaskHolder {
     }
 
 
-    public ElasticTaskMigrationMessage generateRemoteElasticTasks(int taskid, int route) {
+    public ElasticTaskMigrationMessage generateRemoteElasticTasks(int taskid, int route) throws RoutingTypeNotSupportedException, InvalidRouteException {
         if(!_bolts.containsKey(taskid)){
             System.err.println("task )"+taskid+"does not exist!");
             return null;

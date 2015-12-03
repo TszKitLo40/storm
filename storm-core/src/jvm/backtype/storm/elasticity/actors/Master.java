@@ -1,6 +1,8 @@
 package backtype.storm.elasticity.actors;
 
 import akka.actor.*;
+import akka.cluster.Cluster;
+import akka.cluster.ClusterEvent;
 import backtype.storm.elasticity.message.actormessage.*;
 import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
@@ -29,6 +31,8 @@ import java.util.regex.Pattern;
  * Created by Robert on 11/11/15.
  */
 public class Master extends UntypedActor implements MasterService.Iface {
+
+    Cluster cluster = Cluster.get(getContext().system());
 
     private Map<String, ActorRef> _nameToActors = new HashMap<>();
 
@@ -86,6 +90,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
         }
             return "Unknown worker logical name";
     }
+
+//    @Override
+//    public void preStart() {
+////        cluster.subscribe(getSelf(), ClusterEvent.MemberUp.class);
+//    }
+//
+//    @Override
+//    public void postStop() {
+//        cluster.unsubscribe(getSelf());
+//    }
 
     @Override
     public void onReceive(Object message) throws Exception {

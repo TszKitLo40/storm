@@ -63,15 +63,18 @@ public class Slave extends UntypedActor {
             for (Member member : state.getMembers()) {
                 if (member.status().equals(MemberStatus.up())) {
                     register(member);
+//                    member.address().toString();
                 }
             }
-        } else if (message instanceof ClusterEvent.MemberUp) {
+        } else
+        if (message instanceof ClusterEvent.MemberUp) {
             ClusterEvent.MemberUp memberUp = (ClusterEvent.MemberUp) message;
             register(memberUp.member());
         } else if (message instanceof HelloMessage) {
             HelloMessage helloMessage = (HelloMessage) message;
             _nameToActors.put(helloMessage.getName(), getSender());
             System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
+            sendMessageToMaster("I am connected with " + helloMessage.getName());
         } else if (message instanceof TaskMigrationCommand) {
             System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
             TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
@@ -170,6 +173,7 @@ public class Slave extends UntypedActor {
             getContext().actorSelection(member.address()+"/user/slave")
                     .tell(new HelloMessage(_name, _port),getSelf());
             System.out.format("I have sent registration message to %s\n", member.address());
+            sendMessageToMaster("I have sent registration message to "+ member.address());
         }
     }
 
@@ -184,19 +188,24 @@ public class Slave extends UntypedActor {
     private void handleTaskMigrationCommandMessage(TaskMigrationCommand taskMigrationCommand) {
         if(!_nameToActors.containsKey(taskMigrationCommand._targetHostName)) {
             System.out.println("[Elastic]:target host "+ taskMigrationCommand._targetHostName+"does not exist!");
+            sendMessageToMaster(taskMigrationCommand._targetHostName+" does not exist! Valid names are "+_nameToActors.keySet());
             return;
         }
 
-        ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
-        if(migrationMessage!=null) {
-            System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
-
+        try{
+            ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
             _nameToActors.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
             System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommand._targetHostName)+"["+_nameToActors.get(taskMigrationCommand._targetHostName).path()+"]");
-            _master.tell("I have passed the elastic message to "+ taskMigrationCommand._targetHostName,null);
-        } else {
-            _master.tell("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
+            sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName);
+        } catch (Exception e) {
+            sendMessageToMaster(e.getMessage());
+//            ("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
         }
+//        if(migrationMessage!=null) {
+//            System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
+//
+//        } else {
+//        }
     }
 
     private void handleElasticTaskMigrationMessage(ElasticTaskMigrationMessage elasticTaskMigrationMessage) {
@@ -250,17 +259,19 @@ public class Slave extends UntypedActor {
 
     static public Slave createActor(String name, String port) {
         try{
-        final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
-                .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
-                .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
-                .withFallback(ConfigFactory.load());
-        ActorSystem system = ActorSystem.create("ClusterSystem", config);
+            final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + InetAddress.getLocalHost().getHostAddress()))
+                    .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
+                    .withFallback(ConfigFactory.load());
+            ActorSystem system = ActorSystem.create("ClusterSystem", config); 
+            system.actorOf(Props.create(Slave.class, name, port), "slave");
 
-        system.actorOf(Props.create(Slave.class, name, port), "slave");
+            System.out.println("Slave actor is created!");
+//            Slave slave = Slave.getInstance();
 
-        System.out.println("Slave actor is created!");
 
-        return Slave.getInstance();
+
+            return Slave.getInstance();
         } catch (UnknownHostException e ) {
             e.printStackTrace();
             return null;

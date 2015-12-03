@@ -1,30 +1,31 @@
 package backtype.storm.elasticity.routing;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by Robert on 11/12/15.
  */
-public class PartialHashingRouting extends HashingRouting {
+public class PartialHashingRouting implements RoutingTable {
 
 
     /* the set of valid routes in this routing table */
     Set<Integer> _validRoutes = new HashSet<>();
-    /**
-     * @param nRoutes is the number of routes processed by elastic tasks.
-     */
-    public PartialHashingRouting(int nRoutes) {
-        super(nRoutes);
-        for(int i = 0; i < nRoutes; i++) {
-            _validRoutes.add(i);
-        }
-    }
 
-    public PartialHashingRouting(HashingRouting hashingRouting) {
-        super(hashingRouting);
-        _validRoutes.addAll(super.getRoutes());
+    RoutingTable _routingTable;
+//    /**
+//     * @param nRoutes is the number of routes processed by elastic tasks.
+//     */
+//    public PartialHashingRouting(int nRoutes) {
+//        super(nRoutes);
+//        for(int i = 0; i < nRoutes; i++) {
+//            _validRoutes.add(i);
+//        }
+//    }
+
+    public PartialHashingRouting(RoutingTable hashingRouting) {
+        _routingTable = hashingRouting;
+//        super(hashingRouting);
+        _validRoutes.addAll(_routingTable.getRoutes());
     }
 
     public PartialHashingRouting setExceptionRoutes(ArrayList<Integer> exceptionRoutes) {
@@ -56,7 +57,7 @@ public class PartialHashingRouting extends HashingRouting {
 
     @Override
     public int route(Object key) {
-        int route = super.route(key);
+        int route = _routingTable.route(key);
         if (route == RoutingTable.origin || _validRoutes.contains(route))
             return route;
         else
@@ -64,7 +65,7 @@ public class PartialHashingRouting extends HashingRouting {
     }
 
     public ArrayList<Integer> getOriginalRoutes() {
-        return super.getRoutes();
+        return _routingTable.getRoutes();
     }
 
     public ArrayList<Integer> getExceptionRoutes() {
@@ -74,11 +75,11 @@ public class PartialHashingRouting extends HashingRouting {
     }
 
     public int getOrignalRoute(Object key) {
-        return super.route(key);
+        return _routingTable.route(key);
     }
 
     public PartialHashingRouting createComplementRouting() {
-        PartialHashingRouting ret = new PartialHashingRouting(this);
+        PartialHashingRouting ret = new PartialHashingRouting(_routingTable);
         ret._validRoutes.removeAll(this._validRoutes);
         return ret;
     }
@@ -95,7 +96,7 @@ public class PartialHashingRouting extends HashingRouting {
 
     public void addValidRoutes(ArrayList<Integer> routes) {
         for(int i: routes) {
-            if(super.getRoutes().contains(i)) {
+            if(_routingTable.getRoutes().contains(i)) {
                 _validRoutes.add(i);
             } else {
                 System.out.println("Cannot added routes "+i+", because it is not a valid route");
@@ -112,6 +113,21 @@ public class PartialHashingRouting extends HashingRouting {
         PartialHashingRouting complement = partialHashingRouting.addExceptionRoute(2).createComplementRouting();
 
         System.out.println("Complement:"+complement.getRoutes());
+
+
+        Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+        map.put(0,0);
+        map.put(1,0);
+        map.put(2,1);
+        map.put(3,1);
+        BalancedHashRouting balancedHashRouting = new BalancedHashRouting(map,2);
+
+        PartialHashingRouting partialHashingRouting2 = new PartialHashingRouting(balancedHashRouting);
+
+        PartialHashingRouting complement2 = partialHashingRouting2.addExceptionRoute(1);
+
+        System.out.println("Complement:"+complement2.getRoutes());
+
 
 
 

@@ -135,7 +135,7 @@ public class WordCountTopologyElastic {
       conf.setDebug(true);
 
     if (args != null && args.length > 0) {
-      conf.setNumWorkers(3);
+      conf.setNumWorkers(2);
 
       StormSubmitter.submitTopologyWithProgressBar(args[0], conf, builder.createTopology());
     }
