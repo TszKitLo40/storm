@@ -104,8 +104,10 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         final Object key = _bolt.getKey(input);
         _keyBucketSampler.record(key);
 
-        if(!_elasticTasks.tryHandleTuple(input,key))
+        if(!_elasticTasks.tryHandleTuple(input,key)) {
+            System.err.println("elastic task fails to process a tuple!");
             assert(false);
+        }
 //
 //        if(_elasticTasks==null||!_elasticTasks.tryHandleTuple(input,key))
 //            _bolt.execute(input, _outputCollector);

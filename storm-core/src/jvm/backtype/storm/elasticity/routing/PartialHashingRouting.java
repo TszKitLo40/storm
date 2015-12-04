@@ -58,7 +58,7 @@ public class PartialHashingRouting implements RoutingTable {
     @Override
     public int route(Object key) {
         int route = _routingTable.route(key);
-        if (route == RoutingTable.origin || _validRoutes.contains(route))
+        if (_validRoutes.contains(route))
             return route;
         else
             return RoutingTable.remote;
@@ -124,7 +124,11 @@ public class PartialHashingRouting implements RoutingTable {
 
         PartialHashingRouting partialHashingRouting2 = new PartialHashingRouting(balancedHashRouting);
 
+        System.out.println("2-->" + partialHashingRouting2.route(1));
+
         PartialHashingRouting complement2 = partialHashingRouting2.addExceptionRoute(1);
+
+        System.out.println("2-->" + partialHashingRouting2.route(1));
 
         System.out.println("Complement:"+complement2.getRoutes());
 

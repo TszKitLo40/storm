@@ -48,6 +48,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  void withdrawRemoteRoute(string remoteHostName, i32 taskid, i32 route)')
   print('  double reportTaskThroughput(i32 taskid)')
   print('  string getDistribution(i32 taskid)')
+  print('  string getLiveWorkers()')
   print('')
   sys.exit(0)
 
@@ -139,6 +140,12 @@ elif cmd == 'getDistribution':
     print('getDistribution requires 1 args')
     sys.exit(1)
   pp.pprint(client.getDistribution(eval(args[0]),))
+
+elif cmd == 'getLiveWorkers':
+  if len(args) != 0:
+    print('getLiveWorkers requires 0 args')
+    sys.exit(1)
+  pp.pprint(client.getLiveWorkers())
 
 else:
   print('Unrecognized method %s' % cmd)

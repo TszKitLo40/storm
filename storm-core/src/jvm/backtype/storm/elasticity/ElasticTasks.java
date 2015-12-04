@@ -108,7 +108,7 @@ public class ElasticTasks implements Serializable {
         }
         else {
             try {
-//                System.out.println("A tuple is route to "+route+ "by the routing table!");
+                System.out.println("A tuple is route to "+route+ "by the routing table!");
                 _queues.get(route).put(tuple);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -189,7 +189,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(1024);
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(64);
         _queues.put(i, inputQueue);
     }
 
@@ -227,8 +227,8 @@ public class ElasticTasks implements Serializable {
      */
     public synchronized PartialHashingRouting addExceptionForHashRouting(ArrayList<Integer> list, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
 
-        if(!(_routingTable instanceof HashingRouting)&&!(_routingTable instanceof BalancedHashRouting)) {
-            throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing");
+        if(!(_routingTable instanceof PartialHashingRouting)&&!(_routingTable instanceof BalancedHashRouting)) {
+            throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing: " + _routingTable);
 //            System.err.println("cannot set Exception for non-hash routing");
 //            return null;
         }

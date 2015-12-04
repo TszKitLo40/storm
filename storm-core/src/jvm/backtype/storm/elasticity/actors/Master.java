@@ -23,6 +23,7 @@ import java.net.UnknownHostException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,7 +35,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     Cluster cluster = Cluster.get(getContext().system());
 
-    private Map<String, ActorRef> _nameToActors = new HashMap<>();
+//    private Map<String, ActorRef> _nameToActors = new HashMap<>();
+
+    private Map<String, ActorPath> _nameToPath = new ConcurrentHashMap<>();
 
     private Map<Integer, String> _taskidToActorName = new HashMap<>();
 
@@ -102,12 +105,40 @@ public class Master extends UntypedActor implements MasterService.Iface {
 //    }
 
     @Override
+    public void preStart() {
+        cluster.subscribe(getSelf(), ClusterEvent.UnreachableMember.class);
+    }
+
+    @Override
+    public void postStop() {
+        cluster.unsubscribe(getSelf());
+    }
+
+    @Override
     public void onReceive(Object message) throws Exception {
-        if(message instanceof HelloMessage) {
+        if(message instanceof ClusterEvent.UnreachableMember) {
+            ClusterEvent.UnreachableMember unreachableMember = (ClusterEvent.UnreachableMember) message;
+            System.out.println(unreachableMember.member().address().toString() + " is unreachable!");
+
+            for(String name: _nameToPath.keySet()) {
+                if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
+                    _nameToPath.remove(name);
+                    _hostNameToWorkerLogicalName.remove(name);
+                } else {
+                    System.out.println(_nameToPath.get(name) + " != " + unreachableMember.member().address().toString());
+                }
+
+            }
+
+            System.out.println("_nameToPath: "+_nameToPath);
+            System.out.println("_nameToWorkerLogicalName: " + _hostNameToWorkerLogicalName);
+
+        } else if(message instanceof HelloMessage) {
             HelloMessage helloMessage = (HelloMessage)message;
-            if(_nameToActors.containsKey(helloMessage.getName()))
+            if(_nameToPath.containsKey(helloMessage.getName()))
                 System.out.println(helloMessage.getName()+" is registered again! ");
-            _nameToActors.put(helloMessage.getName(), getSender());
+//            _nameToActors.put(helloMessage.getName(), getSender());
+            _nameToPath.put(helloMessage.getName(), getSender().path());
             _hostNameToWorkerLogicalName.put(helloMessage.getName(), extractIpFromActorAddress(getSender().path().toString())+":"+helloMessage.getPort());
             System.out.format("[%s] is registered on %s!\n", helloMessage.getName(), _hostNameToWorkerLogicalName.get(helloMessage.getName()));
         } else if (message instanceof ElasticTaskRegistrationMessage) {
@@ -175,27 +206,37 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     @Override
     public List<String> getAllHostNames() throws TException {
-        return new ArrayList<>(_nameToActors.keySet());
+//        return new ArrayList<>(_nameToActors.keySet());
+        return new ArrayList<>(_nameToPath.keySet());
     }
 
     @Override
     public void migrateTasks(String originalHostName, String targetHostName, int taskId, int routeNo) throws MigrationException, TException {
-        if(!_nameToActors.containsKey(getHostByWorkerLogicalName(originalHostName)))
+        if(!_nameToPath.containsKey(getHostByWorkerLogicalName(originalHostName)))
             throw new MigrationException("originalHostName " + originalHostName + " does not exists!");
-        if(!_nameToActors.containsKey(getHostByWorkerLogicalName(targetHostName)))
+        if(!_nameToPath.containsKey(getHostByWorkerLogicalName(targetHostName)))
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
-        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
-        System.out.println("[Elastic]: Migration message has been sent!");
+        try {
+            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(originalHostName))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
+    //        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
+            System.out.println("[Elastic]: Migration message has been sent!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void createRouting(String workerName, int taskid, int routeNo, String type) throws TException {
-        if(!_nameToActors.containsKey(getHostByWorkerLogicalName(workerName))) {
+        if(!_nameToPath.containsKey(getHostByWorkerLogicalName(workerName))) {
             throw new HostNotExistException("Host " + workerName + " does not exist!");
         }
-
-        _nameToActors.get(getHostByWorkerLogicalName(workerName)).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
-        System.out.println("RoutingCreatingCommand has been sent!");
+        try {
+            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
+//          _nameToActors.get(getHostByWorkerLogicalName(workerName)).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
+            System.out.println("RoutingCreatingCommand has been sent!");
+        }catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     @Override
@@ -204,12 +245,19 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task "+ taskid + " does not exist!");
         }
         String hostName = _taskidToActorName.get(taskid);
-        if(!_nameToActors.containsKey(hostName)) {
+        if(!_nameToPath.containsKey(hostName)) {
             throw new HostNotExistException("host " + hostName + " does not exist!");
         }
         RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(getHostByWorkerLogicalName(workerName), taskid, route);
-        _nameToActors.get(hostName).tell(command, getSelf());
-        System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
+        try {
+            getContext().actorFor(_nameToPath.get(hostName)).tell(command, getSelf());
+            System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
+//        _nameToActors.get(hostName).tell(command, getSelf());
+//        System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
 
     }
 
@@ -218,7 +266,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
-        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ThroughputQueryCommand(taskid));
+//        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
         return (double)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
 
     }
@@ -228,8 +277,19 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
-        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new DistributionQueryCommand(taskid));
+//        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
         return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    @Override
+    public String getLiveWorkers() throws TException {
+        String ret = "";
+        for(String name: _nameToPath.keySet()) {
+            ret +=_hostNameToWorkerLogicalName.get(name) + ":" + name +"\n";
+        }
+        ret += "_hostNameToWorkerLogicalName" + _hostNameToWorkerLogicalName;
+        return ret;
     }
 
     String extractIpFromActorAddress(String address) {

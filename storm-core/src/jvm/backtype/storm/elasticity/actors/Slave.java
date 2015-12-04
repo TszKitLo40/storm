@@ -15,6 +15,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +26,9 @@ public class Slave extends UntypedActor {
 
     Cluster cluster = Cluster.get(getContext().system());
 
-    Map<String, ActorRef> _nameToActors = new HashMap<>();
+//    Map<String, ActorRef> _nameToActors = new HashMap<>();
+
+    Map<String, ActorPath> _nameToPath = new ConcurrentHashMap<>();
 
     String _name;
 
@@ -48,7 +51,7 @@ public class Slave extends UntypedActor {
 
     @Override
     public void preStart() {
-        cluster.subscribe(getSelf(), ClusterEvent.MemberUp.class);
+        cluster.subscribe(getSelf(), ClusterEvent.MemberUp.class, ClusterEvent.UnreachableMember.class);
     }
 
     @Override
@@ -66,15 +69,30 @@ public class Slave extends UntypedActor {
 //                    member.address().toString();
                 }
             }
-        } else
-        if (message instanceof ClusterEvent.MemberUp) {
+        } else if (message instanceof ClusterEvent.MemberUp) {
             ClusterEvent.MemberUp memberUp = (ClusterEvent.MemberUp) message;
             register(memberUp.member());
-        } else if (message instanceof HelloMessage) {
+        } else if (message instanceof ClusterEvent.UnreachableMember) {
+            ClusterEvent.UnreachableMember unreachableMember = (ClusterEvent.UnreachableMember) message;
+            System.out.println(unreachableMember.member().address().toString() + " is unreachable!");
+
+            for(String name: _nameToPath.keySet()) {
+                if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
+                    System.out.println(name+" is removed! "+ _nameToPath.get(name).address().toString() +"-->"+unreachableMember.member().address().toString());
+                    _nameToPath.remove(name);
+                    sendMessageToMaster(name+" is removed! ");
+                } else {
+                    System.out.println(_nameToPath.get(name).address().toString() + " != " + unreachableMember.member().address().toString());
+                }
+
+            }
+        }else if (message instanceof HelloMessage) {
             HelloMessage helloMessage = (HelloMessage) message;
-            _nameToActors.put(helloMessage.getName(), getSender());
+//            _nameToActors.put(helloMessage.getName(), getSender());
+            _nameToPath.put(helloMessage.getName(), getSender().path());
+            getContext().actorFor( getSender().path()).tell("Hi, I am " + _name + " Your path is "+ getSender().path().toString(), getSelf() );
             System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
-            sendMessageToMaster("I am connected with " + helloMessage.getName());
+//            sendMessageToMaster("I am connected with " + helloMessage.getName());
         } else if (message instanceof TaskMigrationCommand) {
             System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
             TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
@@ -96,6 +114,7 @@ public class Slave extends UntypedActor {
 //            }
 
         } else if (message instanceof ElasticTaskMigrationMessage) {
+            sendMessageToMaster("Received Migration Message!!!!");
             handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
 //            System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
 //            _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
@@ -132,7 +151,8 @@ public class Slave extends UntypedActor {
             RemoteRouteWithdrawCommand withdrawCommand = (RemoteRouteWithdrawCommand) message;
             handleWithdrawRemoteElasticTasks(withdrawCommand);
         } else if (message instanceof String) {
-            System.out.println("I received message "+ message);
+            System.out.println("I received message " + message);
+            sendMessageToMaster("I received message " + message);
         } else if (message instanceof ThroughputQueryCommand) {
             ThroughputQueryCommand throughputQueryCommand = (ThroughputQueryCommand) message;
             double throughput = ElasticTaskHolder.instance().getThroughput(throughputQueryCommand.taskid);
@@ -173,7 +193,7 @@ public class Slave extends UntypedActor {
             getContext().actorSelection(member.address()+"/user/slave")
                     .tell(new HelloMessage(_name, _port),getSelf());
             System.out.format("I have sent registration message to %s\n", member.address());
-            sendMessageToMaster("I have sent registration message to "+ member.address());
+//            sendMessageToMaster("I have sent registration message to "+ member.address());
         }
     }
 
@@ -186,17 +206,17 @@ public class Slave extends UntypedActor {
     }
 
     private void handleTaskMigrationCommandMessage(TaskMigrationCommand taskMigrationCommand) {
-        if(!_nameToActors.containsKey(taskMigrationCommand._targetHostName)) {
+        if(!_nameToPath.containsKey(taskMigrationCommand._targetHostName)) {
             System.out.println("[Elastic]:target host "+ taskMigrationCommand._targetHostName+"does not exist!");
-            sendMessageToMaster(taskMigrationCommand._targetHostName+" does not exist! Valid names are "+_nameToActors.keySet());
+            sendMessageToMaster(taskMigrationCommand._targetHostName+" does not exist! Valid names are "+_nameToPath.keySet());
             return;
         }
-
         try{
             ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
-            _nameToActors.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
-            System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommand._targetHostName)+"["+_nameToActors.get(taskMigrationCommand._targetHostName).path()+"]");
-            sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName);
+//            _nameToPath.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
+            getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)).tell(migrationMessage, getSelf());
+            System.out.println("[Elastic]: elastic message has been sent to "+_nameToPath.get(taskMigrationCommand._targetHostName)+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
+            sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
         } catch (Exception e) {
             sendMessageToMaster(e.getMessage());
 //            ("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
@@ -210,6 +230,7 @@ public class Slave extends UntypedActor {
 
     private void handleElasticTaskMigrationMessage(ElasticTaskMigrationMessage elasticTaskMigrationMessage) {
         System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
+        sendMessageToMaster("[Elastic]: received elastic mask migration message from"+getSender());
         _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
         ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo(elasticTaskMigrationMessage,getSender().path().toString()));
         _master.tell("I generate confirm message ",getSelf());
@@ -245,7 +266,7 @@ public class Slave extends UntypedActor {
             sendMessageToMaster("begin to handle crate routing command!");
             ElasticTaskHolder.instance().createRouting(creatingCommand._task, creatingCommand._numberOfRoutes, creatingCommand._routingType);
         } catch (Exception e) {
-            System.err.println(e.getMessage());
+            sendMessageToMaster(e.getMessage());
         }
     }
 
@@ -253,7 +274,7 @@ public class Slave extends UntypedActor {
         try {
             ElasticTaskHolder.instance().withdrawRemoteElasticTasks( withdrawCommand.taskId, withdrawCommand.route);
         } catch (Exception e) {
-            System.err.println(e.getMessage());
+            sendMessageToMaster(e.getMessage());
         }
     }
 
