@@ -43,10 +43,22 @@ public class Slave extends UntypedActor {
         _name = name + ":" + port;
         _port = Integer.parseInt(port);
         _instance = this;
+        System.out.println("Slave constructor is called!");
     }
 
     public static Slave getInstance() {
         return _instance;
+    }
+
+    public static Slave waitAndGetInstance() {
+        try{
+            while(_instance==null) {
+                Thread.sleep(1000);
+            }
+            return _instance;
+        } catch (InterruptedException e) {
+            return _instance;
+        }
     }
 
     @Override
@@ -292,7 +304,7 @@ public class Slave extends UntypedActor {
 
 
 
-            return Slave.getInstance();
+            return Slave.waitAndGetInstance();
         } catch (UnknownHostException e ) {
             e.printStackTrace();
             return null;

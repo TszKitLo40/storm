@@ -94,12 +94,12 @@ public class ElasticTasks implements Serializable {
 //            return false;
 //        else
         if (route == RoutingTable.remote) {
-            System.out.println("a tuple is routed to remote!");
+//            System.out.println("a tuple is routed to remote!");
 
             RemoteTuple remoteTuple = new RemoteTuple(_taskID, ((PartialHashingRouting)_routingTable).getOrignalRoute(key), tuple);
             try {
                 _remoteTupleQueue.put(remoteTuple);
-                System.out.println("Remote Tuple is generated and sent to _remoteTupleQueue");
+//                System.out.println("Remote Tuple is generated and sent to _remoteTupleQueue");
             } catch (InterruptedException e) {
                 e.printStackTrace();
 
@@ -108,13 +108,13 @@ public class ElasticTasks implements Serializable {
         }
         else {
             try {
-                System.out.println("A tuple is route to "+route+ "by the routing table!");
+//                System.out.println("A tuple is route to "+route+ "by the routing table!");
                 _queues.get(route).put(tuple);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (NullPointerException ne) {
                 ne.printStackTrace();
-                System.err.println("route:"+route+", queue size: "+_queues.size());
+//                System.err.println("route:"+route+", queue size: "+_queues.size());
             }
             return true;
         }

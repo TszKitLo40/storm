@@ -78,7 +78,7 @@ public class ElasticRemoteTaskExecutor {
 
                     boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
 
-                    System.out.println("@" + hashCode() + "A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
+//                    System.out.println("@" + hashCode() + "A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
 
                     assert (handled);
 

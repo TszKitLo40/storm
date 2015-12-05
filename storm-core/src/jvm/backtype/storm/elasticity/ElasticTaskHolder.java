@@ -86,6 +86,8 @@ public class ElasticTaskHolder {
         _inputConnection = _context.bind(workerId,_port);
         _workerId = workerId;
         _slaveActor = Slave.createActor(_workerId,Integer.toString(port));
+        if(_slaveActor == null)
+            System.out.println("NOTE: _slaveActor is null!!***************\n");
         createExecuteResultReceivingThread();
         createExecuteResultSendingThread();
         LOG.info("ElasticTaskHolder is launched.");

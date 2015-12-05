@@ -62,6 +62,7 @@
 </appenders>
 <loggers>
     <root level="info"> <!-- We log everything -->
+    <!--<root level="info"> &lt;!&ndash; We log everything &ndash;&gt;-->
         <appender-ref ref="A1"/>
         <appender-ref ref="syslog"/>
     </root>

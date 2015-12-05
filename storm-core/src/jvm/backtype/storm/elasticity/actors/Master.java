@@ -123,15 +123,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
             for(String name: _nameToPath.keySet()) {
                 if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
                     _nameToPath.remove(name);
+                    System.err.println(_hostNameToWorkerLogicalName.get(name)+" is removed from the system.");
                     _hostNameToWorkerLogicalName.remove(name);
                 } else {
                     System.out.println(_nameToPath.get(name) + " != " + unreachableMember.member().address().toString());
                 }
 
             }
-
-            System.out.println("_nameToPath: "+_nameToPath);
-            System.out.println("_nameToWorkerLogicalName: " + _hostNameToWorkerLogicalName);
+//
+//            System.out.println("_nameToPath: "+_nameToPath);
+//            System.out.println("_nameToWorkerLogicalName: " + _hostNameToWorkerLogicalName);
 
         } else if(message instanceof HelloMessage) {
             HelloMessage helloMessage = (HelloMessage)message;
