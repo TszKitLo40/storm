@@ -419,7 +419,14 @@
                         (not= last-reported-time reported-time))
                       (current-time-secs)
                       last-nimbus-time
-                      )]
+                      )
+        _ (if
+            (and
+                nimbus-time
+                (>= (time-delta nimbus-time) timeout))
+            (log-message "Timeout!!!: nimbus-time: " nimbus-time " time-delta: " (time-delta nimbus-time) " timeout: " timeout)
+            (log-message "Not timeout: nimbus-time: " nimbus-time " time-delta: " (time-delta nimbus-time) " timeout: " timeout)
+            )]
       {:is-timed-out (and
                        nimbus-time
                        (>= (time-delta nimbus-time) timeout))
@@ -431,8 +438,12 @@
   (let [cache (select-keys cache all-executors)]
     (into {}
       (for [executor all-executors :let [curr (cache executor)]]
-        [executor
-         (update-executor-cache curr (get executor-beats executor) timeout)]
+        (do
+          (log-message "received heartbeat for " executor " content:" (get executor-beats executor))
+          [executor
+           (update-executor-cache curr (get executor-beats executor) timeout)]
+
+            )
          ))))
 
 (defn update-heartbeats! [nimbus storm-id all-executors existing-assignment]
@@ -477,6 +488,7 @@
               true
               (do
                 (log-message "Executor " storm-id ":" executor " not alive")
+                (log-message "start-time:" start-time "time-delta" (time-delta start-time) "conf" (conf NIMBUS-TASK-LAUNCH-SECS) "timeout:" is-timed-out )
                 false))
             )))
         doall)))
@@ -524,7 +536,11 @@
                  :let [topology-details (.getById topologies tid)
                        all-executors (topology->executors tid)
                        alive-executors (if (and scratch-topology-id (= scratch-topology-id tid))
-                                         all-executors
+                                         (do
+                                           (log-message "This is scratch-topoogy")
+                                           all-executors
+                                           )
+;                                         all-executors
                                          (set (alive-executors nimbus topology-details all-executors assignment)))]]
              {tid alive-executors})))
 

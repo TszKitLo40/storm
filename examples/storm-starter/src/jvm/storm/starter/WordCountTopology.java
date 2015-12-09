@@ -79,10 +79,10 @@ public class WordCountTopology {
 
     TopologyBuilder builder = new TopologyBuilder();
 
-    builder.setSpout("spout", new RandomSentenceSpout(), 5);
+    builder.setSpout("spout", new RandomSentenceSpout(0), 1);
 
-    builder.setBolt("split", new SplitSentence(), 8).shuffleGrouping("spout");
-    builder.setBolt("count", new WordCount(), 12).fieldsGrouping("split", new Fields("word"));
+    builder.setBolt("split", new SplitSentence(), 1).shuffleGrouping("spout");
+    builder.setBolt("count", new WordCount(), 1).fieldsGrouping("split", new Fields("word"));
 
     Config conf = new Config();
     conf.setDebug(false);

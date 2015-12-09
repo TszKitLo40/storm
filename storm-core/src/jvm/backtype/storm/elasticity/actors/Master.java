@@ -66,7 +66,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
                     TServerTransport serverTransport = new TServerSocket(9090);
                     TServer server = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
 
-                    System.out.println("Starting the monitoring daemon...");
+                    log("Starting the monitoring daemon...");
                     server.serve();
                 } catch (TException e) {
                     e.printStackTrace();
@@ -118,15 +118,15 @@ public class Master extends UntypedActor implements MasterService.Iface {
     public void onReceive(Object message) throws Exception {
         if(message instanceof ClusterEvent.UnreachableMember) {
             ClusterEvent.UnreachableMember unreachableMember = (ClusterEvent.UnreachableMember) message;
-            System.out.println(unreachableMember.member().address().toString() + " is unreachable!");
+            log(unreachableMember.member().address().toString() + " is unreachable!");
 
             for(String name: _nameToPath.keySet()) {
                 if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
                     _nameToPath.remove(name);
-                    System.err.println(_hostNameToWorkerLogicalName.get(name)+" is removed from the system.");
+                    log(_hostNameToWorkerLogicalName.get(name)+" is removed from the system.");
                     _hostNameToWorkerLogicalName.remove(name);
                 } else {
-                    System.out.println(_nameToPath.get(name) + " != " + unreachableMember.member().address().toString());
+//                    System.out.println(_nameToPath.get(name) + " != " + unreachableMember.member().address().toString());
                 }
 
             }
@@ -137,37 +137,48 @@ public class Master extends UntypedActor implements MasterService.Iface {
         } else if(message instanceof HelloMessage) {
             HelloMessage helloMessage = (HelloMessage)message;
             if(_nameToPath.containsKey(helloMessage.getName()))
-                System.out.println(helloMessage.getName()+" is registered again! ");
+                log(helloMessage.getName()+" is registered again! ");
 //            _nameToActors.put(helloMessage.getName(), getSender());
             _nameToPath.put(helloMessage.getName(), getSender().path());
             _hostNameToWorkerLogicalName.put(helloMessage.getName(), extractIpFromActorAddress(getSender().path().toString())+":"+helloMessage.getPort());
-            System.out.format("[%s] is registered on %s!\n", helloMessage.getName(), _hostNameToWorkerLogicalName.get(helloMessage.getName()));
+            log("[" +  helloMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(helloMessage.getName()));
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
-            System.out.println("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) +".");
+            log("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) +".");
 
         } else if (message instanceof RemoteRouteRegistrationMessage) {
             RemoteRouteRegistrationMessage registrationMessage = (RemoteRouteRegistrationMessage) message;
             for(int i: registrationMessage.routes) {
                 if(!registrationMessage.unregister) {
                     _taskidRouteToHostName.put(registrationMessage.taskid + "." + i, registrationMessage.host);
-                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
+                    log("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
                 } else {
                     _taskidRouteToHostName.remove(registrationMessage.taskid + "." + i);
-                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
+                    log("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
                 }
             }
 
         } else if (message instanceof String) {
-            System.out.println("message received: " + message);
+            log("message received: " + message);
         } else if (message instanceof LogMessage) {
             LogMessage logMessage = (LogMessage) message;
             DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
             //get current date time with Date()
             Date date = new Date();
-            System.out.println(dateFormat.format(date)+"[" + getWorkerLogicalName(logMessage.host) + "] "+ logMessage.msg);
+            log(getWorkerLogicalName(logMessage.host), logMessage.msg);
+//            System.out.println(dateFormat.format(date)+"[" + getWorkerLogicalName(logMessage.host) + "] "+ logMessage.msg);
         }
+    }
+
+    void log(String logger, String content) {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        Date date = new Date();
+        System.out.println(dateFormat.format(date)+ "[" + logger + "] " + content);
+    }
+
+    void log(String content) {
+        log("Master", content);
     }
 
     public static Master createActor() {
@@ -220,7 +231,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         try {
             getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(originalHostName))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
     //        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
-            System.out.println("[Elastic]: Migration message has been sent!");
+            log("[Elastic]: Migration message has been sent!");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -234,7 +245,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         try {
             getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
 //          _nameToActors.get(getHostByWorkerLogicalName(workerName)).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
-            System.out.println("RoutingCreatingCommand has been sent!");
+            log("RoutingCreatingCommand has been sent!");
         }catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -252,7 +263,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(getHostByWorkerLogicalName(workerName), taskid, route);
         try {
             getContext().actorFor(_nameToPath.get(hostName)).tell(command, getSelf());
-            System.out.println("RemoteRouteWithdrawCommand has been sent to " + hostName);
+            log("RemoteRouteWithdrawCommand has been sent to " + hostName);
         } catch (Exception ex) {
             ex.printStackTrace();
         }

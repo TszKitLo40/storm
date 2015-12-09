@@ -216,6 +216,7 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
         List<TaskMessage> wrapper = new ArrayList<TaskMessage>(1);
         wrapper.add(msg);
         send(wrapper.iterator());
+        wrapper.clear();
     }
 
     /**

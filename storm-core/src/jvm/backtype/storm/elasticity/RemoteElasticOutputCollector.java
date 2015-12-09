@@ -23,13 +23,21 @@ public class RemoteElasticOutputCollector extends ElasticOutputCollector {
     // As the emit is delayed, the destination tasks are unknown.
     @Override
     public List<Integer> emit(String streamId, Tuple inputTuple, List<Object> tuple) {
-        _outputQueue.add(RemoteTupleExecuteResult.createEmit(_originalTaskId,streamId, inputTuple, tuple));
+        try {
+            _outputQueue.put(RemoteTupleExecuteResult.createEmit(_originalTaskId,streamId, inputTuple, tuple));
+        } catch (InterruptedException e) {
+            System.out.println("_outputQueue.put() is interrupted!");
+        }
         return null;
     }
 
     @Override
     public List<Integer> emit(Tuple inputTuple, List<Object> tuple) {
-        _outputQueue.add(RemoteTupleExecuteResult.createEmit(_originalTaskId,Utils.DEFAULT_STREAM_ID, inputTuple, tuple));
+        try {
+            _outputQueue.put(RemoteTupleExecuteResult.createEmit(_originalTaskId,Utils.DEFAULT_STREAM_ID, inputTuple, tuple));
+        } catch (InterruptedException e) {
+            System.out.println("_outputQueue.put() is interrupted!");
+        }
         return null;
     }
 

@@ -20,7 +20,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class BaseElasticBoltExecutor implements IRichBolt {
 
-    static final long serialVersionUID = -3216586099702029175L;
+//    static final long serialVersionUID = -3216586099702029175L;
 
     public static Logger LOG = LoggerFactory.getLogger(BaseElasticBoltExecutor.class);
 
@@ -79,7 +79,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         _keyBucketSampler = new KeyBucketSampler(32);
-        _resultQueue = new LinkedBlockingQueue<>(1024*1024);
+        _resultQueue = new LinkedBlockingQueue<>(256);
         _outputCollector = new ElasticOutputCollector(_resultQueue);
         _bolt.prepare(stormConf, context);
         _originalCollector = collector;

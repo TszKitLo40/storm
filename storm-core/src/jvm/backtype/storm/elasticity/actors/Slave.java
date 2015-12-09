@@ -10,11 +10,14 @@ import backtype.storm.elasticity.message.actormessage.*;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,6 +47,26 @@ public class Slave extends UntypedActor {
         _port = Integer.parseInt(port);
         _instance = this;
         System.out.println("Slave constructor is called!");
+//        createLiveNotificationHeartbeat();
+    }
+
+    private void createLiveNotificationHeartbeat() {
+        final int signiture = new Random().nextInt();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(10000);
+                        MemoryUsage heapMemoryUsage = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+//                        ;
+                        sendMessageToMaster("I am still alive! " + signiture + "Memory usage: " + heapMemoryUsage.getUsed()/1024/1024 + "MB!");
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     public static Slave getInstance() {
@@ -102,7 +125,7 @@ public class Slave extends UntypedActor {
             HelloMessage helloMessage = (HelloMessage) message;
 //            _nameToActors.put(helloMessage.getName(), getSender());
             _nameToPath.put(helloMessage.getName(), getSender().path());
-            getContext().actorFor( getSender().path()).tell("Hi, I am " + _name + " Your path is "+ getSender().path().toString(), getSelf() );
+//            getContext().actorFor( getSender().path()).tell("Hi, I am " + _name + " Your path is "+ getSender().path().toString(), getSelf() );
             System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
 //            sendMessageToMaster("I am connected with " + helloMessage.getName());
         } else if (message instanceof TaskMigrationCommand) {
@@ -226,9 +249,13 @@ public class Slave extends UntypedActor {
         try{
             ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
 //            _nameToPath.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
-            getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)).tell(migrationMessage, getSelf());
-            System.out.println("[Elastic]: elastic message has been sent to "+_nameToPath.get(taskMigrationCommand._targetHostName)+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
-            sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
+            if(migrationMessage!=null) {
+                getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)).tell(migrationMessage, getSelf());
+                System.out.println("[Elastic]: elastic message has been sent to "+_nameToPath.get(taskMigrationCommand._targetHostName)+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
+//                sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
+            } else {
+                throw new RuntimeException("generateRemoteElasticTasks returns null!");
+            }
         } catch (Exception e) {
             sendMessageToMaster(e.getMessage());
 //            ("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
@@ -242,17 +269,18 @@ public class Slave extends UntypedActor {
 
     private void handleElasticTaskMigrationMessage(ElasticTaskMigrationMessage elasticTaskMigrationMessage) {
         System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
-        sendMessageToMaster("[Elastic]: received elastic mask migration message from"+getSender());
-        _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
+//        sendMessageToMaster("[Elastic]: received elastic mask migration message from"+getSender());
+//        _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
         ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo(elasticTaskMigrationMessage,getSender().path().toString()));
-        _master.tell("I generate confirm message ",getSelf());
+//        _master.tell("I generate confirm message ",getSelf());
 
 
         registerRemoteRoutesOnMaster(elasticTaskMigrationMessage._elasticTask.get_taskID(), elasticTaskMigrationMessage._elasticTask.get_routingTable().getRoutes());
 
         if(confirmMessage!=null) {
             getSender().tell(confirmMessage, getSelf());
-            _master.tell("I have handled the mask migration message",getSelf());
+            sendMessageToMaster("I have handled the mask migration message");
+//            _master.tell("I have handled the mask migration message",getSelf());
         } else {
             System.err.println("Failed to deploy remote elastic tasks!");
             _master.tell("Failed to deploy elastic tasks", null);

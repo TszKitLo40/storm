@@ -20,7 +20,7 @@ public class ElasticRemoteTaskExecutor {
 
     LinkedBlockingQueue<ITaskMessage> _resultQueue;
 
-    LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(1024*1024);
+    LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(256);
 
     RemoteElasticOutputCollector _outputCollector;
 
@@ -57,7 +57,6 @@ public class ElasticRemoteTaskExecutor {
     }
 
     public void createStateCheckpointingThread() {
-//        _stateCheckpointRunnable = new StateCheckoutPointing(10);
         _stateCheckpointingThread = new Thread(new StateCheckoutPointing(10));
         _stateCheckpointingThread.start();
 
@@ -71,16 +70,21 @@ public class ElasticRemoteTaskExecutor {
         @Override
         public void run() {
             try {
+                int count = 0;
                 while (!_terminated) {
-
 
                     Tuple input = _inputQueue.take();
 
                     boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
 
-//                    System.out.println("@" + hashCode() + "A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
+                    count++;
+                    if(count % 1000 == 0) {
+                        System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
+                        count = 0;
+                    }
 
-                    assert (handled);
+                    if(!handled)
+                        System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
 
 
                 }

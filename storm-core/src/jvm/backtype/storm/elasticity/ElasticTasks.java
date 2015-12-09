@@ -69,9 +69,10 @@ public class ElasticTasks implements Serializable {
 
     public void prepare(ElasticOutputCollector elasticOutputCollector, KeyValueState state) {
         _bolt.setState(state);
-        for(Object key: state.getState().keySet()) {
-            System.out.println("State <"+key+", "+state.getValueByKey(key)+"> has been restored!");
-        }
+//        for(Object key: state.getState().keySet()) {
+////            System.out.println("State <"+key+", "+state.getValueByKey(key)+"> has been restored!");
+//        }
+        System.out.println(state.getState().size() + " states have been migrated!");
         _queues = new HashMap<>();
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
@@ -89,6 +90,7 @@ public class ElasticTasks implements Serializable {
 
     public synchronized boolean tryHandleTuple(Tuple tuple, Object key) {
         int route = _routingTable.route(key);
+//        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
         _sample.record(route);
 //        if(route==RoutingTable.origin)
 //            return false;
@@ -110,6 +112,7 @@ public class ElasticTasks implements Serializable {
             try {
 //                System.out.println("A tuple is route to "+route+ "by the routing table!");
                 _queues.get(route).put(tuple);
+//                System.out.println("A tuple is inserted into the processing queue!");
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (NullPointerException ne) {
@@ -189,7 +192,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(64);
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(1024);
         _queues.put(i, inputQueue);
     }
 
@@ -209,7 +212,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>();
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(1024);
         _queues.put(i, inputQueue);
 
         QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
@@ -226,12 +229,13 @@ public class ElasticTasks implements Serializable {
      * @return a PartialHashRouting that routes the excepted routes
      */
     public synchronized PartialHashingRouting addExceptionForHashRouting(ArrayList<Integer> list, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
-
-        if(!(_routingTable instanceof PartialHashingRouting)&&!(_routingTable instanceof BalancedHashRouting)) {
-            throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing: " + _routingTable);
+        System.out.println("breakpoint 1");
+        if((!(_routingTable instanceof HashingRouting))&&(!(_routingTable instanceof BalancedHashRouting))&&(!(_routingTable instanceof PartialHashingRouting))) {
+            throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing: " + _routingTable.getClass().toString());
 //            System.err.println("cannot set Exception for non-hash routing");
 //            return null;
         }
+        System.out.println("breakpoint 2");
         for(int i: list) {
             if(!_routingTable.getRoutes().contains(i)) {
                 throw new InvalidRouteException("input route " + i + "is invalid");
@@ -243,6 +247,7 @@ public class ElasticTasks implements Serializable {
         _remoteTupleQueue = exceptedRoutingQueue;
 
 //        HashingRouting routing = (HashingRouting)_routingTable;
+        System.out.println("breakpoint 3");
         if(!(_routingTable instanceof PartialHashingRouting)) {
             _routingTable = new PartialHashingRouting(_routingTable);
         }
@@ -260,6 +265,8 @@ public class ElasticTasks implements Serializable {
         ret.invalidAllRoutes();
         ret.addValidRoutes(list);
         System.out.println("Complement Routing: getRoutes:" +ret.getRoutes());
+
+        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
 
         return ret;
     }

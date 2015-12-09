@@ -39,7 +39,7 @@ public class QueryRunnable implements Runnable {
         try {
             while (!interrupted) {
 //                System.out.println("Waiting for the termination of the worker thread...");
-//                System.out.println(_pendingTuples.size()+" elements remaining in the pending list!");
+                System.out.println(_pendingTuples.size()+" elements remaining in the pending list!");
                 Thread.sleep(100);
             }
         } catch (InterruptedException e) {
