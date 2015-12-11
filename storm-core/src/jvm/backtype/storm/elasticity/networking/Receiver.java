@@ -53,8 +53,9 @@ public class Receiver implements IConnection {
                                 int receiveCount = 0;
                                 while (true) {
                                     try {
-
-                                        inputData.put((TaskMessage) (newInputStream.readObject()));
+                                        TaskMessage message = (TaskMessage)(newInputStream.readObject());
+                                        message.set_name("Received Message");
+                                        inputData.put(message);
                                         receiveCount++;
 //                                        System.out.println("received!!");
 //                                        if(receiveCount%10000==0)

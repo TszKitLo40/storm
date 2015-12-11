@@ -121,15 +121,15 @@ public class WordCountTopologyNormal {
   public static void main(String[] args) throws Exception {
 
     if(args.length == 0) {
-      System.out.println("args: topology-name sleep-time-in-millis [debug|any other]");
+      System.out.println("args: topology-name sleep-time-in-millis(for generator) sleep-time-in-millis(for count) [debug|any other]");
     }
 
     TopologyBuilder builder = new TopologyBuilder();
 
-    builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 4);
+    builder.setSpout("spout", new MyWordCount.WordGenerationSpout(Integer.parseInt(args[1])), 4);
 
-    builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
-    builder.setBolt("print", new Printer(),4).globalGrouping("count");
+    builder.setBolt("count", new WordCount(Integer.parseInt(args[2])), 1).fieldsGrouping("spout", new Fields("word"));
+    builder.setBolt("print", new Printer(), 4).globalGrouping("count");
 
     Config conf = new Config();
     if(args.length>2&&args[2].equals("debug"))

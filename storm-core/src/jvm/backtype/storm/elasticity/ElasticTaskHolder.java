@@ -89,7 +89,7 @@ public class ElasticTaskHolder {
     private ElasticTaskHolder(Map stormConf, String workerId, int port) {
         serializer = new KryoValuesSerializer(stormConf);
         System.out.println("creating ElasticTaskHolder");
-        _context = new MyContext();
+        _context = new Context();
         _port = port + 10000;
         _context.prepare(stormConf);
         _inputConnection = _context.bind(workerId,_port);
@@ -347,12 +347,14 @@ public class ElasticTaskHolder {
 //                        Object object = serializer.
                         Object object = SerializationUtils.deserialize(message.message());
                         if(object instanceof RemoteTupleExecuteResult) {
+                            message.set_name("Received RemoteTupleExecuteResult");
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
                             ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
                             LOG.debug("A query result is received for "+result._originalTaskID);
                             _bolts.get(targetTaskId).insertToResultQueue(result);
                             LOG.debug("a query result tuple is added into the input queue");
                         } else if (object instanceof RemoteTuple) {
+                            message.set_name("Received RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
                                 LOG.debug("A remote tuple %d.%d is received!\n",remoteTuple._taskId,remoteTuple._route);
@@ -366,6 +368,7 @@ public class ElasticTaskHolder {
 
                         } else if (object instanceof RemoteState) {
                             System.out.println("Received RemoteState!");
+                            message.set_name("Received RemoteState");
                             RemoteState remoteState = (RemoteState) object;
                             if(_bolts.containsKey(remoteState._taskId)) {
                                 _bolts.get(remoteState._taskId).get_elasticTasks().get_bolt().getState().update(remoteState._state);

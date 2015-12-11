@@ -38,6 +38,10 @@ public class TaskMessage implements Serializable {
     public String name() {
         return _name;
     }
+
+    public void set_name(String name) {
+        _name = name;
+    }
     
     public int task() {
         return _task;

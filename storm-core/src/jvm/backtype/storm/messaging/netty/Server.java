@@ -190,6 +190,9 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         if (null == msgs || msgs.size() == 0 || closing) {
             return;
         }
+        for (TaskMessage message: msgs) {
+            message.set_name("Server.enqueue()");
+        }
         addReceiveCount(from, msgs.size());
         ArrayList<TaskMessage> messageGroups[] = groupMessages(msgs);
 
@@ -200,6 +203,9 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         for (int receiverId = 0; receiverId < messageGroups.length; receiverId++) {
             ArrayList<TaskMessage> msgGroup = messageGroups[receiverId];
             if (null != msgGroup) {
+                while(pendingMessages[receiverId].get()>1024*64) {
+                    Thread.sleep(1);
+                }
                 message_queue[receiverId].put(msgGroup);
                 pendingMessages[receiverId].addAndGet(msgGroup.size());
             }
@@ -232,6 +238,9 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         if (null != ret) {
             messagesDequeued.addAndGet(ret.size());
             pendingMessages[queueId].addAndGet(0 - ret.size());
+            for(TaskMessage taskmessage: ret) {
+                taskmessage.set_name("Server.recv()");
+            }
             return ret.iterator();
         }
         return null;

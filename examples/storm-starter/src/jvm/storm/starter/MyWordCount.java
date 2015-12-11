@@ -36,8 +36,12 @@ public class MyWordCount {
 
 //        private ThroughputMonitor monitor;
 
-        public WordGenerationSpout(){
-            _emit_cycles=0;
+        public WordGenerationSpout() {
+            this(0);
+        }
+
+        public WordGenerationSpout(int emit_cycles){
+            _emit_cycles=emit_cycles;
             _random.setSeed(System.currentTimeMillis());
             String wordset = "5. You are not required to accept this License, since you have not signed it. However,\n" +
                     "nothing else grants you permission to modify or distribute the Program or its\n" +
@@ -121,7 +125,7 @@ public class MyWordCount {
         }
         @Override
         public void nextTuple(){
-//            utils.sleep(_emit_cycles);
+            Utils.sleep(_emit_cycles);
 //            long start = System.currentTimeMillis();
 //            System.out.print("sending--->");
             _collector.emit(new Values(_dictionary.get(_random.nextInt(_dictionary.size()))));
