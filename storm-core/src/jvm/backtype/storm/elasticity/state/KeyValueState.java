@@ -11,14 +11,6 @@ public class KeyValueState implements Serializable {
 
     HashMap<Object, Object> state = new HashMap<>();
 
-    public KeyValueState() {
-
-    }
-
-    public KeyValueState(HashMap map) {
-        state = map;
-    }
-
     public Object getValueByKey(Object key) {
         if (state.containsKey(key))
             return state.get(key);
@@ -36,5 +28,15 @@ public class KeyValueState implements Serializable {
 
     public HashMap<Object, Object> getState() {
         return state;
+    }
+
+    public KeyValueState getValidState(StateFilter filter) {
+        KeyValueState ret = new KeyValueState();
+        for(Object key: state.keySet()) {
+            if(filter.isValid(key)) {
+                ret.setValueBySey(key, state.get(key));
+            }
+        }
+        return ret;
     }
 }
