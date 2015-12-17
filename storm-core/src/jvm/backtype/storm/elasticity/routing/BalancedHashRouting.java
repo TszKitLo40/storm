@@ -5,6 +5,7 @@ import backtype.storm.elasticity.utils.GlobalHashFunction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Created by robert on 11/26/15.
@@ -30,7 +31,7 @@ public class BalancedHashRouting implements RoutingTable {
     }
 
     @Override
-    public int route(Object key) {
+    public synchronized int route(Object key) {
 
         return hashValueToRoute.get(hashFunction.hash(key) % numberOfHashValues);
     }
@@ -47,5 +48,26 @@ public class BalancedHashRouting implements RoutingTable {
             ret.add(i);
         }
         return ret;
+    }
+
+    public Set<Integer> getBucketSet() {
+        return hashValueToRoute.keySet();
+    }
+
+    public synchronized void reassignBucketToRoute(int bucketid, int targetRoute) {
+        hashValueToRoute.put(bucketid, targetRoute);
+    }
+
+    public String toString() {
+        String ret = "";
+        ret += "number of routes: " + getNumberOfRoutes() +"\n";
+        ret += "Bucket to route maps:\n";
+        ret += hashValueToRoute;
+        ret +="\n";
+        return ret;
+    }
+
+    public int getNumberOfBuckets() {
+        return numberOfHashValues;
     }
 }

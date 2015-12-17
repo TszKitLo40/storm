@@ -78,7 +78,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        _keyBucketSampler = new KeyBucketSampler(32);
+        _keyBucketSampler = new KeyBucketSampler(8);
         _resultQueue = new LinkedBlockingQueue<>(256);
         _outputCollector = new ElasticOutputCollector(_resultQueue);
         _bolt.prepare(stormConf, context);

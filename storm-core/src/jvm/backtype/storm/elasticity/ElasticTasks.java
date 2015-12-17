@@ -12,6 +12,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 import backtype.storm.elasticity.state.*;
 
@@ -34,6 +35,8 @@ public class ElasticTasks implements Serializable {
     private transient ElasticOutputCollector _elasticOutputCollector;
 
     private transient LinkedBlockingQueue<ITaskMessage> _remoteTupleQueue;
+
+    private transient ElasticTaskHolder _taskHolder;
 
     public transient KeyFrequencySampler _sample;
 
@@ -65,6 +68,7 @@ public class ElasticTasks implements Serializable {
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
         _sample = new KeyFrequencySampler(0.05);
+        _taskHolder=ElasticTaskHolder.instance();
     }
 
     public void prepare(ElasticOutputCollector elasticOutputCollector, KeyValueState state) {
@@ -95,6 +99,12 @@ public class ElasticTasks implements Serializable {
 //        if(route==RoutingTable.origin)
 //            return false;
 //        else
+        if(new Random().nextFloat()<0.002) {
+            System.out.println("A tuple is route to " + route);
+        }
+
+        _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
+
         if (route == RoutingTable.remote) {
 //            System.out.println("a tuple is routed to remote!");
 

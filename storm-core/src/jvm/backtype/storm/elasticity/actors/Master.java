@@ -304,6 +304,24 @@ public class Master extends UntypedActor implements MasterService.Iface {
         return ret;
     }
 
+    @Override
+    public String queryRoutingTable(int taskid) throws TaskNotExistException, TException {
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+//        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
+        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    @Override
+    public void reassignBucketToRoute(int taskid, int bucket, int originalRoute, int newRoute) throws TaskNotExistException, TException {
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
+        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
+    }
+
     String extractIpFromActorAddress(String address) {
         Pattern p = Pattern.compile( "@([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)" );
         Matcher m = p.matcher(address);

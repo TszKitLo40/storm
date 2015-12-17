@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.exceptions.BucketNotExistingException;
 import backtype.storm.elasticity.message.actormessage.ElasticTaskMigrationConfirmMessage;
 import backtype.storm.elasticity.message.actormessage.ElasticTaskMigrationMessage;
 import backtype.storm.elasticity.actors.Slave;
@@ -7,6 +8,7 @@ import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.exceptions.TaskNotExistingException;
 import backtype.storm.elasticity.message.taksmessage.*;
+import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.state.*;
@@ -60,9 +62,13 @@ public class ElasticTaskHolder {
 
     Map<String, Semaphore> _taskidRouteToStateWaitingSemaphore = new HashMap<>();
 
+    Map<String, Semaphore> _taskIdRouteToSendingWaitingSemaphore = new HashMap<>();
+
     private LinkedBlockingQueue<ITaskMessage> _remoteTupleOutputQueue = new LinkedBlockingQueue<>(256);
 
     private Map<String, IConnection> _taskidRouteToConnection = new HashMap<>();
+
+    IConnection self;
 
     KryoValuesSerializer serializer;
 
@@ -246,6 +252,8 @@ public class ElasticTaskHolder {
 
                             LOG.debug("The element is RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) message;
+//                            waitIfStreamToTargetSubtaskIsPaused(remoteTuple._taskId, remoteTuple._route);
+
                             final String key = remoteTuple.taskIdAndRoutePair();
                             LOG.debug("Key :"+key);
                             if(_taskidRouteToConnection.containsKey(key)) {
@@ -365,24 +373,24 @@ public class ElasticTaskHolder {
                             System.out.println("Received RemoteState!");
                             message.set_name("Received RemoteState");
                             RemoteState remoteState = (RemoteState) object;
-                            if(_bolts.containsKey(remoteState._taskId)) {
-                                _bolts.get(remoteState._taskId).get_elasticTasks().get_bolt().getState().update(remoteState._state);
-                                System.out.println("State ("+remoteState._state.getState().size()+ " elements) has been updated!");
-                                if(remoteState.finalized) {
-                                    for(int route: remoteState._routes) {
-                                        _taskidRouteToStateWaitingSemaphore.get(remoteState._taskId+"."+route).release();
-                                        System.out.println("Semaphore for "+remoteState._taskId+"."+route +"has been released" + message.name());
-                                    }
-                                }
+                            handleRemoteState(remoteState);
 
-                            } else {
-                                System.err.println("Cannot update State, because task ["+remoteState._taskId+"] does not exist");
-                            }
                         } else if (object instanceof RemoteSubtaskTerminationToken) {
                             System.out.print("Received a RemoteSubtaskTerminationToken!");
                             RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) object;
                             terminateRemoteRoute(remoteSubtaskTerminationToken.taskid, remoteSubtaskTerminationToken.route);
                             _slaveActor.unregisterRemoteRoutesOnMaster(remoteSubtaskTerminationToken.taskid, remoteSubtaskTerminationToken.route);
+                        } else if (object instanceof BucketToRouteReassignment) {
+                            sendMessageToMaster("Received BucketToRouteReassignment");
+                            BucketToRouteReassignment reassignment = (BucketToRouteReassignment)object;
+                            handleBucketToRouteReassignment(reassignment);
+                        } else if (object instanceof StateMigrationToken) {
+                            sendMessageToMaster("Received StateMigrationToken!");
+                            StateMigrationToken token = (StateMigrationToken) object;
+
+                            handleStateMigrationToken(token);
+
+
                         } else {
                             System.err.println("Unexpected Object: " + object);
                         }
@@ -392,6 +400,67 @@ public class ElasticTaskHolder {
                 }
             }
         }).start();
+    }
+
+    private void handleRemoteState(RemoteState remoteState) {
+        if(_bolts.containsKey(remoteState._taskId)) {
+            getState(remoteState._taskId).update(remoteState._state);
+            System.out.println("State ("+remoteState._state.getState().size()+ " elements) has been updated!");
+            if(remoteState.finalized) {
+                for(int route: remoteState._routes) {
+                    _taskidRouteToStateWaitingSemaphore.get(remoteState._taskId+"."+route).release();
+                    System.out.println("Semaphore for "+remoteState._taskId+"."+route +"has been released" );
+                }
+            }
+
+        } else {
+            if(_taskidRouteToConnection.containsKey(remoteState._taskId+"."+remoteState._routes.get(0))) {
+                _taskidRouteToConnection.get(remoteState._taskId+"."+remoteState._routes.get(0)).send(remoteState._taskId, SerializationUtils.serialize(remoteState));
+            } else {
+                System.err.println("Cannot find remote connection for  ["+remoteState._taskId+"."+remoteState._routes.get(0));
+            }
+
+
+        }
+    }
+
+    private void handleStateMigrationToken(StateMigrationToken token) {
+
+        //TODO: there should be some mechanism to guarantee that the state is flushed until all the tuple has been processed
+        KeyValueState partialState = getState(token._taskId).getValidState(token._filter);
+        RemoteState remoteState = new RemoteState(token._taskId, partialState, token._targetRoute);
+        if(_originalTaskIdToConnection.containsKey(token._taskId)) {
+            _originalTaskIdToConnection.get(token._taskId).send(token._taskId,SerializationUtils.serialize(remoteState));
+            sendMessageToMaster("Remote state is send back to the original elastic holder!");
+        } else {
+
+            sendMessageToMaster("Remote state does not need to be sent, as the remote state is already in the original holder!");
+            handleRemoteState(remoteState);
+        }
+    }
+
+    private KeyValueState getState(int taskId) {
+        if(_bolts.containsKey(taskId))
+            return _bolts.get(taskId).get_elasticTasks().get_bolt().getState();
+        else if (_originalTaskIdToRemoteTaskExecutor.containsKey(taskId)) {
+            return _originalTaskIdToRemoteTaskExecutor.get(taskId)._bolt.getState();
+        }
+        return null;
+    }
+
+    private void handleBucketToRouteReassignment(BucketToRouteReassignment reassignment) {
+        if(_bolts.containsKey(reassignment.taskid)) {
+            for(int bucket: reassignment.reassignment.keySet()) {
+                ((BalancedHashRouting)_bolts.get(reassignment.taskid).get_elasticTasks().get_routingTable()).reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
+                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
+            }
+        }
+        if(_originalTaskIdToRemoteTaskExecutor.containsKey(reassignment.taskid)) {
+            for(int bucket: reassignment.reassignment.keySet()) {
+                ((BalancedHashRouting)_originalTaskIdToRemoteTaskExecutor.get(reassignment.taskid)._elasticTasks.get_routingTable()).reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
+                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + "in the remote elastic task");
+            }
+        }
     }
 
     public void establishConnectionToRemoteTaskHolder(int taksId, int route, String remoteIp, int remotePort) {
@@ -558,6 +627,108 @@ public class ElasticTaskHolder {
         } else {
             return _bolts.get(taskid).get_elasticTasks()._sample.toString();
         }
+    }
+
+    public String getRoutingTableStatus(int taskid) {
+        if(!_bolts.containsKey(taskid)) {
+            return "task does not exist!";
+        } else {
+            return _bolts.get(taskid).get_elasticTasks().get_routingTable().toString();
+        }
+    }
+
+    public void reassignHashBucketToRoute(int taskid, int bucketId, int orignalRoute, int targetRoute) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException, BucketNotExistingException {
+        if(!_bolts.containsKey(taskid)) {
+            throw new TaskNotExistingException("Task " + taskid + " does not exist in the ElasticHolder!");
+        }
+
+        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable() instanceof BalancedHashRouting)) {
+            throw new RoutingTypeNotSupportedException("ReassignHashBucketToRoute only applies on BalancedHashRouting");
+        }
+
+        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable().getRoutes().contains(orignalRoute))) {
+            throw new InvalidRouteException("Original Route " + orignalRoute + " does not exist!");
+        }
+
+        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable().getRoutes().contains(targetRoute))) {
+            throw new InvalidRouteException("Target Route " + targetRoute + " does not exist!");
+        }
+
+        BalancedHashRouting balancedHashRouting = (BalancedHashRouting)_bolts.get(taskid).get_elasticTasks().get_routingTable();
+
+        if(!balancedHashRouting.getBucketSet().contains(bucketId)) {
+            throw new BucketNotExistingException("Bucket " + bucketId + " does not exist in the balanced hash routing table!");
+        }
+
+
+        // 1. pause sending RemoteTuples to the target subtask
+        pauseSendingToTargetSubtask(taskid, targetRoute);
+
+        // 2. change the routing table on the source and target
+        BucketToRouteReassignment reassignment = new BucketToRouteReassignment(taskid, bucketId, targetRoute);
+        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
+            _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
+        } else {
+            handleBucketToRouteReassignment(reassignment);
+        }
+
+        // 3. send state migration command to the source subtask
+        HashBucketFilter filter = new HashBucketFilter(balancedHashRouting.getNumberOfBuckets(), bucketId);
+        StateMigrationToken stateMigrationToken = new StateMigrationToken(taskid, targetRoute, filter);
+        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)) {
+            _taskidRouteToConnection.get(taskid+ "." + orignalRoute).send(taskid, SerializationUtils.serialize(stateMigrationToken));
+        } else {
+            handleStateMigrationToken(stateMigrationToken);
+        }
+
+//        // 4. update the routing table on the target subtask
+//        _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
+
+        // 5. resume sending RemoteTuples to the target subtask
+        System.out.println("Begin to resume!");
+        resumeSendingToTargetSubtask(taskid, targetRoute);
+        System.out.println("Resumed!");
+
+
+
+    }
+
+    public void waitIfStreamToTargetSubtaskIsPaused(int targetTask, int route) {
+//        System.out.println("waitIfStreamToTargetSubtaskIsPaused!");
+        String key = targetTask+"."+route;
+        if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
+            try {
+                System.out.println("Sending stream to " + targetTask + "." + route + " is paused. Waiting for resumption!");
+                _taskIdRouteToSendingWaitingSemaphore.get(key).acquire();
+                _taskIdRouteToSendingWaitingSemaphore.remove(key);
+                System.out.println( targetTask + "." + route +" is resumed!!!!!");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    void pauseSendingToTargetSubtask(int targetTask, int route) {
+        String key = targetTask+"."+route;
+        if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
+            System.out.println(key+ " already exists in the Semaphore mapping!");
+            return;
+        }
+
+        _taskIdRouteToSendingWaitingSemaphore.put(key, new Semaphore(0));
+        System.out.println("Sending to " + key + " is paused!");
+
+    }
+
+    void resumeSendingToTargetSubtask(int targetTask, int route) {
+        String key = targetTask + "." + route;
+        if(!_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
+            System.out.println("cannot resume "+key+" because the semaphore does not exist!");
+            return;
+        }
+        _taskIdRouteToSendingWaitingSemaphore.get(key).release();
+        System.out.println("Sending is resumed!");
+
     }
 
 }

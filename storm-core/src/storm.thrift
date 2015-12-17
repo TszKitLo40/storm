@@ -582,4 +582,6 @@ service MasterService {
   double reportTaskThroughput(1: i32 taskid) throws (1: TaskNotExistException tnee);
   string getDistribution(1: i32 taskid) throws (1: TaskNotExistException tnee);
   string getLiveWorkers();
+  string queryRoutingTable(1: i32 taskid) throws (1: TaskNotExistException tnee);
+  void reassignBucketToRoute(1: i32 taskid, 2: i32 bucket, 3: i32 originalRoute, 4: i32 newRoute) throws (1: TaskNotExistException tnee);
 }

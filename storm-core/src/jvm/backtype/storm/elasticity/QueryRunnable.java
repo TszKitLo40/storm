@@ -40,7 +40,7 @@ public class QueryRunnable implements Runnable {
             while (!interrupted) {
 //                System.out.println("Waiting for the termination of the worker thread...");
                 System.out.println(_pendingTuples.size()+" elements remaining in the pending list!");
-                Thread.sleep(100);
+                Thread.sleep(10);
             }
         } catch (InterruptedException e) {
 
@@ -52,8 +52,10 @@ public class QueryRunnable implements Runnable {
         try {
             while (!_terminationRequest || !_pendingTuples.isEmpty()) {
                 Tuple input = _pendingTuples.poll(100, TimeUnit.MILLISECONDS);
-                if(input!=null)
+                if(input!=null) {
+                    //if input tuple is a token, wait for the state migration.
                     _bolt.execute(input, _outputCollector);
+                }
             }
             interrupted = true;
 

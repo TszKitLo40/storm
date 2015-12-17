@@ -85,6 +85,23 @@ class Iface:
   def getLiveWorkers(self):
     pass
 
+  def queryRoutingTable(self, taskid):
+    """
+    Parameters:
+     - taskid
+    """
+    pass
+
+  def reassignBucketToRoute(self, taskid, bucket, originalRoute, newRoute):
+    """
+    Parameters:
+     - taskid
+     - bucket
+     - originalRoute
+     - newRoute
+    """
+    pass
+
 
 class Client(Iface):
   def __init__(self, iprot, oprot=None):
@@ -322,6 +339,76 @@ class Client(Iface):
       return result.success
     raise TApplicationException(TApplicationException.MISSING_RESULT, "getLiveWorkers failed: unknown result");
 
+  def queryRoutingTable(self, taskid):
+    """
+    Parameters:
+     - taskid
+    """
+    self.send_queryRoutingTable(taskid)
+    return self.recv_queryRoutingTable()
+
+  def send_queryRoutingTable(self, taskid):
+    self._oprot.writeMessageBegin('queryRoutingTable', TMessageType.CALL, self._seqid)
+    args = queryRoutingTable_args()
+    args.taskid = taskid
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_queryRoutingTable(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = queryRoutingTable_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    if result.success is not None:
+      return result.success
+    if result.tnee is not None:
+      raise result.tnee
+    raise TApplicationException(TApplicationException.MISSING_RESULT, "queryRoutingTable failed: unknown result");
+
+  def reassignBucketToRoute(self, taskid, bucket, originalRoute, newRoute):
+    """
+    Parameters:
+     - taskid
+     - bucket
+     - originalRoute
+     - newRoute
+    """
+    self.send_reassignBucketToRoute(taskid, bucket, originalRoute, newRoute)
+    self.recv_reassignBucketToRoute()
+
+  def send_reassignBucketToRoute(self, taskid, bucket, originalRoute, newRoute):
+    self._oprot.writeMessageBegin('reassignBucketToRoute', TMessageType.CALL, self._seqid)
+    args = reassignBucketToRoute_args()
+    args.taskid = taskid
+    args.bucket = bucket
+    args.originalRoute = originalRoute
+    args.newRoute = newRoute
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_reassignBucketToRoute(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = reassignBucketToRoute_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    if result.tnee is not None:
+      raise result.tnee
+    return
+
 
 class Processor(Iface, TProcessor):
   def __init__(self, handler):
@@ -334,6 +421,8 @@ class Processor(Iface, TProcessor):
     self._processMap["reportTaskThroughput"] = Processor.process_reportTaskThroughput
     self._processMap["getDistribution"] = Processor.process_getDistribution
     self._processMap["getLiveWorkers"] = Processor.process_getLiveWorkers
+    self._processMap["queryRoutingTable"] = Processor.process_queryRoutingTable
+    self._processMap["reassignBucketToRoute"] = Processor.process_reassignBucketToRoute
 
   def process(self, iprot, oprot):
     (name, type, seqid) = iprot.readMessageBegin()
@@ -440,6 +529,34 @@ class Processor(Iface, TProcessor):
     result = getLiveWorkers_result()
     result.success = self._handler.getLiveWorkers()
     oprot.writeMessageBegin("getLiveWorkers", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_queryRoutingTable(self, seqid, iprot, oprot):
+    args = queryRoutingTable_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = queryRoutingTable_result()
+    try:
+      result.success = self._handler.queryRoutingTable(args.taskid)
+    except TaskNotExistException, tnee:
+      result.tnee = tnee
+    oprot.writeMessageBegin("queryRoutingTable", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_reassignBucketToRoute(self, seqid, iprot, oprot):
+    args = reassignBucketToRoute_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = reassignBucketToRoute_result()
+    try:
+      self._handler.reassignBucketToRoute(args.taskid, args.bucket, args.originalRoute, args.newRoute)
+    except TaskNotExistException, tnee:
+      result.tnee = tnee
+    oprot.writeMessageBegin("reassignBucketToRoute", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -1459,6 +1576,319 @@ class getLiveWorkers_result:
   def __hash__(self):
     value = 17
     value = (value * 31) ^ hash(self.success)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class queryRoutingTable_args:
+  """
+  Attributes:
+   - taskid
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.I32, 'taskid', None, None, ), # 1
+  )
+
+  def __init__(self, taskid=None,):
+    self.taskid = taskid
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.I32:
+          self.taskid = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('queryRoutingTable_args')
+    if self.taskid is not None:
+      oprot.writeFieldBegin('taskid', TType.I32, 1)
+      oprot.writeI32(self.taskid)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.taskid)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class queryRoutingTable_result:
+  """
+  Attributes:
+   - success
+   - tnee
+  """
+
+  thrift_spec = (
+    (0, TType.STRING, 'success', None, None, ), # 0
+    (1, TType.STRUCT, 'tnee', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
+  )
+
+  def __init__(self, success=None, tnee=None,):
+    self.success = success
+    self.tnee = tnee
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 0:
+        if ftype == TType.STRING:
+          self.success = iprot.readString().decode('utf-8')
+        else:
+          iprot.skip(ftype)
+      elif fid == 1:
+        if ftype == TType.STRUCT:
+          self.tnee = TaskNotExistException()
+          self.tnee.read(iprot)
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('queryRoutingTable_result')
+    if self.success is not None:
+      oprot.writeFieldBegin('success', TType.STRING, 0)
+      oprot.writeString(self.success.encode('utf-8'))
+      oprot.writeFieldEnd()
+    if self.tnee is not None:
+      oprot.writeFieldBegin('tnee', TType.STRUCT, 1)
+      self.tnee.write(oprot)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.success)
+    value = (value * 31) ^ hash(self.tnee)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class reassignBucketToRoute_args:
+  """
+  Attributes:
+   - taskid
+   - bucket
+   - originalRoute
+   - newRoute
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.I32, 'taskid', None, None, ), # 1
+    (2, TType.I32, 'bucket', None, None, ), # 2
+    (3, TType.I32, 'originalRoute', None, None, ), # 3
+    (4, TType.I32, 'newRoute', None, None, ), # 4
+  )
+
+  def __init__(self, taskid=None, bucket=None, originalRoute=None, newRoute=None,):
+    self.taskid = taskid
+    self.bucket = bucket
+    self.originalRoute = originalRoute
+    self.newRoute = newRoute
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.I32:
+          self.taskid = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      elif fid == 2:
+        if ftype == TType.I32:
+          self.bucket = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      elif fid == 3:
+        if ftype == TType.I32:
+          self.originalRoute = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      elif fid == 4:
+        if ftype == TType.I32:
+          self.newRoute = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('reassignBucketToRoute_args')
+    if self.taskid is not None:
+      oprot.writeFieldBegin('taskid', TType.I32, 1)
+      oprot.writeI32(self.taskid)
+      oprot.writeFieldEnd()
+    if self.bucket is not None:
+      oprot.writeFieldBegin('bucket', TType.I32, 2)
+      oprot.writeI32(self.bucket)
+      oprot.writeFieldEnd()
+    if self.originalRoute is not None:
+      oprot.writeFieldBegin('originalRoute', TType.I32, 3)
+      oprot.writeI32(self.originalRoute)
+      oprot.writeFieldEnd()
+    if self.newRoute is not None:
+      oprot.writeFieldBegin('newRoute', TType.I32, 4)
+      oprot.writeI32(self.newRoute)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.taskid)
+    value = (value * 31) ^ hash(self.bucket)
+    value = (value * 31) ^ hash(self.originalRoute)
+    value = (value * 31) ^ hash(self.newRoute)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class reassignBucketToRoute_result:
+  """
+  Attributes:
+   - tnee
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.STRUCT, 'tnee', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
+  )
+
+  def __init__(self, tnee=None,):
+    self.tnee = tnee
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.STRUCT:
+          self.tnee = TaskNotExistException()
+          self.tnee.read(iprot)
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('reassignBucketToRoute_result')
+    if self.tnee is not None:
+      oprot.writeFieldBegin('tnee', TType.STRUCT, 1)
+      self.tnee.write(oprot)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.tnee)
     return value
 
   def __repr__(self):

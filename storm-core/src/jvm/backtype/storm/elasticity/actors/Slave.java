@@ -196,6 +196,15 @@ public class Slave extends UntypedActor {
             DistributionQueryCommand distributionQueryCommand = (DistributionQueryCommand)message;
             String distribution = ElasticTaskHolder.instance().getDistribution(distributionQueryCommand.taskid);
             getSender().tell(distribution, getSelf());
+        } else if (message instanceof RoutingTableQueryCommand) {
+            RoutingTableQueryCommand queryCommand = (RoutingTableQueryCommand)message;
+            String queryResult = ElasticTaskHolder.instance().getRoutingTableStatus(queryCommand.taskid);
+            getSender().tell(queryResult, getSelf());
+        } else if (message instanceof ReassignBucketToRouteCommand) {
+            System.out.println("I received ReassignBucketToRouteCommand message " + message);
+            ReassignBucketToRouteCommand reassignBucketToRouteCommand = (ReassignBucketToRouteCommand) message;
+            ElasticTaskHolder.instance().reassignHashBucketToRoute(reassignBucketToRouteCommand.taskId, reassignBucketToRouteCommand.bucketId,
+                    reassignBucketToRouteCommand.originalRoute, reassignBucketToRouteCommand.newRoute);
         } else {
             System.out.println("[Elastic]: Unknown message.");
             unhandled(message);
