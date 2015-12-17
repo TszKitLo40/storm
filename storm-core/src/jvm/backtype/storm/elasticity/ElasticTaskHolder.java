@@ -360,10 +360,10 @@ public class ElasticTaskHolder {
                             message.set_name("Received RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
-                                LOG.debug("A remote tuple %d.%d is received!\n",remoteTuple._taskId,remoteTuple._route);
+                                LOG.debug("A remote tuple %d.%d is received!\n", remoteTuple._taskId, remoteTuple._route);
                                 ((TupleImpl)remoteTuple._tuple).setContext(_workerTopologyContext);
                                 _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId).get_inputQueue().put(remoteTuple._tuple);
-                                LOG.debug("A remote tuple is added to the queue!");
+                                LOG.debug("A remote tuple is added to the queue!\n");
 
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
@@ -409,7 +409,7 @@ public class ElasticTaskHolder {
             if(remoteState.finalized) {
                 for(int route: remoteState._routes) {
                     _taskidRouteToStateWaitingSemaphore.get(remoteState._taskId+"."+route).release();
-                    System.out.println("Semaphore for "+remoteState._taskId+"."+route +"has been released" );
+                    System.out.println("Semaphore for " + remoteState._taskId + "." + route + "has been released");
                 }
             }
 
@@ -448,17 +448,58 @@ public class ElasticTaskHolder {
         return null;
     }
 
+    private BalancedHashRouting getBalancedHashRoutingFromOriginalBolt(int taskid) {
+        if(_bolts.containsKey(taskid)) {
+
+                RoutingTable routingTable = _bolts.get(taskid).get_elasticTasks().get_routingTable();
+                if(routingTable instanceof BalancedHashRouting) {
+                    return (BalancedHashRouting)routingTable;
+                } else if ((routingTable instanceof PartialHashingRouting) && (((PartialHashingRouting) routingTable).getOriginalRoutingTable() instanceof BalancedHashRouting)) {
+                    return (BalancedHashRouting)((PartialHashingRouting) routingTable).getOriginalRoutingTable();
+                }
+
+
+            }
+        return null;
+    }
+
+    private BalancedHashRouting getBalancedHashRoutingFromRemoteBolt(int taskid) {
+        if(_originalTaskIdToRemoteTaskExecutor.containsKey(taskid)) {
+
+            RoutingTable routingTable = _originalTaskIdToRemoteTaskExecutor.get(taskid)._elasticTasks.get_routingTable();
+            if(routingTable instanceof BalancedHashRouting) {
+                return (BalancedHashRouting)routingTable;
+            } else if ((routingTable instanceof PartialHashingRouting) && (((PartialHashingRouting) routingTable).getOriginalRoutingTable() instanceof BalancedHashRouting)) {
+                return (BalancedHashRouting)((PartialHashingRouting) routingTable).getOriginalRoutingTable();
+            }
+        }
+        return null;
+    }
+
+    private BalancedHashRouting getBalancedHashRouting(int taskid) {
+        if(getBalancedHashRoutingFromOriginalBolt(taskid)!=null) {
+           return getBalancedHashRoutingFromOriginalBolt(taskid);
+        } else if (getBalancedHashRoutingFromRemoteBolt(taskid)!=null) {
+            return getBalancedHashRoutingFromRemoteBolt(taskid);
+        } else {
+            return null;
+        }
+    }
+
+
     private void handleBucketToRouteReassignment(BucketToRouteReassignment reassignment) {
         if(_bolts.containsKey(reassignment.taskid)) {
+            BalancedHashRouting balancedHashRouting = getBalancedHashRoutingFromOriginalBolt(reassignment.taskid);
             for(int bucket: reassignment.reassignment.keySet()) {
-                ((BalancedHashRouting)_bolts.get(reassignment.taskid).get_elasticTasks().get_routingTable()).reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
+                balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
                 sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
             }
         }
         if(_originalTaskIdToRemoteTaskExecutor.containsKey(reassignment.taskid)) {
+            BalancedHashRouting balancedHashRouting = getBalancedHashRoutingFromRemoteBolt(reassignment.taskid);
             for(int bucket: reassignment.reassignment.keySet()) {
-                ((BalancedHashRouting)_originalTaskIdToRemoteTaskExecutor.get(reassignment.taskid)._elasticTasks.get_routingTable()).reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
-                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + "in the remote elastic task");
+                balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
+                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
             }
         }
     }
@@ -642,19 +683,33 @@ public class ElasticTaskHolder {
             throw new TaskNotExistingException("Task " + taskid + " does not exist in the ElasticHolder!");
         }
 
-        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable() instanceof BalancedHashRouting)) {
-            throw new RoutingTypeNotSupportedException("ReassignHashBucketToRoute only applies on BalancedHashRouting");
+//        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable() instanceof BalancedHashRouting)
+//                &&
+//                !((_bolts.get(taskid).get_elasticTasks().get_routingTable() instanceof PartialHashingRouting)&&
+//                        (((PartialHashingRouting)_bolts.get(taskid).get_elasticTasks().get_routingTable()).getOriginalRoutingTable() instanceof BalancedHashRouting))) {
+//            throw new RoutingTypeNotSupportedException("ReassignHashBucketToRoute only applies on BalancedHashRouting or PartialHashRouting with a internal BalancedHashRouting");
+//        }
+
+        if(getBalancedHashRoutingFromOriginalBolt(taskid)==null) {
+            throw new RoutingTypeNotSupportedException("ReassignHashBucketToRoute only applies on BalancedHashRouting or PartialHashRouting with a internal BalancedHashRouting");
         }
 
-        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable().getRoutes().contains(orignalRoute))) {
+
+        BalancedHashRouting balancedHashRouting;// = (BalancedHashRouting)_bolts.get(taskid).get_elasticTasks().get_routingT  
+        if(_bolts.get(taskid).get_elasticTasks().get_routingTable() instanceof BalancedHashRouting) {
+            balancedHashRouting = (BalancedHashRouting)_bolts.get(taskid).get_elasticTasks().get_routingTable();
+        } else {
+            balancedHashRouting = (BalancedHashRouting)((PartialHashingRouting)_bolts.get(taskid).get_elasticTasks().get_routingTable()).getOriginalRoutingTable();
+        }
+
+        if(!(balancedHashRouting.getRoutes().contains(orignalRoute))) {
             throw new InvalidRouteException("Original Route " + orignalRoute + " does not exist!");
         }
 
-        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable().getRoutes().contains(targetRoute))) {
+        if(!(balancedHashRouting.getRoutes().contains(targetRoute))) {
             throw new InvalidRouteException("Target Route " + targetRoute + " does not exist!");
         }
 
-        BalancedHashRouting balancedHashRouting = (BalancedHashRouting)_bolts.get(taskid).get_elasticTasks().get_routingTable();
 
         if(!balancedHashRouting.getBucketSet().contains(bucketId)) {
             throw new BucketNotExistingException("Bucket " + bucketId + " does not exist in the balanced hash routing table!");
@@ -666,6 +721,11 @@ public class ElasticTaskHolder {
 
         // 2. change the routing table on the source and target
         BucketToRouteReassignment reassignment = new BucketToRouteReassignment(taskid, bucketId, targetRoute);
+
+        // 2.1 change the routing table on original ElasticTaskHolder
+        handleBucketToRouteReassignment(reassignment);
+
+        // 2.2 change the routing table on the source
         if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
             _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
         } else {
@@ -681,8 +741,13 @@ public class ElasticTaskHolder {
             handleStateMigrationToken(stateMigrationToken);
         }
 
-//        // 4. update the routing table on the target subtask
+        // 4. update the routing table on the target subtask
 //        _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
+        if(_taskidRouteToConnection.containsKey(taskid+"."+targetRoute)){
+            _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
+        } else {
+            handleBucketToRouteReassignment(reassignment);
+        }
 
         // 5. resume sending RemoteTuples to the target subtask
         System.out.println("Begin to resume!");

@@ -59,7 +59,7 @@ public class BalancedHashRouting implements RoutingTable {
     }
 
     public String toString() {
-        String ret = "";
+        String ret = "Balanced Hash Routing: \n";
         ret += "number of routes: " + getNumberOfRoutes() +"\n";
         ret += "Bucket to route maps:\n";
         ret += hashValueToRoute;

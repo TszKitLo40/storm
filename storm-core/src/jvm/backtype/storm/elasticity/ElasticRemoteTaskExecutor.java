@@ -76,9 +76,8 @@ public class ElasticRemoteTaskExecutor {
                     Tuple input = _inputQueue.take();
 
                     boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
-
                     count++;
-                    if(count % 1000 == 0) {
+                    if(count % 10000 == 0) {
                         System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
                         count = 0;
                     }
@@ -88,8 +87,11 @@ public class ElasticRemoteTaskExecutor {
 
 
                 }
+                System.out.println("Routing process is terminated!");
             } catch (InterruptedException e) {
                 System.out.println("InputTupleRouting thread is interrupted!");
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

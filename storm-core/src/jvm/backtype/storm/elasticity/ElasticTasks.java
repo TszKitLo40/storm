@@ -82,6 +82,7 @@ public class ElasticTasks implements Serializable {
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
         _sample = new KeyFrequencySampler(0.05);
+        _taskHolder=ElasticTaskHolder.instance();
     }
 
     public RoutingTable get_routingTable() {

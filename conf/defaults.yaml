@@ -115,7 +115,7 @@ transactional.zookeeper.port: null
 # Define the amount of workers that can be run on this machine. Each worker is assigned a port to use for communication
 supervisor.slots.ports:
     - 6700
-    - 6701
+#    - 6701
 #    - 6702
  ##   - 6703
 supervisor.childopts: "-Xmx256m"

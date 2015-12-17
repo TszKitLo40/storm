@@ -104,6 +104,19 @@ public class PartialHashingRouting implements RoutingTable {
         }
     }
 
+    public String toString() {
+        String ret = "PartialHashRouting: \n";
+        ret += "number of original routes: " + getOriginalRoutes() + "\n";
+        ret += "number of valid routes: " + getNumberOfRoutes() + "\n";
+        ret += "valid routes: " + _validRoutes + "\n";
+        ret += this._routingTable.toString();
+        return ret;
+    }
+
+    public RoutingTable getOriginalRoutingTable() {
+        return _routingTable;
+    }
+
     public static void main(String[] args) {
 
         HashingRouting routing = new HashingRouting(3);
