@@ -210,7 +210,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(1024);
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(256);
         _queues.put(i, inputQueue);
     }
 

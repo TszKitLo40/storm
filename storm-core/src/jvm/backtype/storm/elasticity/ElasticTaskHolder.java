@@ -68,10 +68,6 @@ public class ElasticTaskHolder {
 
     private Map<String, IConnection> _taskidRouteToConnection = new HashMap<>();
 
-    IConnection self;
-
-    KryoValuesSerializer serializer;
-
     static public ElasticTaskHolder instance() {
         return _instance;
     }
@@ -88,7 +84,6 @@ public class ElasticTaskHolder {
 
 
     private ElasticTaskHolder(Map stormConf, String workerId, int port) {
-        serializer = new KryoValuesSerializer(stormConf);
         System.out.println("creating ElasticTaskHolder");
         _context = new Context();
         _port = port + 10000;
@@ -192,12 +187,6 @@ public class ElasticTaskHolder {
 
 
         }
-//
-//        System.out.println("I have established IConnection with " + message._ip + ":" + message._port );
-//        byte[] bytes = new byte[5];
-//
-//        iConnection.send(message._elasticTask.get_taskID(), SerializationUtils.serialize("string"));
-//        System.out.println("I have sent something to " + message._ip + ":" + message._port );
 
         ElasticTaskMigrationConfirmMessage confirmMessage = new ElasticTaskMigrationConfirmMessage(message._elasticTask.get_taskID(),"",_port, message._elasticTask.get_routingTable().getRoutes() );
 
@@ -215,20 +204,6 @@ public class ElasticTaskHolder {
                 while (true) {
                     try {
 
-//                            byte[] bytess = SerializationUtils.serialize(new FakeTuple());
-//                            ArrayList<TaskMessage> taskMessagess = new ArrayList<>();
-//                            taskMessagess.add(new TaskMessage(5, bytess));
-//                            _originalTaskIdToConnection.get(5).send(taskMessagess.iterator());
-//
-//                            count++;
-//
-//                            if(count % 1000000 == 0 ) {
-//                                System.out.println("Send " + count + " tuples!");
-//                                count = 0 ;
-//                            }
-
-
-//
                         final ITaskMessage message = _sendingQueue.take();
                         LOG.debug("An element is taken from the sendingQueue");
 
@@ -242,8 +217,6 @@ public class ElasticTaskHolder {
                                 taskMessages.add(new TaskMessage(remoteTupleExecuteResult._originalTaskID, bytes, "RemoteTupleExecuteResult"));
                                 _originalTaskIdToConnection.get(remoteTupleExecuteResult._originalTaskID).send(taskMessages.iterator());
                                 taskMessages.clear();
-//                                _originalTaskIdToConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, SerializationUtils.serialize(remoteTupleExecuteResult));
-
                                 LOG.debug("RemoteTupleExecutorResult is send back!");
                             } else {
                                 System.err.println("RemoteTupleExecuteResult will be ignored, because we cannot find the connection for tasks " + remoteTupleExecuteResult._originalTaskID);
@@ -252,7 +225,6 @@ public class ElasticTaskHolder {
 
                             LOG.debug("The element is RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) message;
-//                            waitIfStreamToTargetSubtaskIsPaused(remoteTuple._taskId, remoteTuple._route);
 
                             final String key = remoteTuple.taskIdAndRoutePair();
                             LOG.debug("Key :"+key);
@@ -264,12 +236,6 @@ public class ElasticTaskHolder {
                                 taskMessages.add(new TaskMessage(remoteTuple._taskId, bytes, "RemoteTuple"));
                                 _taskidRouteToConnection.get(key).send(taskMessages.iterator());
                                 taskMessages.clear();
-//                                if(new Random().nextDouble()<0.0001) {
-//                                    System.out.println(count++ + " tuple has been send!");
-//                                    count=0;
-//                                    System.out.println("State:" + ((Client)_taskidRouteToConnection.get(key)).getState());
-//                                }
-
                                 LOG.debug("RemoteTuple is sent!");
                             } else {
                                 System.err.println("RemoteTuple will be ignored, because we cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
@@ -280,7 +246,6 @@ public class ElasticTaskHolder {
                             final String key = remoteSubtaskTerminationToken.taskid + "." + remoteSubtaskTerminationToken.route;
                             if(_taskidRouteToConnection.containsKey(key)) {
                                 final byte[] bytes = SerializationUtils.serialize(remoteSubtaskTerminationToken);
-//                                _taskidRouteToConnection.get(key).send(remoteSubtaskTerminationToken.taskid, SerializationUtils.serialize(remoteSubtaskTerminationToken));
                                 final ArrayList<TaskMessage> taskMessages = new ArrayList<>();
                                 taskMessages.add(new TaskMessage(remoteSubtaskTerminationToken.taskid, bytes, "RemoteSubtaskTerminationToken"));
                                 _taskidRouteToConnection.get(key).send(taskMessages.iterator());
@@ -295,7 +260,6 @@ public class ElasticTaskHolder {
                             RemoteState remoteState = (RemoteState) message;
                             if(_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
                                 byte[] bytes = SerializationUtils.serialize(remoteState);
-//                                _originalTaskIdToConnection.get(remoteState._taskId).send(remoteState._taskId,SerializationUtils.serialize(remoteState));
                                 final ArrayList<TaskMessage> taskMessages = new ArrayList<>();
                                 taskMessages.add(new TaskMessage(remoteState._taskId, bytes, "RemoteState" ));
                                 _originalTaskIdToConnection.get(remoteState._taskId).send(taskMessages.iterator());
@@ -328,22 +292,7 @@ public class ElasticTaskHolder {
             public void run() {
                 int count = 0;
                 while (true) {
-
-//                    Iterator<TaskMessage> taskMessageIterator = _inputConnection.recv(0,0);
-//                    while(taskMessageIterator.hasNext()) {
-//                        taskMessageIterator.next();
-//                        count++;
-//                        if(count % 1000000 == 0 ) {
-//                            System.out.println("Received " + count + " tuples!");
-//                        }
-//                    }
-
-
                     Iterator<TaskMessage> messageIterator = _inputConnection.recv(0, 0);
-//                    if(messageIterator!=null) {
-//                        continue;
-//                    }
-//                    System.out.println("Got something: " + messageIterator);
                     while(messageIterator.hasNext()) {
                         TaskMessage message = messageIterator.next();
                         int targetTaskId = message.task();
@@ -542,7 +491,6 @@ public class ElasticTaskHolder {
         Utils.sleep(5000);
         _bolts.get(taskid)._keyBucketSampler.disable();
         _slaveActor.sendMessageToMaster("phase 3");
-//        _slaveActor.sendMessageToMaster("Distribution: " + _bolts.get(taskid)._keyBucketSampler.toString());
 
         FirstFitDoubleDecreasing firstFitDoubleDecreasing = new FirstFitDoubleDecreasing(Arrays.asList(_bolts.get(taskid)._keyBucketSampler.buckets),numberOfRouting);
 
