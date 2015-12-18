@@ -100,6 +100,11 @@ public class ElasticTasks implements Serializable {
 //        if(route==RoutingTable.origin)
 //            return false;
 //        else
+
+//        System.out.println("A tuple is routed to " + route);
+//        System.out.println("Routing table: " + _routingTable);
+
+
         if(new Random().nextFloat()<0.002) {
             System.out.println("A tuple is route to " + route);
         }
@@ -116,6 +121,8 @@ public class ElasticTasks implements Serializable {
             } catch (InterruptedException e) {
                 e.printStackTrace();
 
+            } catch (Exception e) {
+                e.printStackTrace();
             }
             return true;
         }

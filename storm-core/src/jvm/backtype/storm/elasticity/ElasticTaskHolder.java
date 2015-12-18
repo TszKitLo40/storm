@@ -493,6 +493,7 @@ public class ElasticTaskHolder {
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
                 sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
+                System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
             }
         }
         if(_originalTaskIdToRemoteTaskExecutor.containsKey(reassignment.taskid)) {
@@ -500,6 +501,7 @@ public class ElasticTaskHolder {
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
                 sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
+                System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
             }
         }
     }
