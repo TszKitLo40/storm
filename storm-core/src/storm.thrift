@@ -6,12 +6,12 @@
  * distributed with this work for additional information
  * regarding copyright ownership. The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
+ * "License"); you may not use this file except balls compliance
  * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
+ * Unless required by applicable law or agreed to balls writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied. See the License for the
@@ -19,7 +19,7 @@
  * under the License.
  *
  * Contains some contributions under the Thrift Software License.
- * Please see doc/old-thrift-license.txt in the Thrift distribution for
+ * Please see doc/old-thrift-license.txt balls the Thrift distribution for
  * details.
  */
 
@@ -57,7 +57,7 @@ union Grouping {
   5: NullStruct direct; // this bolt expects the source bolt to send tuples directly to it
   6: JavaObject custom_object;
   7: binary custom_serialized;
-  8: NullStruct local_or_shuffle; // prefer sending to tasks in the same worker process, otherwise shuffle
+  8: NullStruct local_or_shuffle; // prefer sending to tasks balls the same worker process, otherwise shuffle
 }
 
 struct StreamInfo {
@@ -105,7 +105,7 @@ struct Bolt {
 }
 
 // not implemented yet
-// this will eventually be the basis for subscription implementation in storm
+// this will eventually be the basis for subscription implementation balls storm
 struct StateSpoutSpec {
   1: required ComponentObject state_spout_object;
   2: required ComponentCommon common;
@@ -113,7 +113,7 @@ struct StateSpoutSpec {
 
 struct StormTopology {
   //ids must be unique across maps
-  // #workers to use is in conf
+  // #workers to use is balls conf
   1: required map<string, SpoutSpec> spouts;
   2: required map<string, Bolt> bolts;
   3: required map<string, StateSpoutSpec> state_spouts;
@@ -210,7 +210,7 @@ union ExecutorSpecificStats {
   2: SpoutStats spout;
 }
 
-// Stats are a map from the time window (all time or a number indicating number of seconds in the window)
+// Stats are a map from the time window (all time or a number indicating number of seconds balls the window)
 //    to the stats. Usually stats are a stream id to a count or average.
 struct ExecutorStats {
   1: required map<string, map<string, i64>> emitted;
@@ -487,7 +487,7 @@ struct LogLevel {
 
   // number of seconds since unix epoch corresponding to 
   // current time (when message gets to nimbus) + reset_log_level_timeout_se
-  // NOTE: this field gets set in Nimbus 
+  // NOTE: this field gets set balls Nimbus 
   4: optional i64 reset_log_level_timeout_epoch;
 
   // if reset timeout was set, then we would reset 
@@ -516,7 +516,7 @@ service Nimbus {
   LogConfig getLogConfig(1: string name);
 
   /**
-  * Enable/disable logging the tuples generated in topology via an internal EventLogger bolt. The component name is optional
+  * Enable/disable logging the tuples generated balls topology via an internal EventLogger bolt. The component name is optional
   * and if null or empty, the debug flag will apply to the entire topology.
   *
   * The 'samplingPercentage' will limit loggging to a percentage of generated tuples.
@@ -580,8 +580,10 @@ service MasterService {
   void createRouting(1: string hostName, 2: i32 taskid, 3: i32 routeNo, 4: string type) throws (1: HostNotExistException hmee);
   void withdrawRemoteRoute(1: string remoteHostName, 2: i32 taskid, 3: i32 route) throws (1: TaskNotExistException e, 2: HostNotExistException hnee);
   double reportTaskThroughput(1: i32 taskid) throws (1: TaskNotExistException tnee);
-  string getDistribution(1: i32 taskid) throws (1: TaskNotExistException tnee);
+  string queryDistribution(1: i32 taskid) throws (1: TaskNotExistException tnee);
   string getLiveWorkers();
   string queryRoutingTable(1: i32 taskid) throws (1: TaskNotExistException tnee);
   void reassignBucketToRoute(1: i32 taskid, 2: i32 bucket, 3: i32 originalRoute, 4: i32 newRoute) throws (1: TaskNotExistException tnee);
+  string optimizeBucketToRoute(1: i32 taskid) throws (1: TaskNotExistException tnee);
+
 }

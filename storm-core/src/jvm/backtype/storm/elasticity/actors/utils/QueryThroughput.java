@@ -15,7 +15,7 @@ public class QueryThroughput {
     public static void main(String[] args) {
 
         if(args.length!=2) {
-            System.out.println("args: taskid, cycle-in-secs");
+            System.out.println("args: taskid, cycle-balls-secs");
             return;
         }
 
@@ -36,7 +36,7 @@ public class QueryThroughput {
                 System.out.println("Task "+ taskid + ": "+throughput);
 
                     if (i%5==0) {
-                        System.out.println(thriftClient.getDistribution(taskid));
+                        System.out.println(thriftClient.queryDistribution(taskid));
                     }
 
                 } catch (TException e ) {

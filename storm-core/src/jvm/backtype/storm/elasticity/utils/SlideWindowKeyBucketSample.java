@@ -3,6 +3,7 @@ package backtype.storm.elasticity.utils;
 import backtype.storm.utils.RateTracker;
 
 import java.io.Serializable;
+import java.util.HashMap;
 
 /**
  * Created by robert on 12/18/15.
@@ -59,5 +60,14 @@ public class SlideWindowKeyBucketSample implements Serializable {
             ret[i] = buckets[i].reportRate();
         }
         return ret;
+    }
+
+    public Histograms getDistribution() {
+        HashMap<Integer, Long> distribution = new HashMap<>();
+        for(Integer i=0; i < _nBuckets; i++ ) {
+            distribution.put(i, (long)(buckets[i].reportRate() * sampleLength / 1000));
+        }
+
+        return new Histograms(distribution);
     }
 }

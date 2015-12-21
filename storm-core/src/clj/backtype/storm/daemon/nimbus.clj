@@ -15,7 +15,7 @@
 ;; limitations under the License.
 (ns backtype.storm.daemon.nimbus
   (:import [org.apache.thrift.server THsHaServer THsHaServer$Args]
-           [backtype.storm.elasticity ElasticScheduler])
+           [backtype.storm.elasticity.scheduler ElasticScheduler])
   (:import [org.apache.thrift.protocol TBinaryProtocol TBinaryProtocol$Factory])
   (:import [org.apache.thrift.exception])
   (:import [org.apache.thrift.transport TNonblockingServerTransport TNonblockingServerSocket])

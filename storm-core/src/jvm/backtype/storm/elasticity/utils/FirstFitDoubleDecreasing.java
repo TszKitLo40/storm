@@ -13,8 +13,8 @@ public class FirstFitDoubleDecreasing extends AbstractBinPacking {
 
     private Map<Integer, Integer> ballToBinMapping = new HashMap<Integer, Integer>();
 
-    public FirstFitDoubleDecreasing(List<Integer> in, int nbins) {
-        super(in, Integer.MAX_VALUE);
+    public FirstFitDoubleDecreasing(List<Long> in, int nbins) {
+        super(in, Long.MAX_VALUE);
         this.nbins = nbins;
     }
 
@@ -37,18 +37,18 @@ public class FirstFitDoubleDecreasing extends AbstractBinPacking {
             bins.get(i).index = i;
         }
 
-        Collections.sort(in, Collections.reverseOrder()); // sort input by size (big to small)
+        Collections.sort(balls, new Ball.BallReverseComparator()); // sort input by size (big to small)
 
         Bin.BinComparator comparator = new Bin.BinComparator();
-        for (int i = 0; i < in.size(); i++) {
+        for(int i = 0; i < balls.size(); i++) {
             // iterate over bins and try to put the item into the first one it fits into
             Collections.sort(bins, comparator);
-            boolean putItem = false; // did we put the item in a bin?
+            boolean putItem = false; // did we put the item balls a bin?
 
             for(Bin b: bins) {
-                if(b.put(in.get(i))) {
+                if(b.put(balls.get(i).size)) {
                     putItem = true;
-                    ballToBinMapping.put(i, b.index);
+                    ballToBinMapping.put(balls.get(i).index, b.index);
 //                    System.out.println("put "+ i + "to"+b.index);
                     break;
                 }
@@ -58,6 +58,7 @@ public class FirstFitDoubleDecreasing extends AbstractBinPacking {
                 return -1;
             }
         }
+        Collections.sort(bins, new Bin.BinIndexComparator());
         return bins.size();
     }
 

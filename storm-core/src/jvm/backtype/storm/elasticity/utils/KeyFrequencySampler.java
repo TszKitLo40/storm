@@ -11,7 +11,7 @@ import java.util.Random;
  */
 public class KeyFrequencySampler implements Serializable{
 
-    private Map<Object, Long> counts = new HashMap<>();
+    private Map<Integer, Long> counts = new HashMap<>();
 
     double _sampleRate;
 
@@ -21,7 +21,7 @@ public class KeyFrequencySampler implements Serializable{
         _sampleRate = sampleRate;
     }
 
-    public void record(Object key) {
+    public synchronized void record(int key) {
         if(_random.nextDouble()<_sampleRate) {
             if(!counts.containsKey(key)) {
                 counts.put(key,0L);
@@ -38,7 +38,13 @@ public class KeyFrequencySampler implements Serializable{
         return ret;
     }
 
-    public void clear() {
+    public synchronized void clear() {
         counts.clear();
+    }
+
+    public Histograms getDistribution() {
+        Histograms ret = new Histograms(counts);
+        clear();
+        return ret;
     }
 }

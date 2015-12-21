@@ -1,6 +1,7 @@
 package backtype.storm.elasticity.routing;
 
 import backtype.storm.elasticity.utils.GlobalHashFunction;
+import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlideWindowKeyBucketSample;
 
 import java.text.DecimalFormat;
@@ -20,20 +21,30 @@ public class BalancedHashRouting implements RoutingTable {
 
     int numberOfHashValues;
 
-    SlideWindowKeyBucketSample sample;
+    transient SlideWindowKeyBucketSample sample;
 
     public BalancedHashRouting(Map<Integer, Integer> hashValueToPartition, int numberOfRoutes) {
         this.numberOfRoutes = numberOfRoutes;
         hashValueToRoute = new HashMap<>();
         hashValueToRoute.putAll(hashValueToPartition);
         numberOfHashValues = hashValueToPartition.size();
+    }
+
+    public BalancedHashRouting(Map<Integer, Integer> hashValueToPartition, int numberOfRoutes, boolean enableSample) {
+        this(hashValueToPartition, numberOfRoutes);
+        if(enableSample)
+            enableSampling();
+    }
+
+    public void enableSampling() {
         sample = new SlideWindowKeyBucketSample(numberOfHashValues);
         sample.enable();
     }
 
     @Override
     public synchronized int route(Object key) {
-        sample.record(key);
+        if(sample!=null)
+            sample.record(key);
 
         return hashValueToRoute.get(hashFunction.hash(key) % numberOfHashValues);
     }
@@ -86,18 +97,27 @@ public class BalancedHashRouting implements RoutingTable {
         ret += "number of routes: " + getNumberOfRoutes() +"\n";
         ret += "Route Details:\n";
 
-        Double[] bucketFrequencies = sample.getFrequencies();
+        if(sample != null) {
+            Double[] bucketFrequencies = sample.getFrequencies();
 
-        for(int i = 0; i < routeToBuckets.length; i++) {
-            double sum = 0;
-            ret += "Route " + i + ": ";
-            for(Integer bucket: routeToBuckets[i]) {
-                sum += bucketFrequencies[bucket];
-                ret += bucket + " (" + formatter.format(bucketFrequencies[bucket]) + ")  ";
+            for(int i = 0; i < routeToBuckets.length; i++) {
+                double sum = 0;
+                ret += "Route " + i + ": ";
+                for(Integer bucket: routeToBuckets[i]) {
+                    sum += bucketFrequencies[bucket];
+                    ret += bucket + " (" + formatter.format(bucketFrequencies[bucket]) + ")  ";
+                }
+                ret +="total = " + formatter.format(sum) + "\n";
             }
-            ret +="total = " + formatter.format(sum) + "\n";
+        } else {
+            for(int i = 0; i < routeToBuckets.length; i++) {
+                ret += "Route " + i + ": ";
+                for(Integer bucket: routeToBuckets[i]) {
+                    ret += bucket + "  ";
+                }
+                ret += "\n";
+            }
         }
-
 
 
 
@@ -110,4 +130,16 @@ public class BalancedHashRouting implements RoutingTable {
     public int getNumberOfBuckets() {
         return numberOfHashValues;
     }
+
+    public Histograms getBucketsDistribution() {
+        Histograms ret = sample.getDistribution();
+        ret.setDefaultValueForAbsentKey(numberOfHashValues);
+
+        return ret;
+    }
+
+    public Map<Integer, Integer> getBucketToRouteMapping() {
+        return this.hashValueToRoute;
+    }
+
 }

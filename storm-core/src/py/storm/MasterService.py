@@ -75,7 +75,7 @@ class Iface:
     """
     pass
 
-  def getDistribution(self, taskid):
+  def queryDistribution(self, taskid):
     """
     Parameters:
      - taskid
@@ -99,6 +99,13 @@ class Iface:
      - bucket
      - originalRoute
      - newRoute
+    """
+    pass
+
+  def optimizeBucketToRoute(self, taskid):
+    """
+    Parameters:
+     - taskid
     """
     pass
 
@@ -280,23 +287,23 @@ class Client(Iface):
       raise result.tnee
     raise TApplicationException(TApplicationException.MISSING_RESULT, "reportTaskThroughput failed: unknown result");
 
-  def getDistribution(self, taskid):
+  def queryDistribution(self, taskid):
     """
     Parameters:
      - taskid
     """
-    self.send_getDistribution(taskid)
-    return self.recv_getDistribution()
+    self.send_queryDistribution(taskid)
+    return self.recv_queryDistribution()
 
-  def send_getDistribution(self, taskid):
-    self._oprot.writeMessageBegin('getDistribution', TMessageType.CALL, self._seqid)
-    args = getDistribution_args()
+  def send_queryDistribution(self, taskid):
+    self._oprot.writeMessageBegin('queryDistribution', TMessageType.CALL, self._seqid)
+    args = queryDistribution_args()
     args.taskid = taskid
     args.write(self._oprot)
     self._oprot.writeMessageEnd()
     self._oprot.trans.flush()
 
-  def recv_getDistribution(self):
+  def recv_queryDistribution(self):
     iprot = self._iprot
     (fname, mtype, rseqid) = iprot.readMessageBegin()
     if mtype == TMessageType.EXCEPTION:
@@ -304,14 +311,14 @@ class Client(Iface):
       x.read(iprot)
       iprot.readMessageEnd()
       raise x
-    result = getDistribution_result()
+    result = queryDistribution_result()
     result.read(iprot)
     iprot.readMessageEnd()
     if result.success is not None:
       return result.success
     if result.tnee is not None:
       raise result.tnee
-    raise TApplicationException(TApplicationException.MISSING_RESULT, "getDistribution failed: unknown result");
+    raise TApplicationException(TApplicationException.MISSING_RESULT, "queryDistribution failed: unknown result");
 
   def getLiveWorkers(self):
     self.send_getLiveWorkers()
@@ -409,6 +416,39 @@ class Client(Iface):
       raise result.tnee
     return
 
+  def optimizeBucketToRoute(self, taskid):
+    """
+    Parameters:
+     - taskid
+    """
+    self.send_optimizeBucketToRoute(taskid)
+    return self.recv_optimizeBucketToRoute()
+
+  def send_optimizeBucketToRoute(self, taskid):
+    self._oprot.writeMessageBegin('optimizeBucketToRoute', TMessageType.CALL, self._seqid)
+    args = optimizeBucketToRoute_args()
+    args.taskid = taskid
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_optimizeBucketToRoute(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = optimizeBucketToRoute_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    if result.success is not None:
+      return result.success
+    if result.tnee is not None:
+      raise result.tnee
+    raise TApplicationException(TApplicationException.MISSING_RESULT, "optimizeBucketToRoute failed: unknown result");
+
 
 class Processor(Iface, TProcessor):
   def __init__(self, handler):
@@ -419,10 +459,11 @@ class Processor(Iface, TProcessor):
     self._processMap["createRouting"] = Processor.process_createRouting
     self._processMap["withdrawRemoteRoute"] = Processor.process_withdrawRemoteRoute
     self._processMap["reportTaskThroughput"] = Processor.process_reportTaskThroughput
-    self._processMap["getDistribution"] = Processor.process_getDistribution
+    self._processMap["queryDistribution"] = Processor.process_queryDistribution
     self._processMap["getLiveWorkers"] = Processor.process_getLiveWorkers
     self._processMap["queryRoutingTable"] = Processor.process_queryRoutingTable
     self._processMap["reassignBucketToRoute"] = Processor.process_reassignBucketToRoute
+    self._processMap["optimizeBucketToRoute"] = Processor.process_optimizeBucketToRoute
 
   def process(self, iprot, oprot):
     (name, type, seqid) = iprot.readMessageBegin()
@@ -508,16 +549,16 @@ class Processor(Iface, TProcessor):
     oprot.writeMessageEnd()
     oprot.trans.flush()
 
-  def process_getDistribution(self, seqid, iprot, oprot):
-    args = getDistribution_args()
+  def process_queryDistribution(self, seqid, iprot, oprot):
+    args = queryDistribution_args()
     args.read(iprot)
     iprot.readMessageEnd()
-    result = getDistribution_result()
+    result = queryDistribution_result()
     try:
-      result.success = self._handler.getDistribution(args.taskid)
+      result.success = self._handler.queryDistribution(args.taskid)
     except TaskNotExistException, tnee:
       result.tnee = tnee
-    oprot.writeMessageBegin("getDistribution", TMessageType.REPLY, seqid)
+    oprot.writeMessageBegin("queryDistribution", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -557,6 +598,20 @@ class Processor(Iface, TProcessor):
     except TaskNotExistException, tnee:
       result.tnee = tnee
     oprot.writeMessageBegin("reassignBucketToRoute", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_optimizeBucketToRoute(self, seqid, iprot, oprot):
+    args = optimizeBucketToRoute_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = optimizeBucketToRoute_result()
+    try:
+      result.success = self._handler.optimizeBucketToRoute(args.taskid)
+    except TaskNotExistException, tnee:
+      result.tnee = tnee
+    oprot.writeMessageBegin("optimizeBucketToRoute", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -1336,7 +1391,7 @@ class reportTaskThroughput_result:
   def __ne__(self, other):
     return not (self == other)
 
-class getDistribution_args:
+class queryDistribution_args:
   """
   Attributes:
    - taskid
@@ -1373,7 +1428,7 @@ class getDistribution_args:
     if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
-    oprot.writeStructBegin('getDistribution_args')
+    oprot.writeStructBegin('queryDistribution_args')
     if self.taskid is not None:
       oprot.writeFieldBegin('taskid', TType.I32, 1)
       oprot.writeI32(self.taskid)
@@ -1401,7 +1456,7 @@ class getDistribution_args:
   def __ne__(self, other):
     return not (self == other)
 
-class getDistribution_result:
+class queryDistribution_result:
   """
   Attributes:
    - success
@@ -1446,7 +1501,7 @@ class getDistribution_result:
     if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
-    oprot.writeStructBegin('getDistribution_result')
+    oprot.writeStructBegin('queryDistribution_result')
     if self.success is not None:
       oprot.writeFieldBegin('success', TType.STRING, 0)
       oprot.writeString(self.success.encode('utf-8'))
@@ -1888,6 +1943,149 @@ class reassignBucketToRoute_result:
 
   def __hash__(self):
     value = 17
+    value = (value * 31) ^ hash(self.tnee)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class optimizeBucketToRoute_args:
+  """
+  Attributes:
+   - taskid
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.I32, 'taskid', None, None, ), # 1
+  )
+
+  def __init__(self, taskid=None,):
+    self.taskid = taskid
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.I32:
+          self.taskid = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('optimizeBucketToRoute_args')
+    if self.taskid is not None:
+      oprot.writeFieldBegin('taskid', TType.I32, 1)
+      oprot.writeI32(self.taskid)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.taskid)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class optimizeBucketToRoute_result:
+  """
+  Attributes:
+   - success
+   - tnee
+  """
+
+  thrift_spec = (
+    (0, TType.STRING, 'success', None, None, ), # 0
+    (1, TType.STRUCT, 'tnee', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
+  )
+
+  def __init__(self, success=None, tnee=None,):
+    self.success = success
+    self.tnee = tnee
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 0:
+        if ftype == TType.STRING:
+          self.success = iprot.readString().decode('utf-8')
+        else:
+          iprot.skip(ftype)
+      elif fid == 1:
+        if ftype == TType.STRUCT:
+          self.tnee = TaskNotExistException()
+          self.tnee.read(iprot)
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('optimizeBucketToRoute_result')
+    if self.success is not None:
+      oprot.writeFieldBegin('success', TType.STRING, 0)
+      oprot.writeString(self.success.encode('utf-8'))
+      oprot.writeFieldEnd()
+    if self.tnee is not None:
+      oprot.writeFieldBegin('tnee', TType.STRUCT, 1)
+      self.tnee.write(oprot)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.success)
     value = (value * 31) ^ hash(self.tnee)
     return value
 

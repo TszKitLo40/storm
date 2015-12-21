@@ -67,7 +67,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
-        _sample = new KeyFrequencySampler(0.05);
+        _sample = new KeyFrequencySampler(1);
         _taskHolder=ElasticTaskHolder.instance();
     }
 
@@ -81,7 +81,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
-        _sample = new KeyFrequencySampler(0.05);
+        _sample = new KeyFrequencySampler(1);
         _taskHolder=ElasticTaskHolder.instance();
     }
 
@@ -319,7 +319,8 @@ public class ElasticTasks implements Serializable {
         if (numberOfRoutes < 0)
             throw new IllegalArgumentException("number of routes should be positive!");
         withDrawCurrentRouting();
-        _routingTable = new BalancedHashRouting(hashValueToPartition, numberOfRoutes);
+        _routingTable = new BalancedHashRouting(hashValueToPartition, numberOfRoutes, true);
+
 
         createAndLaunchElasticTasks();
 

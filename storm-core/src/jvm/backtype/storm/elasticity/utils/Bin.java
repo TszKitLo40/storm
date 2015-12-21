@@ -21,9 +21,9 @@ public class Bin implements Comparator<Bin> {
      */
     protected int currentSize;
     /**
-     * list of items in bin.
+     * list of items balls bin.
      */
-    protected List<Integer> items;
+    protected List<Long> items;
 
     protected int index;
 
@@ -35,18 +35,18 @@ public class Bin implements Comparator<Bin> {
     public Bin(int maxSize) {
         this.maxSize = maxSize;
         this.currentSize = 0;
-        this.items = new ArrayList<Integer>();
+        this.items = new ArrayList<Long>();
     }
 
     /**
      * adds given item to this bin, and increases the currentSize of the bin by
-     * value of item. If item does not fit, it will not be put in the bin and
+     * value of item. If item does not fit, it will not be put balls the bin and
      * false will be returned.
      *
-     * @param item item to put in bin
-     * @return true if item fit in bin, false otherwise
+     * @param item item to put balls bin
+     * @return true if item fit balls bin, false otherwise
      */
-    public boolean put(Integer item) {
+    public boolean put(Long item) {
         if (currentSize + item <= maxSize) {
             items.add(item);
             currentSize += item;
@@ -68,10 +68,10 @@ public class Bin implements Comparator<Bin> {
     }
 
     /**
-     * returns the number of items in this bin (NOT the added value of the
+     * returns the number of items balls this bin (NOT the added value of the
      * items).
      *
-     * @return number of items in this bin
+     * @return number of items balls this bin
      */
     public int numberOfItems() {
         return items.size();
@@ -84,7 +84,7 @@ public class Bin implements Comparator<Bin> {
      */
     public Bin deepCopy() {
         Bin copy = new Bin(0);
-        copy.items = new ArrayList<Integer>(items); // Integers are not copied by reference
+        copy.items = new ArrayList<Long>(items); // Integers are not copied by reference
         copy.currentSize = currentSize;
         copy.maxSize = maxSize;
         return copy;
@@ -92,7 +92,7 @@ public class Bin implements Comparator<Bin> {
 
     @Override
     public String toString() {
-        String res = "";
+        String res = index + ": ";
         for (int i = 0; i < items.size(); i++) {
             res += items.get(i) + " ";
         }
@@ -114,14 +114,22 @@ public class Bin implements Comparator<Bin> {
         }
     }
 
+    public static class BinIndexComparator implements Comparator<Bin> {
+
+        @Override
+        public int compare(Bin bin, Bin bin2) {
+            return Integer.compare(bin.index,bin2.index);
+        }
+    }
+
     public static void main(String [] args) {
         Bin b1 = new Bin(100);
         Bin b2 = new Bin(100);
         Bin b3 = new Bin(100);
 
-        b1.put(50);
-        b2.put(30);
-        b3.put(60);
+        b1.put(50L);
+        b2.put(30L);
+        b3.put(60L);
 
         ArrayList<Bin> bins = new ArrayList<Bin>();
         bins.add(b1);

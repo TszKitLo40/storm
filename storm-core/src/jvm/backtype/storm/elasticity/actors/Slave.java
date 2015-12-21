@@ -7,6 +7,8 @@ import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.message.actormessage.*;
+import backtype.storm.elasticity.routing.RoutingTable;
+import backtype.storm.elasticity.utils.Histograms;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -15,7 +17,6 @@ import java.lang.management.MemoryUsage;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -139,7 +140,7 @@ public class Slave extends UntypedActor {
 //
 //            ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
 //            if(migrationMessage!=null) {
-//                System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
+//                System.out.print("The number of routes balls the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
 //
 //                _nameToActors.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
 //                System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommand._targetHostName)+"["+_nameToActors.get(taskMigrationCommand._targetHostName).path()+"]");
@@ -194,17 +195,22 @@ public class Slave extends UntypedActor {
             getSender().tell(throughput, getSelf());
         } else if (message instanceof DistributionQueryCommand) {
             DistributionQueryCommand distributionQueryCommand = (DistributionQueryCommand)message;
-            String distribution = ElasticTaskHolder.instance().getDistribution(distributionQueryCommand.taskid);
+            Histograms distribution = ElasticTaskHolder.instance().getDistribution(distributionQueryCommand.taskid);
             getSender().tell(distribution, getSelf());
         } else if (message instanceof RoutingTableQueryCommand) {
             RoutingTableQueryCommand queryCommand = (RoutingTableQueryCommand)message;
-            String queryResult = ElasticTaskHolder.instance().getRoutingTableStatus(queryCommand.taskid);
+            RoutingTable queryResult = ElasticTaskHolder.instance().getRoutingTable(queryCommand.taskid);
             getSender().tell(queryResult, getSelf());
         } else if (message instanceof ReassignBucketToRouteCommand) {
             System.out.println("I received ReassignBucketToRouteCommand message " + message);
             ReassignBucketToRouteCommand reassignBucketToRouteCommand = (ReassignBucketToRouteCommand) message;
             ElasticTaskHolder.instance().reassignHashBucketToRoute(reassignBucketToRouteCommand.taskId, reassignBucketToRouteCommand.bucketId,
                     reassignBucketToRouteCommand.originalRoute, reassignBucketToRouteCommand.newRoute);
+        } else if (message instanceof BucketDistributionQueryCommand) {
+            System.out.println("I received BucketDistributionQueryCommand!");
+
+            BucketDistributionQueryCommand command = (BucketDistributionQueryCommand) message;
+            getSender().tell(ElasticTaskHolder.instance().getBucketDistributionForBalancedRoutingTable(command.taskid), getSelf());
         } else {
             System.out.println("[Elastic]: Unknown message.");
             unhandled(message);
@@ -270,7 +276,7 @@ public class Slave extends UntypedActor {
 //            ("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
         }
 //        if(migrationMessage!=null) {
-//            System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
+//            System.out.print("The number of routes balls the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
 //
 //        } else {
 //        }

@@ -126,7 +126,7 @@ class Iface:
 
   def debug(self, name, component, enable, samplingPercentage):
     """
-    Enable/disable logging the tuples generated in topology via an internal EventLogger bolt. The component name is optional
+    Enable/disable logging the tuples generated balls topology via an internal EventLogger bolt. The component name is optional
     and if null or empty, the debug flag will apply to the entire topology.
 
     The 'samplingPercentage' will limit loggging to a percentage of generated tuples.
@@ -634,7 +634,7 @@ class Client(Iface):
 
   def debug(self, name, component, enable, samplingPercentage):
     """
-    Enable/disable logging the tuples generated in topology via an internal EventLogger bolt. The component name is optional
+    Enable/disable logging the tuples generated balls topology via an internal EventLogger bolt. The component name is optional
     and if null or empty, the debug flag will apply to the entire topology.
 
     The 'samplingPercentage' will limit loggging to a percentage of generated tuples.

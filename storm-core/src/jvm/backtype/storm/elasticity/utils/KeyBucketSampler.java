@@ -12,7 +12,7 @@ public class KeyBucketSampler {
 
     private int _nBuckets;
 
-    public Integer[] buckets;
+    public Long[] buckets;
 
     private boolean enabled = false;
 
@@ -21,7 +21,7 @@ public class KeyBucketSampler {
 
     public KeyBucketSampler(int nbucks) {
         _nBuckets = nbucks;
-        buckets = new Integer[_nBuckets];
+        buckets = new Long[_nBuckets];
     }
 
     public synchronized void record(Object key) {
@@ -41,13 +41,13 @@ public class KeyBucketSampler {
 
     public void clear() {
         for(int i=0; i<_nBuckets; i++) {
-            buckets[i] = 0;
+            buckets[i] = 0L;
         }
     }
 
     public String toString() {
         String ret = "";
-        for(int i: buckets) {
+        for(long i: buckets) {
             ret += i + "\n";
         }
         return ret;

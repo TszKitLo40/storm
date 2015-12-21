@@ -8,7 +8,7 @@ import java.util.*;
 public class PartialHashingRouting implements RoutingTable {
 
 
-    /* the set of valid routes in this routing table */
+    /* the set of valid routes balls this routing table */
     Set<Integer> _validRoutes = new HashSet<>();
 
     RoutingTable _routingTable;

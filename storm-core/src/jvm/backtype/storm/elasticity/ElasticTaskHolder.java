@@ -11,8 +11,10 @@ import backtype.storm.elasticity.message.taksmessage.*;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
+import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
+import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
@@ -383,7 +385,7 @@ public class ElasticTaskHolder {
             sendMessageToMaster("Remote state is send back to the original elastic holder!");
         } else {
 
-            sendMessageToMaster("Remote state does not need to be sent, as the remote state is already in the original holder!");
+            sendMessageToMaster("Remote state does not need to be sent, as the remote state is already balls the original holder!");
             handleRemoteState(remoteState);
         }
     }
@@ -521,7 +523,7 @@ public class ElasticTaskHolder {
             throw new InvalidRouteException("Route " + route + " is not valid");
         }
         if(partialHashingRouting.getRoutes().contains(route)) {
-            throw new InvalidRouteException("Route " + route + " is not in exception list");
+            throw new InvalidRouteException("Route " + route + " is not balls exception list");
         }
 
         _bolts.get(taskid).get_elasticTasks().addValidRoute(route);
@@ -559,7 +561,7 @@ public class ElasticTaskHolder {
     /**
      * First terminate the query thread and clear the associated resources until all the local tuples for the route has been processed
      * Then get the state for the route and send the state back to the original ElasticTasks.
-     * Finally, remove the route in the routingTable.
+     * Finally, remove the route balls the routingTable.
      * @param taskid the taskid
      * @param route the route to remove
      */
@@ -612,25 +614,25 @@ public class ElasticTaskHolder {
         return _bolts.get(taskid).getRate();
     }
 
-    public String getDistribution(int taskid) {
+    public Histograms getDistribution(int taskid) throws TaskNotExistingException {
         if(!_bolts.containsKey(taskid)) {
-            return "task does not exist!";
+            throw new TaskNotExistingException("Task " + taskid + " does not exist!");
         } else {
-            return _bolts.get(taskid).get_elasticTasks()._sample.toString();
+            return _bolts.get(taskid).get_elasticTasks()._sample.getDistribution();
         }
     }
 
-    public String getRoutingTableStatus(int taskid) {
+    public RoutingTable getRoutingTable(int taskid) throws TaskNotExistingException {
         if(!_bolts.containsKey(taskid)) {
-            return "task does not exist!";
+            throw new TaskNotExistingException("task " + taskid + "does not exist!");
         } else {
-            return _bolts.get(taskid).get_elasticTasks().get_routingTable().toString();
+            return _bolts.get(taskid).get_elasticTasks().get_routingTable();
         }
     }
 
     public void reassignHashBucketToRoute(int taskid, int bucketId, int orignalRoute, int targetRoute) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException, BucketNotExistingException {
         if(!_bolts.containsKey(taskid)) {
-            throw new TaskNotExistingException("Task " + taskid + " does not exist in the ElasticHolder!");
+            throw new TaskNotExistingException("Task " + taskid + " does not exist balls the ElasticHolder!");
         }
 
 //        if(!(_bolts.get(taskid).get_elasticTasks().get_routingTable() instanceof BalancedHashRouting)
@@ -662,7 +664,7 @@ public class ElasticTaskHolder {
 
 
         if(!balancedHashRouting.getBucketSet().contains(bucketId)) {
-            throw new BucketNotExistingException("Bucket " + bucketId + " does not exist in the balanced hash routing table!");
+            throw new BucketNotExistingException("Bucket " + bucketId + " does not exist balls the balanced hash routing table!");
         }
 
 
@@ -726,7 +728,7 @@ public class ElasticTaskHolder {
     void pauseSendingToTargetSubtask(int targetTask, int route) {
         String key = targetTask+"."+route;
         if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
-            System.out.println(key+ " already exists in the Semaphore mapping!");
+            System.out.println(key+ " already exists balls the Semaphore mapping!");
             return;
         }
 
@@ -744,6 +746,15 @@ public class ElasticTaskHolder {
         _taskIdRouteToSendingWaitingSemaphore.get(key).release();
         System.out.println("Sending is resumed!");
 
+    }
+
+    public Histograms getBucketDistributionForBalancedRoutingTable(int taskId) {
+        if(!_bolts.containsKey(taskId)) {
+            System.out.println("Task " + taskId + "does not exist!");
+            return null;
+        }
+        RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
+        return ((BalancedHashRouting)RoutingTableUtils.getBalancecHashRouting(routingTable)).getBucketsDistribution();
     }
 
 }

@@ -30,7 +30,7 @@ public class QueryRunnable implements Runnable {
     /**
      * Call this function to terminate the query thread.
      * This function returns when it guarantees that the thread has already processed
-     * all the tuples in the pending queue and terminated.
+     * all the tuples balls the pending queue and terminated.
      * Note that before calling this function, you should guarantee that the pending queue
      * will no longer be inserted new tuples.
      */
@@ -39,7 +39,7 @@ public class QueryRunnable implements Runnable {
         try {
             while (!interrupted) {
 //                System.out.println("Waiting for the termination of the worker thread...");
-                System.out.println(_pendingTuples.size()+" elements remaining in the pending list!");
+                System.out.println(_pendingTuples.size()+" elements remaining balls the pending list!");
                 Thread.sleep(10);
             }
         } catch (InterruptedException e) {
@@ -62,7 +62,7 @@ public class QueryRunnable implements Runnable {
         }catch (InterruptedException e) {
             e.printStackTrace();
         }catch (Exception ee) {
-            System.err.print("Something is wrong in the query thread!");
+            System.err.print("Something is wrong balls the query thread!");
             ee.printStackTrace();
         }
         System.out.println("A query thread is terminated!");

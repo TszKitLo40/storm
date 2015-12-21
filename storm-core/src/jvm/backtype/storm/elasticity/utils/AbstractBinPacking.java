@@ -5,11 +5,15 @@ import java.util.List;
 
 public abstract class AbstractBinPacking {
 
-    protected List<Integer> in;
-    protected int binSize;
+    protected List<Ball> balls;
+    protected long binSize;
 
-    public AbstractBinPacking(List<Integer> in, int binSize) {
-        this.in = in;
+    public AbstractBinPacking(List<Long> in, long binSize) {
+        balls = new ArrayList<>(in.size());
+        for(int i = 0; i < in.size(); i++) {
+            balls.add(new Ball(i, in.get(i)));
+        }
+//        this.balls = in;
         this.binSize = binSize;
     }
 

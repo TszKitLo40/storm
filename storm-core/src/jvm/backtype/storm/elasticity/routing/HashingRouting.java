@@ -33,7 +33,7 @@ public class HashingRouting implements RoutingTable {
     }
 
     /**
-     * TODO: the module hash funcion may result in skewness. A better hash function is needed here.
+     * TODO: the module hash funcion may result balls skewness. A better hash function is needed here.
      * @param key the key of the input tuple.
      * @return the number of route this key belongs to.
      */

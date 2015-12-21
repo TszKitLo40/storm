@@ -3,11 +3,16 @@ package backtype.storm.elasticity.actors;
 import akka.actor.*;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
+import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.actormessage.*;
+import backtype.storm.elasticity.routing.RoutingTable;
+import backtype.storm.elasticity.scheduler.ElasticScheduler;
+import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
 import backtype.storm.generated.MigrationException;
 import backtype.storm.generated.TaskNotExistException;
+import backtype.storm.utils.Utils;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -183,15 +188,20 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     public static Master createActor() {
         try {
-        final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
-                .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
-                .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
-                .withFallback(ConfigFactory.load());
+            final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + InetAddress.getLocalHost().getHostAddress()))
+                    .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
+                    .withFallback(ConfigFactory.load()); 
+            ActorSystem system = ActorSystem.create("ClusterSystem", config);
 
-        ActorSystem system = ActorSystem.create("ClusterSystem", config);
-
-        system.actorOf(Props.create(Master.class), "master");
-        return Master.getInstance();
+            system.actorOf(Props.create(Master.class), "master");
+            Master ret = null;
+            while(ret==null) {
+                ret = Master.getInstance();
+                Utils.sleep(100);
+                System.out.println("Waiting Elastic Master to launch!");
+            }
+            return Master.getInstance();
         }
         catch (UnknownHostException e ) {
             e.printStackTrace();
@@ -285,14 +295,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     @Override
-    public String getDistribution(int taskid) throws TException {
-        if(!_taskidToActorName.containsKey(taskid))
-            throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
-        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new DistributionQueryCommand(taskid));
-//        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
-        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    public String queryDistribution(int taskid) throws TException {
+        return getDistributionHistogram(taskid).toString();
     }
+
 
     @Override
     public String getLiveWorkers() throws TException {
@@ -306,12 +312,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     @Override
     public String queryRoutingTable(int taskid) throws TaskNotExistException, TException {
-        if(!_taskidToActorName.containsKey(taskid))
-            throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
-        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
-//        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new DistributionQueryCommand(taskid));
-        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+//        if(!_taskidToActorName.containsKey(taskid))
+//            throw new TaskNotExistException("task " + taskid + " does not exist!");
+//        final Inbox inbox = Inbox.create(getContext().system());
+//        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+//        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        return getRoutingTable(taskid).toString();
     }
 
     @Override
@@ -320,6 +326,19 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
         getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
+    }
+
+    @Override
+    public String optimizeBucketToRoute(int taskid) throws TaskNotExistException, TException {
+        try {
+           return ElasticScheduler.getInstance().optimizeBucketToRoutingMapping(taskid);
+        } catch (RoutingTypeNotSupportedException e) {
+            e.printStackTrace();
+            return e.getMessage();
+        } catch (Exception ee) {
+            ee.printStackTrace();
+            return ee.getMessage();
+        }
     }
 
     String extractIpFromActorAddress(String address) {
@@ -333,6 +352,29 @@ public class Master extends UntypedActor implements MasterService.Iface {
         }
     }
 
+    public Histograms getDistributionHistogram(int taskid) throws TaskNotExistException{
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new DistributionQueryCommand(taskid));
+        return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    public RoutingTable getRoutingTable(int taskid) throws TaskNotExistException{
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+        return (RoutingTable)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    public Histograms getBucketDistribution(int taskid) throws TaskNotExistException{
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new BucketDistributionQueryCommand(taskid));
+        return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
 
 //    public class MasterService extends backtype.storm.generated.MasterService.Iface {
 //

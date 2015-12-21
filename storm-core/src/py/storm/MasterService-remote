@@ -47,10 +47,11 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  void createRouting(string hostName, i32 taskid, i32 routeNo, string type)')
   print('  void withdrawRemoteRoute(string remoteHostName, i32 taskid, i32 route)')
   print('  double reportTaskThroughput(i32 taskid)')
-  print('  string getDistribution(i32 taskid)')
+  print('  string queryDistribution(i32 taskid)')
   print('  string getLiveWorkers()')
   print('  string queryRoutingTable(i32 taskid)')
   print('  void reassignBucketToRoute(i32 taskid, i32 bucket, i32 originalRoute, i32 newRoute)')
+  print('  string optimizeBucketToRoute(i32 taskid)')
   print('')
   sys.exit(0)
 
@@ -137,11 +138,11 @@ elif cmd == 'reportTaskThroughput':
     sys.exit(1)
   pp.pprint(client.reportTaskThroughput(eval(args[0]),))
 
-elif cmd == 'getDistribution':
+elif cmd == 'queryDistribution':
   if len(args) != 1:
-    print('getDistribution requires 1 args')
+    print('queryDistribution requires 1 args')
     sys.exit(1)
-  pp.pprint(client.getDistribution(eval(args[0]),))
+  pp.pprint(client.queryDistribution(eval(args[0]),))
 
 elif cmd == 'getLiveWorkers':
   if len(args) != 0:
@@ -160,6 +161,12 @@ elif cmd == 'reassignBucketToRoute':
     print('reassignBucketToRoute requires 4 args')
     sys.exit(1)
   pp.pprint(client.reassignBucketToRoute(eval(args[0]),eval(args[1]),eval(args[2]),eval(args[3]),))
+
+elif cmd == 'optimizeBucketToRoute':
+  if len(args) != 1:
+    print('optimizeBucketToRoute requires 1 args')
+    sys.exit(1)
+  pp.pprint(client.optimizeBucketToRoute(eval(args[0]),))
 
 else:
   print('Unrecognized method %s' % cmd)

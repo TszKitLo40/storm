@@ -8,6 +8,7 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.generated.TaskNotExistException;
+import org.apache.thrift.TException;
 
 import java.util.Map;
 
@@ -29,7 +30,7 @@ public class ElasticScheduler {
         return instance;
     }
 
-    public String optimizeBucketToRoutingMapping(int taskId) throws TaskNotExistException, RoutingTypeNotSupportedException {
+    public String optimizeBucketToRoutingMapping(int taskId) throws TaskNotExistException, RoutingTypeNotSupportedException, TException {
         // 1. get routingTable
 
         RoutingTable routingTable = master.getRoutingTable(taskId);
@@ -58,15 +59,30 @@ public class ElasticScheduler {
 
         Map<Integer, Integer> oldMapping = balancedHashRouting.getBucketToRouteMapping();
         Map<Integer, Integer> newMapping = binPackingSolver.getBucketToPartitionMap();
+        ShardReassignmentPlan plan = new ShardReassignmentPlan();
 
         for(Integer bucket: oldMapping.keySet()) {
             if(!oldMapping.get(bucket).equals(newMapping.get(bucket)) ) {
                 int oldRoute = oldMapping.get(bucket);
                 int newRoute = newMapping.get(bucket);
+                plan.addReassignment(taskId, bucket, oldRoute, newRoute);
                 System.out.println("Move " + bucket + " from " + oldRoute + " to " + newRoute + "\n");
             }
         }
 
-        return balancedHashRouting.toString();
+        if(!plan.getReassignmentList().isEmpty()) {
+            applyShardToRouteReassignment(plan);
+        } else {
+            System.out.println("Shard Assignment is not modified after optimization.");
+        }
+
+
+        return plan.toString();
+    }
+
+    void applyShardToRouteReassignment(ShardReassignmentPlan plan) throws TException{
+        for(ShardReassignment reassignment: plan.getReassignmentList()) {
+            master.reassignBucketToRoute(reassignment.taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
+        }
     }
 }
