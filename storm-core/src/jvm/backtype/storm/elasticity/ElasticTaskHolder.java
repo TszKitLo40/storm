@@ -490,7 +490,7 @@ public class ElasticTaskHolder {
         _bolts.get(taskid)._keyBucketSampler.clear();
         _bolts.get(taskid)._keyBucketSampler.enable();
         _slaveActor.sendMessageToMaster("It will take " + Config.CreateBalancedHashRoutingSamplingTimeInSecs + "seconds to sample the distribution of the input tuples on the key domain.");
-        Utils.sleep(Config.CreateBalancedHashRoutingSamplingTimeInSecs);
+        Utils.sleep(Config.CreateBalancedHashRoutingSamplingTimeInSecs * 1000);
         _bolts.get(taskid)._keyBucketSampler.disable();
         _slaveActor.sendMessageToMaster("Sampling completes");
 
