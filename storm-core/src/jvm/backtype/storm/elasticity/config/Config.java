@@ -7,7 +7,7 @@ public class Config {
 
     public static int NumberOfShard = 32;
 
-    public static int SubtaskInputQueueCapacity = 8;
+    public static int SubtaskInputQueueCapacity = 64;
 
     public static double RoutingSamplingRate = 1.0;
 
