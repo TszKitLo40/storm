@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteState;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
@@ -20,7 +21,7 @@ public class ElasticRemoteTaskExecutor {
 
     LinkedBlockingQueue<ITaskMessage> _resultQueue;
 
-    LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(256);
+    LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(Config.RemoteExecutorInputQueueCapacity);
 
     RemoteElasticOutputCollector _outputCollector;
 
@@ -57,7 +58,7 @@ public class ElasticRemoteTaskExecutor {
     }
 
     public void createStateCheckpointingThread() {
-        _stateCheckpointingThread = new Thread(new StateCheckoutPointing(10));
+        _stateCheckpointingThread = new Thread(new StateCheckoutPointing(Config.StateCheckPointingCycleInSecs));
         _stateCheckpointingThread.start();
 
         System.out.println("state checkpointing thread is created");

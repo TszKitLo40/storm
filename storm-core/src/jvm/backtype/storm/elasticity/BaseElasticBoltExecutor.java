@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.utils.KeyBucketSampler;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -78,8 +79,8 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        _keyBucketSampler = new KeyBucketSampler(32);
-        _resultQueue = new LinkedBlockingQueue<>(256);
+        _keyBucketSampler = new KeyBucketSampler(Config.NumberOfShard);
+        _resultQueue = new LinkedBlockingQueue<>(Config.ResultQueueCapacity);
         _outputCollector = new ElasticOutputCollector(_resultQueue);
         _bolt.prepare(stormConf, context);
         _originalCollector = collector;

@@ -15,7 +15,7 @@ public class QueryThroughput {
     public static void main(String[] args) {
 
         if(args.length!=2) {
-            System.out.println("args: taskid, cycle-balls-secs");
+            System.out.println("args: taskid, cycle-in-secs");
             return;
         }
 

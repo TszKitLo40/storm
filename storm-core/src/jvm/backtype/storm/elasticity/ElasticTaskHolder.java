@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.BucketNotExistingException;
 import backtype.storm.elasticity.message.actormessage.ElasticTaskMigrationConfirmMessage;
 import backtype.storm.elasticity.message.actormessage.ElasticTaskMigrationMessage;
@@ -60,7 +61,7 @@ public class ElasticTaskHolder {
 
     Map<Integer, IConnection> _originalTaskIdToConnection = new HashMap<>();
 
-    LinkedBlockingQueue<ITaskMessage> _sendingQueue = new LinkedBlockingQueue<>(256);
+    LinkedBlockingQueue<ITaskMessage> _sendingQueue = new LinkedBlockingQueue<>(Config.ElasticTaskHolderOutputQueueCapacity);
 
     Map<String, Semaphore> _taskidRouteToStateWaitingSemaphore = new HashMap<>();
 
@@ -486,13 +487,12 @@ public class ElasticTaskHolder {
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException(taskid);
         }
-        _slaveActor.sendMessageToMaster("phase 1");
         _bolts.get(taskid)._keyBucketSampler.clear();
         _bolts.get(taskid)._keyBucketSampler.enable();
-        _slaveActor.sendMessageToMaster("phase 2");
-        Utils.sleep(5000);
+        _slaveActor.sendMessageToMaster("It will take " + Config.CreateBalancedHashRoutingSamplingTimeInSecs + "seconds to sample the distribution of the input tuples on the key domain.");
+        Utils.sleep(Config.CreateBalancedHashRoutingSamplingTimeInSecs);
         _bolts.get(taskid)._keyBucketSampler.disable();
-        _slaveActor.sendMessageToMaster("phase 3");
+        _slaveActor.sendMessageToMaster("Sampling completes");
 
         FirstFitDoubleDecreasing firstFitDoubleDecreasing = new FirstFitDoubleDecreasing(Arrays.asList(_bolts.get(taskid)._keyBucketSampler.buckets),numberOfRouting);
 
@@ -527,7 +527,7 @@ public class ElasticTaskHolder {
         }
 
         _bolts.get(taskid).get_elasticTasks().addValidRoute(route);
-        System.out.println("Route "+ route +" has been added into the routing table!");
+        System.out.println("Route " + route + " has been added into the routing table!");
         sendFinalTuple(taskid, route);
         System.out.println("RemoteSubtaskTerminationToken has been sent!");
 

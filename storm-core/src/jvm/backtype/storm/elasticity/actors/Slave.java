@@ -140,7 +140,7 @@ public class Slave extends UntypedActor {
 //
 //            ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
 //            if(migrationMessage!=null) {
-//                System.out.print("The number of routes balls the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
+//                System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
 //
 //                _nameToActors.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
 //                System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommand._targetHostName)+"["+_nameToActors.get(taskMigrationCommand._targetHostName).path()+"]");
@@ -276,7 +276,7 @@ public class Slave extends UntypedActor {
 //            ("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
         }
 //        if(migrationMessage!=null) {
-//            System.out.print("The number of routes balls the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
+//            System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
 //
 //        } else {
 //        }

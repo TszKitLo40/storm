@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
@@ -67,7 +68,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
-        _sample = new KeyFrequencySampler(1);
+        _sample = new KeyFrequencySampler(Config.RoutingSamplingRate);
         _taskHolder=ElasticTaskHolder.instance();
     }
 
@@ -81,7 +82,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads = new HashMap<>();
         _queryRunnables = new HashMap<>();
         _elasticOutputCollector = elasticOutputCollector;
-        _sample = new KeyFrequencySampler(1);
+        _sample = new KeyFrequencySampler(Config.RoutingSamplingRate);
         _taskHolder=ElasticTaskHolder.instance();
     }
 
@@ -210,7 +211,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(256);
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(Config.SubtaskInputQueueCapacity);
         _queues.put(i, inputQueue);
     }
 
@@ -230,7 +231,7 @@ public class ElasticTasks implements Serializable {
             System.out.println("Cannot create tasks for route "+i+", because it is not valid!");
             return;
         }
-        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(1024);
+        LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(Config.SubtaskInputQueueCapacity);
         _queues.put(i, inputQueue);
 
         QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
