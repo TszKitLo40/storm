@@ -5,6 +5,7 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.actormessage.*;
+import backtype.storm.elasticity.resource.ResourceManager;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.scheduler.ElasticScheduler;
 import backtype.storm.elasticity.utils.Histograms;
@@ -173,6 +174,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
             Date date = new Date();
             log(getWorkerLogicalName(logMessage.host), logMessage.msg);
 //            System.out.println(dateFormat.format(date)+"[" + getWorkerLogicalName(logMessage.host) + "] "+ logMessage.msg);
+        } else if (message instanceof WorkerCPULoad) {
+            WorkerCPULoad load = (WorkerCPULoad) message;
+            ResourceManager.instance().updateWorkerCPULoad(getWorkerLogicalName(load.hostName), load.cpuLoad);
         }
     }
 

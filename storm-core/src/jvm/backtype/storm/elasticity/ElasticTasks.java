@@ -224,6 +224,7 @@ public class ElasticTasks implements Serializable {
         _queryThreads.put(i, newThread);
         System.out.println("created elastic worker threads for route "+i);
         ElasticTaskHolder.instance().sendMessageToMaster("created elastic worker threads for route "+i);
+//        ElasticTaskHolder.instance()._slaveActor.registerRemoteRoutesOnMaster(_taskID, i);
     }
 
     public void createAndLaunchElasticTasksForGivenRoute(int i) {

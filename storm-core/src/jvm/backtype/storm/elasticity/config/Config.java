@@ -21,4 +21,6 @@ public class Config {
 
     public static int CreateBalancedHashRoutingSamplingTimeInSecs = 3;
 
+    public static int ProcessCPULoadReportCycleInSecs = 1;
+
 }

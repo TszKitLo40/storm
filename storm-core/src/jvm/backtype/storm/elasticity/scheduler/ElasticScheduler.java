@@ -2,6 +2,7 @@ package backtype.storm.elasticity.scheduler;
 
 import backtype.storm.elasticity.actors.Master;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
+import backtype.storm.elasticity.resource.ResourceManager;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.routing.RoutingTableUtils;
@@ -19,10 +20,13 @@ public class ElasticScheduler {
 
     Master master;
 
+    ResourceManager resourceManager;
+
     static private ElasticScheduler instance;
 
     public ElasticScheduler() {
         master = Master.createActor();
+        resourceManager = new ResourceManager();
         instance = this;
     }
 

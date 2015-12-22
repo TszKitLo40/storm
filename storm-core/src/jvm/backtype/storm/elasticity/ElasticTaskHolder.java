@@ -9,6 +9,8 @@ import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.exceptions.TaskNotExistingException;
 import backtype.storm.elasticity.message.taksmessage.*;
+import backtype.storm.elasticity.resource.ResourceManager;
+import backtype.storm.elasticity.resource.ResourceMonitor;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
@@ -71,6 +73,8 @@ public class ElasticTaskHolder {
 
     private Map<String, IConnection> _taskidRouteToConnection = new HashMap<>();
 
+    ResourceMonitor resourceMonitor;
+
     static public ElasticTaskHolder instance() {
         return _instance;
     }
@@ -102,6 +106,7 @@ public class ElasticTaskHolder {
         LOG.info("storm id:"+workerId+" port:" + port);
         Utils.sleep(2000);
         _slaveActor.sendMessageToMaster("My pid is: " + ManagementFactory.getRuntimeMXBean().getName());
+        resourceMonitor = new ResourceMonitor();
     }
 
     public void registerElasticBolt(BaseElasticBoltExecutor bolt, int taskId) {
