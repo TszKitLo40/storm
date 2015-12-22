@@ -223,8 +223,8 @@ public class ElasticTasks implements Serializable {
         newThread.start();
         _queryThreads.put(i, newThread);
         System.out.println("created elastic worker threads for route "+i);
-        ElasticTaskHolder.instance().sendMessageToMaster("created elastic worker threads for route "+i);
-//        ElasticTaskHolder.instance()._slaveActor.registerRemoteRoutesOnMaster(_taskID, i);
+//        ElasticTaskHolder.instance().sendMessageToMaster("created elastic worker threads for route "+i);
+        ElasticTaskHolder.instance()._slaveActor.registerRoutesOnMaster(_taskID, i);
     }
 
     public void createAndLaunchElasticTasksForGivenRoute(int i) {
@@ -241,6 +241,7 @@ public class ElasticTasks implements Serializable {
         newThread.start();
         _queryThreads.put(i, newThread);
         System.out.println("created elastic worker threads for route "+i);
+        ElasticTaskHolder.instance()._slaveActor.registerRoutesOnMaster(_taskID, i);
     }
 
     /**
@@ -394,7 +395,7 @@ public class ElasticTasks implements Serializable {
         try {
             _queryThreads.get(route).join();
             System.out.println("Query thread for "+_taskID+"."+route + " is terminated!");
-            ElasticTaskHolder.instance().sendMessageToMaster("Query thread for "+_taskID+"."+route + " is terminated!");
+//            ElasticTaskHolder.instance().sendMessageToMaster("Query thread for "+_taskID+"."+route + " is terminated!");
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -402,6 +403,7 @@ public class ElasticTasks implements Serializable {
         _queryRunnables.remove(route);
         _queryThreads.remove(route);
         _queues.remove(route);
+        ElasticTaskHolder.instance()._slaveActor.unregisterRoutesOnMaster(_taskID, route);
 
     }
 

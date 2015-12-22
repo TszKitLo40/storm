@@ -290,7 +290,7 @@ public class Slave extends UntypedActor {
 //        _master.tell("I generate confirm message ",getSelf());
 
 
-        registerRemoteRoutesOnMaster(elasticTaskMigrationMessage._elasticTask.get_taskID(), elasticTaskMigrationMessage._elasticTask.get_routingTable().getRoutes());
+        registerRoutesOnMaster(elasticTaskMigrationMessage._elasticTask.get_taskID(), elasticTaskMigrationMessage._elasticTask.get_routingTable().getRoutes());
 
         if(confirmMessage!=null) {
             getSender().tell(confirmMessage, getSelf());
@@ -364,27 +364,27 @@ public class Slave extends UntypedActor {
 
     }
 
-    public void registerRemoteRoutesOnMaster(int taskid, int route) {
+    public void registerRoutesOnMaster(int taskid, int route) {
         ArrayList<Integer> routes = new ArrayList<>();
         routes.add(route);
-        registerRemoteRoutesOnMaster(taskid, routes);
+        registerRoutesOnMaster(taskid, routes);
     }
 
-    public void registerRemoteRoutesOnMaster(int taskid, ArrayList<Integer> routes) {
-        RemoteRouteRegistrationMessage registrationMessage = new RemoteRouteRegistrationMessage(taskid, routes, _name);
+    public void registerRoutesOnMaster(int taskid, ArrayList<Integer> routes) {
+        RouteRegistrationMessage registrationMessage = new RouteRegistrationMessage(taskid, routes, _name);
         _master.tell(registrationMessage, getSelf());
     }
 
-    public void unregisterRemoteRoutesOnMaster(int taskid, ArrayList<Integer> routes) {
-        RemoteRouteRegistrationMessage registrationMessage = new RemoteRouteRegistrationMessage(taskid, routes, _name);
+    public void unregisterRoutesOnMaster(int taskid, ArrayList<Integer> routes) {
+        RouteRegistrationMessage registrationMessage = new RouteRegistrationMessage(taskid, routes, _name);
         registrationMessage.setUnregister();
         _master.tell(registrationMessage, getSelf());
     }
 
-    public void unregisterRemoteRoutesOnMaster(int taskid, int route) {
+    public void unregisterRoutesOnMaster(int taskid, int route) {
         ArrayList<Integer> routes = new ArrayList<>();
         routes.add(route);
-        unregisterRemoteRoutesOnMaster(taskid, routes);
+        unregisterRoutesOnMaster(taskid, routes);
     }
 
     public void reportWorkerCPULoadToMaster(double load) {

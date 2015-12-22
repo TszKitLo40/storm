@@ -336,7 +336,7 @@ public class ElasticTaskHolder {
                             System.out.print("Received a RemoteSubtaskTerminationToken!");
                             RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) object;
                             terminateRemoteRoute(remoteSubtaskTerminationToken.taskid, remoteSubtaskTerminationToken.route);
-                            _slaveActor.unregisterRemoteRoutesOnMaster(remoteSubtaskTerminationToken.taskid, remoteSubtaskTerminationToken.route);
+//                            _slaveActor.unregisterRoutesOnMaster(remoteSubtaskTerminationToken.taskid, remoteSubtaskTerminationToken.route);
                         } else if (object instanceof BucketToRouteReassignment) {
                             sendMessageToMaster("Received BucketToRouteReassignment");
                             BucketToRouteReassignment reassignment = (BucketToRouteReassignment)object;

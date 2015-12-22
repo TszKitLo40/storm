@@ -153,15 +153,15 @@ public class Master extends UntypedActor implements MasterService.Iface {
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
             log("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) +".");
 
-        } else if (message instanceof RemoteRouteRegistrationMessage) {
-            RemoteRouteRegistrationMessage registrationMessage = (RemoteRouteRegistrationMessage) message;
+        } else if (message instanceof RouteRegistrationMessage) {
+            RouteRegistrationMessage registrationMessage = (RouteRegistrationMessage) message;
             for(int i: registrationMessage.routes) {
                 if(!registrationMessage.unregister) {
                     _taskidRouteToHostName.put(registrationMessage.taskid + "." + i, registrationMessage.host);
-                    log("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
                 } else {
                     _taskidRouteToHostName.remove(registrationMessage.taskid + "." + i);
-                    log("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
                 }
             }
 
