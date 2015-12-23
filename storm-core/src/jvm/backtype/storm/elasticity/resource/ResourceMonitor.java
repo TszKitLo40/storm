@@ -26,8 +26,9 @@ public class ResourceMonitor {
                 try {
                     while(true) {
                         Thread.sleep(Config.ProcessCPULoadReportCycleInSecs * 1000);
-                        double load = getProcessCPULoad();
-                        Slave.getInstance().reportWorkerCPULoadToMaster(load);
+                        double processCPULoad = getProcessCPULoad();
+                        double systemCPULoad = getSystemCPULoad();
+                        Slave.getInstance().reportWorkerCPULoadToMaster(processCPULoad, systemCPULoad);
                     }
                 } catch (InterruptedException e ) {
                     e.printStackTrace();
@@ -37,6 +38,10 @@ public class ResourceMonitor {
     }
 
     private double getProcessCPULoad() {
-        return operatingSystemMXBean.getProcessCpuLoad();
+        return operatingSystemMXBean.getProcessCpuLoad() * operatingSystemMXBean.getAvailableProcessors();
+    }
+
+    private double getSystemCPULoad() {
+        return operatingSystemMXBean.getSystemCpuLoad() * operatingSystemMXBean.getAvailableProcessors();
     }
 }

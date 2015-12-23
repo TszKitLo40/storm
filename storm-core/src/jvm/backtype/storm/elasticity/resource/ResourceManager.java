@@ -1,5 +1,9 @@
 package backtype.storm.elasticity.resource;
 
+import backtype.storm.elasticity.message.actormessage.WorkerCPULoad;
+
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,7 +12,8 @@ import java.util.Map;
  */
 public class ResourceManager {
 
-    Map<String, Double> workerCPULoad = new HashMap<>();
+    public Map<String, Double> workerCPULoad = new HashMap<>();
+    public Map<String, Double> systemCPULoad = new HashMap<>();
 
     static ResourceManager instance;
 
@@ -34,13 +39,22 @@ public class ResourceManager {
         instance = this;
     }
 
-    public void updateWorkerCPULoad(String worker, double load) {
-        workerCPULoad.put(worker, load);
+    public void updateWorkerCPULoad(String worker, WorkerCPULoad load) {
+        workerCPULoad.put(worker, load.processCpuLoad);
+        systemCPULoad.put(worker, load.systemCpuLoad);
     }
 
     void print() {
+        NumberFormat formatter = new DecimalFormat("#0.0000");
         for(String worker: workerCPULoad.keySet()) {
-            System.out.println(worker + ": " + workerCPULoad.get(worker));
+            System.out.println(worker + ": " + formatter.format(workerCPULoad.get(worker)) + "\t" + formatter.format(systemCPULoad.get(worker)));
         }
     }
+
+    public Map<String, Double> getWorkerCPULoadCopy() {
+        Map<String, Double> ret = new HashMap<>();
+        ret.putAll(workerCPULoad);
+        return ret;
+    }
+
 }

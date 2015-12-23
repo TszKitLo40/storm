@@ -47,7 +47,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<Integer, String> _taskidToActorName = new HashMap<>();
 
-    private Map<String, String> _taskidRouteToHostName = new HashMap<>();
+    public Map<Integer, String> _elasticTaskIdToWorker = new HashMap<>();
+
+    public Map<String, String> _taskidRouteToWorker = new HashMap<>();
 
     private Map<String, String> _hostNameToWorkerLogicalName = new HashMap<>();
 
@@ -151,16 +153,17 @@ public class Master extends UntypedActor implements MasterService.Iface {
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
-            log("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) +".");
+            _elasticTaskIdToWorker.put(registrationMessage.taskId, getWorkerLogicalName(registrationMessage.hostName));
+            log("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) + ".");
 
         } else if (message instanceof RouteRegistrationMessage) {
             RouteRegistrationMessage registrationMessage = (RouteRegistrationMessage) message;
             for(int i: registrationMessage.routes) {
                 if(!registrationMessage.unregister) {
-                    _taskidRouteToHostName.put(registrationMessage.taskid + "." + i, registrationMessage.host);
+                    _taskidRouteToWorker.put(registrationMessage.taskid + "." + i, getWorkerLogicalName(registrationMessage.host));
                     System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
                 } else {
-                    _taskidRouteToHostName.remove(registrationMessage.taskid + "." + i);
+                    _taskidRouteToWorker.remove(registrationMessage.taskid + "." + i);
                     System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
                 }
             }
@@ -176,7 +179,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 //            System.out.println(dateFormat.format(date)+"[" + getWorkerLogicalName(logMessage.host) + "] "+ logMessage.msg);
         } else if (message instanceof WorkerCPULoad) {
             WorkerCPULoad load = (WorkerCPULoad) message;
-            ResourceManager.instance().updateWorkerCPULoad(getWorkerLogicalName(load.hostName), load.cpuLoad);
+            ResourceManager.instance().updateWorkerCPULoad(getWorkerLogicalName(load.hostName), load);
         }
     }
 
@@ -342,6 +345,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
         } catch (Exception ee) {
             ee.printStackTrace();
             return ee.getMessage();
+        }
+    }
+
+    @Override
+    public String subtaskLevelLoadBalancing(int taskid) throws TaskNotExistException, TException {
+        try {
+            return ElasticScheduler.getInstance().workerLevelLoadBalancing(taskid);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return e.getMessage();
         }
     }
 

@@ -23,4 +23,8 @@ public class Config {
 
     public static int ProcessCPULoadReportCycleInSecs = 1;
 
+    public static int WorkloadHighWaterMark = 5;
+
+    public static int WorkloadLowWaterMark = 3;
+
 }

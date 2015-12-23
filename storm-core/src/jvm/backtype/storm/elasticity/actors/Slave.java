@@ -387,8 +387,12 @@ public class Slave extends UntypedActor {
         unregisterRoutesOnMaster(taskid, routes);
     }
 
-    public void reportWorkerCPULoadToMaster(double load) {
-        WorkerCPULoad workerCPULoad = new WorkerCPULoad(_name, load);
+    public void reportWorkerCPULoadToMaster(double workerLoad) {
+        reportWorkerCPULoadToMaster(workerLoad, -1.0);
+    }
+
+    public void reportWorkerCPULoadToMaster(double workerLoad, double systemLoad) {
+        WorkerCPULoad workerCPULoad = new WorkerCPULoad(_name, workerLoad, systemLoad);
         _master.tell(workerCPULoad, getSelf());
     }
 

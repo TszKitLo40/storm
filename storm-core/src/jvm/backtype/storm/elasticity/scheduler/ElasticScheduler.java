@@ -1,6 +1,7 @@
 package backtype.storm.elasticity.scheduler;
 
 import backtype.storm.elasticity.actors.Master;
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.resource.ResourceManager;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
@@ -10,8 +11,9 @@ import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.generated.TaskNotExistException;
 import org.apache.thrift.TException;
+import org.eclipse.jetty.util.ArrayQueue;
 
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by Robert on 11/11/15.
@@ -89,4 +91,89 @@ public class ElasticScheduler {
             master.reassignBucketToRoute(reassignment.taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
         }
     }
+
+    void applySubtaskReassignmentPlan(SubtaskReassignmentPlan plan) throws TException {
+        for(SubtaskReassignment reassignment: plan.getSubTaskReassignments()) {
+            master.migrateTasks(reassignment.originalHost, reassignment.targetHost, reassignment.taskId, reassignment.routeId);
+        }
+    }
+
+    public String workerLevelLoadBalancing(int taskId) throws TException {
+        if(!master._elasticTaskIdToWorker.containsKey(taskId))
+            throw new TaskNotExistException("Task " + taskId + " does not exists!");
+
+        Map<String, Double> workerLoad = resourceManager.getWorkerCPULoadCopy();
+        Map<String, String> taskIdRouteToWorkers = master._taskidRouteToWorker;
+
+        SubtaskReassignmentPlan totalPlan = new SubtaskReassignmentPlan();
+
+        for(String worker: workerLoad.keySet()) {
+            if(workerLoad.get(worker) >= Config.WorkloadHighWaterMark) {
+                SubtaskReassignmentPlan localPlan = releaseLoadOnWorker(taskId, worker, workerLoad, taskIdRouteToWorkers);
+                totalPlan.concat(localPlan);
+//                totalPlan.con
+            }
+        }
+
+        System.out.println("Load balancing plan: " + totalPlan);
+        applySubtaskReassignmentPlan(totalPlan);
+
+        return totalPlan.toString();
+    }
+
+    SubtaskReassignmentPlan releaseLoadOnWorker(int taskId, String worker, Map<String, Double> workerLoad, Map<String, String> taskIdRouteToWorkers) {
+
+        SubtaskReassignmentPlan plan = new SubtaskReassignmentPlan();
+
+        String hostWorker = master._elasticTaskIdToWorker.get(taskId);
+
+        Map<String, Queue<String>> workerToTaskRoutes = new HashMap<>();
+
+        for(String taskIdRoute: taskIdRouteToWorkers.keySet()) {
+            String w = taskIdRouteToWorkers.get(taskIdRoute);
+            if(!workerToTaskRoutes.containsKey(w)) {
+                workerToTaskRoutes.put(w, new ArrayQueue<String>());
+            }
+            workerToTaskRoutes.get(w).add(taskIdRoute);
+        }
+
+        int movements = (int) Math.ceil(workerLoad.get(worker) - Config.WorkloadHighWaterMark);
+
+
+        //first try to move subtask to the original host
+        if(!hostWorker.equals(worker) && workerLoad.get(hostWorker)<=Config.WorkloadLowWaterMark) {
+            while(workerLoad.get(worker) > Config.WorkloadHighWaterMark // target worker is overloaded
+                    && workerLoad.get(hostWorker) + 1 <= Config.WorkloadHighWaterMark // hostWorker is idle
+                    && workerToTaskRoutes.get(worker).size() > 0 //there are subtasks on the target worker
+                    ) {
+                String taskIdRoute = workerToTaskRoutes.get(worker).poll();
+                int tid = Integer.parseInt(taskIdRoute.split(".")[0]);
+                int route = Integer.parseInt(taskIdRoute.split(".")[1]);
+                assert(tid == taskId);
+                plan.addSubtaskReassignment(worker, hostWorker, tid, route);
+                workerLoad.put(worker, workerLoad.get(worker) - 1);
+                workerLoad.put(hostWorker, workerLoad.get(hostWorker) + 1);
+            }
+
+        }
+
+        for(String w: workerLoad.keySet()) {
+            while(workerLoad.get(worker) > Config.WorkloadHighWaterMark
+                    && workerLoad.get(w) + 1 <= Config.WorkloadHighWaterMark
+                    && workerToTaskRoutes.get(worker).size() > 0
+                    ) {
+                String taskIdRoute = workerToTaskRoutes.get(worker).poll();
+                System.out.println("taskIdRoute: " + taskIdRoute);
+                int tid = Integer.parseInt(taskIdRoute.split("\\.")[0]);
+                int route = Integer.parseInt(taskIdRoute.split("\\.")[1]);
+                assert(tid == taskId);
+                plan.addSubtaskReassignment(worker, w, tid, route);
+                workerLoad.put(worker, workerLoad.get(worker) - 1);
+                workerLoad.put(w, workerLoad.get(w) + 1);
+            }
+        }
+
+        return plan;
+    }
+
 }
