@@ -18,7 +18,7 @@ public class KeyValueState implements Serializable {
             return null;
     }
 
-    public void setValueBySey(Object key, Object value) {
+    public synchronized void setValueBySey(Object key, Object value) {
         state.put(key,value);
     }
 
@@ -30,7 +30,7 @@ public class KeyValueState implements Serializable {
         return state;
     }
 
-    public KeyValueState getValidState(StateFilter filter) {
+    public synchronized KeyValueState getValidState(StateFilter filter) {
         KeyValueState ret = new KeyValueState();
         for(Object key: state.keySet()) {
             if(filter.isValid(key)) {

@@ -27,4 +27,8 @@ public class Config {
 
     public static int WorkloadLowWaterMark = 3;
 
+    public static int WorkerLevelLoadBalancingCycleInSecs = 10;
+
+    public static int SubtaskLevelLoadBalancingCycleInSecs = 15;
+
 }

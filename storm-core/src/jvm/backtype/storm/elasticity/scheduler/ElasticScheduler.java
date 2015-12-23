@@ -24,21 +24,76 @@ public class ElasticScheduler {
 
     ResourceManager resourceManager;
 
+    final Object lock = new Object();
+
     static private ElasticScheduler instance;
 
     public ElasticScheduler() {
         master = Master.createActor();
         resourceManager = new ResourceManager();
         instance = this;
+        enableWorkerLevelLoadBalancing();
+        enableSubtaskLevelLoadBalancing();
     }
 
     static public ElasticScheduler getInstance() {
         return instance;
     }
 
-    public String optimizeBucketToRoutingMapping(int taskId) throws TaskNotExistException, RoutingTypeNotSupportedException, TException {
-        // 1. get routingTable
+    private void enableWorkerLevelLoadBalancing() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(Config.WorkerLevelLoadBalancingCycleInSecs * 1000);
+                        synchronized (lock) {
+                            Set<Integer> taskIds = master._elasticTaskIdToWorker.keySet();
+                            for(Integer task: taskIds) {
+                                try {
+                                    workerLevelLoadBalancing(task);
+                                } catch (TException e ) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }
+                } catch (InterruptedException e ) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 
+    private void enableSubtaskLevelLoadBalancing() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(Config.SubtaskLevelLoadBalancingCycleInSecs * 1000);
+                        synchronized (lock) {
+                            Set<Integer> taskIds = master._elasticTaskIdToWorker.keySet();
+                            for(Integer task: taskIds) {
+                                try {
+                                    optimizeBucketToRoutingMapping(task);
+                                } catch (Exception e ) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    }
+                } catch (InterruptedException e ) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
+    public String optimizeBucketToRoutingMapping(int taskId) throws TaskNotExistException, RoutingTypeNotSupportedException, TException {
+
+
+        // 1. get routingTable
         RoutingTable routingTable = master.getRoutingTable(taskId);
         BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
         if(balancedHashRouting == null) {
@@ -49,41 +104,83 @@ public class ElasticScheduler {
 
 
         // 2. get Distribution;
-
         Histograms histograms = master.getBucketDistribution(taskId);
-
         System.out.println("Histograms: " + histograms.toString());
 
-        int numberOfRoutes = balancedHashRouting.getNumberOfRoutes();
-        FirstFitDoubleDecreasing binPackingSolver = new FirstFitDoubleDecreasing(histograms.histogramsToArrayList(), numberOfRoutes);
-        if(binPackingSolver.getResult() != numberOfRoutes) {
-            System.out.println("Fail to solve the bin packing problem!");
-            return null;
+        // 3. evaluate the skewness
+        Map<Integer, Integer> shardToRouteMapping = balancedHashRouting.getBucketToRouteMapping();
+        final int numberOfRoutes = balancedHashRouting.getNumberOfRoutes();
+        long[] routeLoads = new long[numberOfRoutes];
+
+        for(Integer shard: shardToRouteMapping.keySet()) {
+//            System.out.println("\n\n shard:" + shard);
+//            System.out.println("numberOfRoutes: " + numberOfRoutes);
+//            System.out.println("shardToRouteMapping.get(shard): "+ shardToRouteMapping.get(shard) + "\n");
+//            System.out.println("routeLoads[shardToRouteMapping.get(shard)]" + routeLoads[shardToRouteMapping.get(shard)] + "\n");
+//            System.out.println("histograms.histogramsToArrayList().get(shard)" + histograms.histogramsToArrayList().get(shard) + "\n");
+            routeLoads[shardToRouteMapping.get(shard)] += histograms.histogramsToArrayList().get(shard);
         }
-        System.out.println(binPackingSolver.toString());
 
-
-        Map<Integer, Integer> oldMapping = balancedHashRouting.getBucketToRouteMapping();
-        Map<Integer, Integer> newMapping = binPackingSolver.getBucketToPartitionMap();
-        ShardReassignmentPlan plan = new ShardReassignmentPlan();
-
-        for(Integer bucket: oldMapping.keySet()) {
-            if(!oldMapping.get(bucket).equals(newMapping.get(bucket)) ) {
-                int oldRoute = oldMapping.get(bucket);
-                int newRoute = newMapping.get(bucket);
-                plan.addReassignment(taskId, bucket, oldRoute, newRoute);
-                System.out.println("Move " + bucket + " from " + oldRoute + " to " + newRoute + "\n");
+        long loadSum = 0;
+        long loadMin = Long.MAX_VALUE;
+        long loadMax = Long.MIN_VALUE;
+        for(Long i: routeLoads) {
+            loadSum += i;
+        }
+        for(Long i: routeLoads) {
+            if(loadMin > i){
+                loadMin = i;
+            }
+        }
+        for(Long i: routeLoads) {
+            if(loadMax < i) {
+                loadMax = i;
             }
         }
 
-        if(!plan.getReassignmentList().isEmpty()) {
-            applyShardToRouteReassignment(plan);
+        double averageLoad = loadSum / (double)numberOfRoutes;
+        boolean skewness = (loadMax - averageLoad)/averageLoad > 0.8;
+
+        System.out.println("Workload distribution:\n");
+        for(int i = 0; i < routeLoads.length; i++ ){
+            System.out.println(i + ": " + routeLoads[i]);
+        }
+        System.out.println("Workload Skewness: " + skewness);
+
+        if(skewness) {
+
+            FirstFitDoubleDecreasing binPackingSolver = new FirstFitDoubleDecreasing(histograms.histogramsToArrayList(), numberOfRoutes);
+            if(binPackingSolver.getResult() != numberOfRoutes) {
+                System.out.println("Fail to solve the bin packing problem!");
+                return null;
+            }
+            System.out.println(binPackingSolver.toString());
+
+
+            Map<Integer, Integer> oldMapping = balancedHashRouting.getBucketToRouteMapping();
+            Map<Integer, Integer> newMapping = binPackingSolver.getBucketToPartitionMap();
+            ShardReassignmentPlan plan = new ShardReassignmentPlan();
+
+            for(Integer bucket: oldMapping.keySet()) {
+                if(!oldMapping.get(bucket).equals(newMapping.get(bucket)) ) {
+                    int oldRoute = oldMapping.get(bucket);
+                    int newRoute = newMapping.get(bucket);
+                    plan.addReassignment(taskId, bucket, oldRoute, newRoute);
+                    System.out.println("Move " + bucket + " from " + oldRoute + " to " + newRoute + "\n");
+                }
+            }
+
+            if(!plan.getReassignmentList().isEmpty()) {
+                applyShardToRouteReassignment(plan);
+            } else {
+                System.out.println("Shard Assignment is not modified after optimization.");
+            }
+            return plan.toString();
         } else {
-            System.out.println("Shard Assignment is not modified after optimization.");
+            return "The workload is not skewed!";
         }
 
 
-        return plan.toString();
     }
 
     void applyShardToRouteReassignment(ShardReassignmentPlan plan) throws TException{
