@@ -45,7 +45,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('   getAllHostNames()')
   print('  void migrateTasks(string originalHostName, string targetHostName, i32 taskId, i32 routeNo)')
   print('  void createRouting(string hostName, i32 taskid, i32 routeNo, string type)')
-  print('  void withdrawRemoteRoute(string remoteHostName, i32 taskid, i32 route)')
+  print('  void withdrawRemoteRoute(i32 taskid, i32 route)')
   print('  double reportTaskThroughput(i32 taskid)')
   print('  string queryDistribution(i32 taskid)')
   print('  string getLiveWorkers()')
@@ -128,10 +128,10 @@ elif cmd == 'createRouting':
   pp.pprint(client.createRouting(args[0],eval(args[1]),eval(args[2]),args[3],))
 
 elif cmd == 'withdrawRemoteRoute':
-  if len(args) != 3:
-    print('withdrawRemoteRoute requires 3 args')
+  if len(args) != 2:
+    print('withdrawRemoteRoute requires 2 args')
     sys.exit(1)
-  pp.pprint(client.withdrawRemoteRoute(args[0],eval(args[1]),eval(args[2]),))
+  pp.pprint(client.withdrawRemoteRoute(eval(args[0]),eval(args[1]),))
 
 elif cmd == 'reportTaskThroughput':
   if len(args) != 1:

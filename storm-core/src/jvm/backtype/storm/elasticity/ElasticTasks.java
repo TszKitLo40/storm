@@ -1,5 +1,6 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
@@ -331,7 +332,7 @@ public class ElasticTasks implements Serializable {
     }
 
     public synchronized void setHashRouting(int numberOfRoutes) throws IllegalArgumentException {
-
+        long start = System.nanoTime();
         if(numberOfRoutes < 0)
             throw new IllegalArgumentException("number of routes should be positive");
 
@@ -354,10 +355,16 @@ public class ElasticTasks implements Serializable {
 //        clearDistributionSample();
 
         withDrawCurrentRouting();
+        long withdrawTime = System.nanoTime() - start;
+
 
 
         _routingTable = new HashingRouting(numberOfRoutes);
         createAndLaunchElasticTasks();
+
+        long totalTime = System.nanoTime() - start;
+
+        Slave.getInstance().sendMessageToMaster("Terminate: " + withdrawTime / 1000 + " us\tLaunch: " + (totalTime - withdrawTime) / 1000 + "us\t total: " + totalTime / 1000);
 
 //        for(int i: _routingTable.getRoutes())
 ////        for(int i = 0; i < numberOfRoutes; i++)
@@ -411,7 +418,6 @@ public class ElasticTasks implements Serializable {
         System.out.println("##########before termination!");
 //        if((_routingTable instanceof RoutingTable)) {
 
-            terminateQueries();
             if(_routingTable instanceof PartialHashingRouting) {
                 PartialHashingRouting partialHashingRouting = (PartialHashingRouting) _routingTable;
                 for(int i: partialHashingRouting.getExceptionRoutes()) {
@@ -422,6 +428,7 @@ public class ElasticTasks implements Serializable {
                     }
                 }
             }
+            terminateQueries();
 //        }
         System.out.println("##########after termination!");
         clearDistributionSample();

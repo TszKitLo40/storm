@@ -32,8 +32,8 @@ public class ElasticScheduler {
         master = Master.createActor();
         resourceManager = new ResourceManager();
         instance = this;
-        enableWorkerLevelLoadBalancing();
-        enableSubtaskLevelLoadBalancing();
+//        enableWorkerLevelLoadBalancing();
+//        enableSubtaskLevelLoadBalancing();
     }
 
     static public ElasticScheduler getInstance() {

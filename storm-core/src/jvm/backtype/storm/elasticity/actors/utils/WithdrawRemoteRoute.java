@@ -15,7 +15,7 @@ public class WithdrawRemoteRoute {
     public static void main(String[] args) {
 
         if(args.length!=3) {
-            System.out.println("args: remote-host-name, task-id, route");
+            System.out.println("args: task-id, route");
             return;
         }
 
@@ -26,7 +26,7 @@ public class WithdrawRemoteRoute {
             TProtocol protocol = new TBinaryProtocol(transport);
 
             MasterService.Client thriftClient = new MasterService.Client(protocol);
-            thriftClient.withdrawRemoteRoute(args[0],Integer.parseInt(args[1]),Integer.parseInt(args[2]));
+            thriftClient.withdrawRemoteRoute(Integer.parseInt(args[1]),Integer.parseInt(args[2]));
             transport.close();
         } catch (TException e) {
             e.printStackTrace();

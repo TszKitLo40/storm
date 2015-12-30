@@ -59,10 +59,9 @@ class Iface:
     """
     pass
 
-  def withdrawRemoteRoute(self, remoteHostName, taskid, route):
+  def withdrawRemoteRoute(self, taskid, route):
     """
     Parameters:
-     - remoteHostName
      - taskid
      - route
     """
@@ -224,20 +223,18 @@ class Client(Iface):
       raise result.hmee
     return
 
-  def withdrawRemoteRoute(self, remoteHostName, taskid, route):
+  def withdrawRemoteRoute(self, taskid, route):
     """
     Parameters:
-     - remoteHostName
      - taskid
      - route
     """
-    self.send_withdrawRemoteRoute(remoteHostName, taskid, route)
+    self.send_withdrawRemoteRoute(taskid, route)
     self.recv_withdrawRemoteRoute()
 
-  def send_withdrawRemoteRoute(self, remoteHostName, taskid, route):
+  def send_withdrawRemoteRoute(self, taskid, route):
     self._oprot.writeMessageBegin('withdrawRemoteRoute', TMessageType.CALL, self._seqid)
     args = withdrawRemoteRoute_args()
-    args.remoteHostName = remoteHostName
     args.taskid = taskid
     args.route = route
     args.write(self._oprot)
@@ -566,7 +563,7 @@ class Processor(Iface, TProcessor):
     iprot.readMessageEnd()
     result = withdrawRemoteRoute_result()
     try:
-      self._handler.withdrawRemoteRoute(args.remoteHostName, args.taskid, args.route)
+      self._handler.withdrawRemoteRoute(args.taskid, args.route)
     except TaskNotExistException, e:
       result.e = e
     except HostNotExistException, hnee:
@@ -1135,20 +1132,17 @@ class createRouting_result:
 class withdrawRemoteRoute_args:
   """
   Attributes:
-   - remoteHostName
    - taskid
    - route
   """
 
   thrift_spec = (
     None, # 0
-    (1, TType.STRING, 'remoteHostName', None, None, ), # 1
-    (2, TType.I32, 'taskid', None, None, ), # 2
-    (3, TType.I32, 'route', None, None, ), # 3
+    (1, TType.I32, 'taskid', None, None, ), # 1
+    (2, TType.I32, 'route', None, None, ), # 2
   )
 
-  def __init__(self, remoteHostName=None, taskid=None, route=None,):
-    self.remoteHostName = remoteHostName
+  def __init__(self, taskid=None, route=None,):
     self.taskid = taskid
     self.route = route
 
@@ -1162,16 +1156,11 @@ class withdrawRemoteRoute_args:
       if ftype == TType.STOP:
         break
       if fid == 1:
-        if ftype == TType.STRING:
-          self.remoteHostName = iprot.readString().decode('utf-8')
-        else:
-          iprot.skip(ftype)
-      elif fid == 2:
         if ftype == TType.I32:
           self.taskid = iprot.readI32();
         else:
           iprot.skip(ftype)
-      elif fid == 3:
+      elif fid == 2:
         if ftype == TType.I32:
           self.route = iprot.readI32();
         else:
@@ -1186,16 +1175,12 @@ class withdrawRemoteRoute_args:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
     oprot.writeStructBegin('withdrawRemoteRoute_args')
-    if self.remoteHostName is not None:
-      oprot.writeFieldBegin('remoteHostName', TType.STRING, 1)
-      oprot.writeString(self.remoteHostName.encode('utf-8'))
-      oprot.writeFieldEnd()
     if self.taskid is not None:
-      oprot.writeFieldBegin('taskid', TType.I32, 2)
+      oprot.writeFieldBegin('taskid', TType.I32, 1)
       oprot.writeI32(self.taskid)
       oprot.writeFieldEnd()
     if self.route is not None:
-      oprot.writeFieldBegin('route', TType.I32, 3)
+      oprot.writeFieldBegin('route', TType.I32, 2)
       oprot.writeI32(self.route)
       oprot.writeFieldEnd()
     oprot.writeFieldStop()
@@ -1207,7 +1192,6 @@ class withdrawRemoteRoute_args:
 
   def __hash__(self):
     value = 17
-    value = (value * 31) ^ hash(self.remoteHostName)
     value = (value * 31) ^ hash(self.taskid)
     value = (value * 31) ^ hash(self.route)
     return value

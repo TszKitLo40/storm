@@ -161,10 +161,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
             for(int i: registrationMessage.routes) {
                 if(!registrationMessage.unregister) {
                     _taskidRouteToWorker.put(registrationMessage.taskid + "." + i, getWorkerLogicalName(registrationMessage.host));
-                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is bound on " + getWorkerLogicalName(registrationMessage.host));
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + " is bound on " + getWorkerLogicalName(registrationMessage.host));
                 } else {
                     _taskidRouteToWorker.remove(registrationMessage.taskid + "." + i);
-                    System.out.println("Route " + registrationMessage.taskid + "." + i + "is removed from " + getWorkerLogicalName(registrationMessage.host));
+                    System.out.println("Route " + registrationMessage.taskid + "." + i + " is removed from " + getWorkerLogicalName(registrationMessage.host));
                 }
             }
 
@@ -269,7 +269,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     @Override
-    public void withdrawRemoteRoute(String workerName, int taskid, int route) throws TException {
+    public void withdrawRemoteRoute(int taskid, int route) throws TException {
         if(!_taskidToActorName.containsKey(taskid)) {
             throw new TaskNotExistException("task "+ taskid + " does not exist!");
         }
@@ -277,7 +277,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_nameToPath.containsKey(hostName)) {
             throw new HostNotExistException("host " + hostName + " does not exist!");
         }
-        RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(getHostByWorkerLogicalName(workerName), taskid, route);
+        RemoteRouteWithdrawCommand command = new RemoteRouteWithdrawCommand(getHostByWorkerLogicalName(hostName), taskid, route);
         try {
             getContext().actorFor(_nameToPath.get(hostName)).tell(command, getSelf());
             log("RemoteRouteWithdrawCommand has been sent to " + hostName);

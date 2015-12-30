@@ -5,7 +5,7 @@ package backtype.storm.elasticity.config;
  */
 public class Config {
 
-    public static int NumberOfShard = 32;
+    public static int NumberOfShard = 64;
 
     public static int SubtaskInputQueueCapacity = 64;
 
@@ -23,7 +23,7 @@ public class Config {
 
     public static int ProcessCPULoadReportCycleInSecs = 1;
 
-    public static int WorkloadHighWaterMark = 5;
+    public static int WorkloadHighWaterMark = 6;
 
     public static int WorkloadLowWaterMark = 3;
 

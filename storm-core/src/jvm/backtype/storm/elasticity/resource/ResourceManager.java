@@ -28,7 +28,7 @@ public class ResourceManager {
                 try {
                     while(true) {
                         Thread.sleep(1000);
-                        print();
+//                        print();
 
                     }
                 } catch (InterruptedException e ) {

@@ -9,8 +9,10 @@ import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.message.actormessage.*;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.timer.SubtaskMigrationTimer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
@@ -20,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -256,8 +259,10 @@ public class Slave extends UntypedActor {
     }
 
     private void handleTaskMigrationCommandMessage(TaskMigrationCommand taskMigrationCommand) {
+        SubtaskMigrationTimer.instance().start();
+
         if(!_nameToPath.containsKey(taskMigrationCommand._targetHostName)) {
-            System.out.println("[Elastic]:target host "+ taskMigrationCommand._targetHostName+"does not exist!");
+            System.out.println("[Elastic]:target host "+ taskMigrationCommand._targetHostName+" does not exist!");
             sendMessageToMaster(taskMigrationCommand._targetHostName+" does not exist! Valid names are "+_nameToPath.keySet());
             return;
         }
@@ -265,9 +270,21 @@ public class Slave extends UntypedActor {
             ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
 //            _nameToPath.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
             if(migrationMessage!=null) {
+
+//                final Inbox inbox = Inbox.create(getContext().system());
+//                inbox.send(getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)), migrationMessage);
+//                return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
                 getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)).tell(migrationMessage, getSelf());
                 System.out.println("[Elastic]: elastic message has been sent to "+_nameToPath.get(taskMigrationCommand._targetHostName)+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
 //                sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
+//                ExecutionResult result = (ExecutionResult)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+                SubtaskMigrationTimer.instance().prepare();
+
+//                if(result.result == ExecutionResult.Status.Fail) {
+//                    throw new RuntimeException("migration command message failed to deploy. Reason: " + result.msg);
+//                }
+
+
             } else {
                 throw new RuntimeException("generateRemoteElasticTasks returns null!");
             }
@@ -314,6 +331,8 @@ public class Slave extends UntypedActor {
         for(int i: confirmMessage._routes) {
             holder.establishConnectionToRemoteTaskHolder(taskId, i, ip, port);
         }
+        SubtaskMigrationTimer.instance().launched();
+        sendMessageToMaster(SubtaskMigrationTimer.instance().toString());
     }
 
     private void handleRoutingCreatingCommand(RoutingCreatingCommand creatingCommand) {

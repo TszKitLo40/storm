@@ -18,12 +18,14 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.timer.SubtaskWithdrawTimer;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
 import backtype.storm.messaging.netty.Context;
 import backtype.storm.serialization.KryoValuesSerializer;
 import backtype.storm.task.WorkerTopologyContext;
+import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.TupleImpl;
 import backtype.storm.utils.Utils;
 import org.apache.commons.lang.SerializationException;
@@ -33,6 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.management.ManagementFactory;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 
@@ -61,11 +64,11 @@ public class ElasticTaskHolder {
 
     Map<Integer, ElasticRemoteTaskExecutor> _originalTaskIdToRemoteTaskExecutor = new HashMap<>();
 
-    Map<Integer, IConnection> _originalTaskIdToConnection = new HashMap<>();
+    Map<Integer, IConnection> _originalTaskIdToConnection = new ConcurrentHashMap<>();
 
     LinkedBlockingQueue<ITaskMessage> _sendingQueue = new LinkedBlockingQueue<>(Config.ElasticTaskHolderOutputQueueCapacity);
 
-    Map<String, Semaphore> _taskidRouteToStateWaitingSemaphore = new HashMap<>();
+    Map<String, Semaphore> _taskidRouteToStateWaitingSemaphore = new ConcurrentHashMap<>();
 
     Map<String, Semaphore> _taskIdRouteToSendingWaitingSemaphore = new HashMap<>();
 
@@ -122,7 +125,7 @@ public class ElasticTaskHolder {
 
     public ElasticTaskMigrationMessage generateRemoteElasticTasks(int taskid, int route) throws RoutingTypeNotSupportedException, InvalidRouteException {
         if(!_bolts.containsKey(taskid)){
-            System.err.println("task )"+taskid+"does not exist!");
+            System.err.println("task "+taskid+" does not exist! Remember to use withdraw command if you want to move a remote subtask to the original host!");
             return null;
         }
 
@@ -164,7 +167,7 @@ public class ElasticTaskHolder {
 //        _remoteTasks.put(message._elasticTask.get_taskID(), message._elasticTask);
         IConnection iConnection = _context.connect(message._ip + ":" + message._port + "-" + message._elasticTask.get_taskID(),message._ip,message._port);
         _originalTaskIdToConnection.put(message._elasticTask.get_taskID(),iConnection);
-        System.out.println("Connected with orignal Task Holders");
+        System.out.println("Connected with original Task Holders");
 
         if(!_originalTaskIdToRemoteTaskExecutor.containsKey(message._elasticTask.get_taskID())) {
             //This is the first RemoteTasks assigned to this host.
@@ -214,7 +217,6 @@ public class ElasticTaskHolder {
 
                         final ITaskMessage message = _sendingQueue.take();
                         LOG.debug("An element is taken from the sendingQueue");
-
                         if(message instanceof RemoteTupleExecuteResult) {
                             LOG.debug("The element is RemoteTupleExecuteResult");
 
@@ -261,23 +263,29 @@ public class ElasticTaskHolder {
 
                                 System.out.println("RemoteSubtaskTerminationToken is sent");
                             } else {
-                                System.err.println("RemoteSubtaskTerminationToken does not have a valid taskid and route!");
+                                System.err.println("RemoteSubtaskTerminationToken does not have a valid taskid and route: " +key);
                             }
 
                         } else if (message instanceof RemoteState) {
                             RemoteState remoteState = (RemoteState) message;
-                            if(_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
-                                byte[] bytes = SerializationUtils.serialize(remoteState);
-                                final ArrayList<TaskMessage> taskMessages = new ArrayList<>();
-                                taskMessages.add(new TaskMessage(remoteState._taskId, bytes, "RemoteState" ));
-                                _originalTaskIdToConnection.get(remoteState._taskId).send(taskMessages.iterator());
+//                            if(_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
+                            byte[] bytes = SerializationUtils.serialize(remoteState);
+                            final ArrayList<TaskMessage> taskMessages = new ArrayList<>();
+                            taskMessages.add(new TaskMessage(remoteState._taskId, bytes, "RemoteState" ));
+                            IConnection connection = _originalTaskIdToConnection.get(remoteState._taskId);
+                            if(connection != null) {
+                                if(!remoteState.finalized&& !_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
+                                    System.out.println("Remote state is ignored to send, as the state is not finalized ans the original RemoteTaskExecutor does not exist!");
+                                    continue;
+                                }
+                                connection.send(taskMessages.iterator());
                                 taskMessages.clear();
-
                                 System.out.println("RemoteState is sent back!");
                             } else {
                                 System.err.println("Cannot find the connection for task " + remoteState._state);
+                                System.out.println("TaskId: " + remoteState._taskId);
+                                System.out.println("Connections: " + _originalTaskIdToConnection );
                             }
-
                         } else {
                             System.err.print("Unknown element from the sending queue");
                         }
@@ -287,6 +295,8 @@ public class ElasticTaskHolder {
                     } catch (SerializationException ex) {
                         System.err.println("Serialization Error!");
                         ex.printStackTrace();
+                    } catch (Exception eee) {
+                        eee.printStackTrace();
                     }
                 }
             }
@@ -300,6 +310,7 @@ public class ElasticTaskHolder {
             public void run() {
                 int count = 0;
                 while (true) {
+                try {
                     Iterator<TaskMessage> messageIterator = _inputConnection.recv(0, 0);
                     while(messageIterator.hasNext()) {
                         TaskMessage message = messageIterator.next();
@@ -315,11 +326,14 @@ public class ElasticTaskHolder {
                             LOG.debug("a query result tuple is added into the input queue");
                         } else if (object instanceof RemoteTuple) {
                             message.set_name("Received RemoteTuple");
+
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
                                 LOG.debug("A remote tuple %d.%d is received!\n", remoteTuple._taskId, remoteTuple._route);
                                 ((TupleImpl)remoteTuple._tuple).setContext(_workerTopologyContext);
-                                _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId).get_inputQueue().put(remoteTuple._tuple);
+                                ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId);
+                                LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
+                                queue.put(remoteTuple._tuple);
                                 LOG.debug("A remote tuple is added to the queue!\n");
 
                             } catch (InterruptedException e) {
@@ -354,6 +368,9 @@ public class ElasticTaskHolder {
 
                     }
 
+                    } catch (Exception e ) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }).start();
@@ -516,6 +533,7 @@ public class ElasticTaskHolder {
     }
 
     public void withdrawRemoteElasticTasks(int taskid, int route) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException {
+        SubtaskWithdrawTimer.getInstance().start();
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException(taskid);
         }
@@ -528,12 +546,15 @@ public class ElasticTaskHolder {
             throw new InvalidRouteException("Route " + route + " is not valid");
         }
         if(partialHashingRouting.getRoutes().contains(route)) {
-            throw new InvalidRouteException("Route " + route + " is not balls exception list");
+            throw new InvalidRouteException("Route " + route + " is not in exception list");
         }
 
         _bolts.get(taskid).get_elasticTasks().addValidRoute(route);
         System.out.println("Route " + route + " has been added into the routing table!");
         sendFinalTuple(taskid, route);
+
+        SubtaskWithdrawTimer.getInstance().prepared();
+
         System.out.println("RemoteSubtaskTerminationToken has been sent!");
 
 
@@ -548,8 +569,10 @@ public class ElasticTaskHolder {
             _bolts.get(taskid).get_elasticTasks().launchElasticTasksForGivenRoute(route);
             System.out.println("Remote " + taskid + "." + route + "has been withdrawn!");
             _slaveActor.sendMessageToMaster("Remote " + taskid + "." + route + "has been withdrawn!");
+            SubtaskWithdrawTimer.getInstance().terminated();
+            _slaveActor.sendMessageToMaster(SubtaskWithdrawTimer.getInstance().toString());
         } catch (InterruptedException e ) {
-
+            e.printStackTrace();
         }
     }
 
