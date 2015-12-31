@@ -148,8 +148,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 log(helloMessage.getName()+" is registered again! ");
 //            _nameToActors.put(helloMessage.getName(), getSender());
             _nameToPath.put(helloMessage.getName(), getSender().path());
-            _hostNameToWorkerLogicalName.put(helloMessage.getName(), extractIpFromActorAddress(getSender().path().toString())+":"+helloMessage.getPort());
+            String logicalName = extractIpFromActorAddress(getSender().path().toString())+":"+helloMessage.getPort();
+            _hostNameToWorkerLogicalName.put(helloMessage.getName(), logicalName);
             log("[" +  helloMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(helloMessage.getName()));
+            getSender().tell(new WorkerLogicalNameMessage(logicalName), getSelf());
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
@@ -246,7 +248,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_nameToPath.containsKey(getHostByWorkerLogicalName(targetHostName)))
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
         try {
-            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(originalHostName))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
+//            _taskidToActorName.get(taskId);
+            getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
+//            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(originalHostName))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
     //        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
             log("[Elastic]: Migration message has been sent!");
         } catch (Exception e) {

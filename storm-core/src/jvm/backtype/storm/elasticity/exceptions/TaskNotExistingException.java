@@ -9,7 +9,7 @@ public class TaskNotExistingException extends Exception {
         super(reason);
     }
     public TaskNotExistingException(int task) {
-        super("Tasks " + task + "does not exist!");
+        super("Tasks " + task + " does not exist!");
     }
 
 }

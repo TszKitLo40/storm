@@ -10,9 +10,9 @@ import backtype.storm.elasticity.message.actormessage.*;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.timer.SubtaskMigrationTimer;
+import backtype.storm.generated.HostNotExistException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +37,8 @@ public class Slave extends UntypedActor {
     Map<String, ActorPath> _nameToPath = new ConcurrentHashMap<>();
 
     String _name;
+
+    String _logicalName;
 
     ActorSelection _master;
 
@@ -100,124 +101,139 @@ public class Slave extends UntypedActor {
 
     @Override
     public void onReceive(Object message) throws Exception {
-        if (message instanceof ClusterEvent.CurrentClusterState) {
-            ClusterEvent.CurrentClusterState state = (ClusterEvent.CurrentClusterState) message;
-            for (Member member : state.getMembers()) {
-                if (member.status().equals(MemberStatus.up())) {
-                    register(member);
-//                    member.address().toString();
+        try {
+            if (message instanceof ClusterEvent.CurrentClusterState) {
+                ClusterEvent.CurrentClusterState state = (ClusterEvent.CurrentClusterState) message;
+                for (Member member : state.getMembers()) {
+                    if (member.status().equals(MemberStatus.up())) {
+                        register(member);
+    //                    member.address().toString();
+                    }
                 }
-            }
-        } else if (message instanceof ClusterEvent.MemberUp) {
-            ClusterEvent.MemberUp memberUp = (ClusterEvent.MemberUp) message;
-            register(memberUp.member());
-        } else if (message instanceof ClusterEvent.UnreachableMember) {
-            ClusterEvent.UnreachableMember unreachableMember = (ClusterEvent.UnreachableMember) message;
-            System.out.println(unreachableMember.member().address().toString() + " is unreachable!");
+            } else if (message instanceof ClusterEvent.MemberUp) {
+                ClusterEvent.MemberUp memberUp = (ClusterEvent.MemberUp) message;
+                register(memberUp.member());
+            } else if (message instanceof ClusterEvent.UnreachableMember) {
+                ClusterEvent.UnreachableMember unreachableMember = (ClusterEvent.UnreachableMember) message;
+                System.out.println(unreachableMember.member().address().toString() + " is unreachable!");
 
-            for(String name: _nameToPath.keySet()) {
-                if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
-                    System.out.println(name+" is removed! "+ _nameToPath.get(name).address().toString() +"-->"+unreachableMember.member().address().toString());
-                    _nameToPath.remove(name);
-                    sendMessageToMaster(name+" is removed! ");
-                } else {
-                    System.out.println(_nameToPath.get(name).address().toString() + " != " + unreachableMember.member().address().toString());
+                for(String name: _nameToPath.keySet()) {
+                    if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
+                        System.out.println(name+" is removed! "+ _nameToPath.get(name).address().toString() +"-->"+unreachableMember.member().address().toString());
+                        _nameToPath.remove(name);
+                        sendMessageToMaster(name+" is removed! ");
+                    } else {
+                        System.out.println(_nameToPath.get(name).address().toString() + " != " + unreachableMember.member().address().toString());
+                    }
+
                 }
+            }else if (message instanceof HelloMessage) {
+                HelloMessage helloMessage = (HelloMessage) message;
+    //            _nameToActors.put(helloMessage.getName(), getSender());
+                _nameToPath.put(helloMessage.getName(), getSender().path());
+    //            getContext().actorFor( getSender().path()).tell("Hi, I am " + _name + " Your path is "+ getSender().path().toString(), getSelf() );
+                System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
+    //            sendMessageToMaster("I am connected with " + helloMessage.getName());
+            } else if (message instanceof TaskMigrationCommand) {
+                System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
+                TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
+                handleTaskMigrationCommandMessage(taskMigrationCommand);
+    //            if(!_nameToActors.containsKey(taskMigrationCommand._targetHostName)) {
+    //                System.out.println("[Elastic]:target host "+taskMigrationCommand._targetHostName+"does not exist!");
+    //                return;
+    //            }
+    //
+    //            ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
+    //            if(migrationMessage!=null) {
+    //                System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
+    //
+    //                _nameToActors.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
+    //                System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommand._targetHostName)+"["+_nameToActors.get(taskMigrationCommand._targetHostName).path()+"]");
+    //                _master.tell("I have passed the elastic message to "+taskMigrationCommand._targetHostName,null);
+    //            } else {
+    //                _master.tell("I do not contains the task for task id"+taskMigrationCommand._taskID,null);
+    //            }
 
+            } else if (message instanceof ElasticTaskMigrationMessage) {
+                sendMessageToMaster("Received Migration Message!!!!");
+                handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
+    //            System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
+    //            _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
+    //            ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo((ElasticTaskMigrationMessage)message,getSender().path().toString()));
+    //            _master.tell("I generate confirm message ",getSelf());
+    //
+    //            if(confirmMessage!=null) {
+    //                getSender().tell(confirmMessage, getSelf());
+    //                _master.tell("I have handled the mask migration message",getSelf());
+    //            } else {
+    //                System.err.println("Failed to deploy remote elastic tasks!");
+    //                _master.tell("Failed to deploy elastic tasks", null);
+    //            }
+            } else if (message instanceof ElasticTaskMigrationConfirmMessage) {
+                ElasticTaskMigrationConfirmMessage confirmMessage = (ElasticTaskMigrationConfirmMessage) message;
+                handleElasticTaskMigrationConfirmMessage(confirmMessage);
+    //            confirmMessage._ip=extractIpFromActorAddress(getSender().path().toString());
+    //
+    //            String ip = confirmMessage._ip;
+    //            int port = confirmMessage._port;
+    //            int taskId = confirmMessage._taskId;
+    //
+    //            ElasticTaskHolder holder = ElasticTaskHolder.instance();
+    //            System.out.print("Received ElasticTaskMigrationConfirmMessage #. routes: "+confirmMessage._routes.size());
+    //            for(int i: confirmMessage._routes) {
+    //                holder.establishConnectionToRemoteTaskHolder(taskId, i, ip, port);
+    //            }
+
+            } else if (message instanceof RoutingCreatingCommand) {
+                RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
+                handleRoutingCreatingCommand(creatingCommand);
+
+            } else if (message instanceof RemoteRouteWithdrawCommand) {
+                RemoteRouteWithdrawCommand withdrawCommand = (RemoteRouteWithdrawCommand) message;
+                handleWithdrawRemoteElasticTasks(withdrawCommand);
+            } else if (message instanceof String) {
+                System.out.println("I received message " + message);
+                sendMessageToMaster("I received message " + message);
+            } else if (message instanceof ThroughputQueryCommand) {
+                ThroughputQueryCommand throughputQueryCommand = (ThroughputQueryCommand) message;
+                double throughput = ElasticTaskHolder.instance().getThroughput(throughputQueryCommand.taskid);
+                getSender().tell(throughput, getSelf());
+            } else if (message instanceof DistributionQueryCommand) {
+                DistributionQueryCommand distributionQueryCommand = (DistributionQueryCommand)message;
+                Histograms distribution = ElasticTaskHolder.instance().getDistribution(distributionQueryCommand.taskid);
+                getSender().tell(distribution, getSelf());
+            } else if (message instanceof RoutingTableQueryCommand) {
+                RoutingTableQueryCommand queryCommand = (RoutingTableQueryCommand)message;
+                RoutingTable queryResult = ElasticTaskHolder.instance().getRoutingTable(queryCommand.taskid);
+                getSender().tell(queryResult, getSelf());
+            } else if (message instanceof ReassignBucketToRouteCommand) {
+                System.out.println("I received ReassignBucketToRouteCommand message " + message);
+                ReassignBucketToRouteCommand reassignBucketToRouteCommand = (ReassignBucketToRouteCommand) message;
+                ElasticTaskHolder.instance().reassignHashBucketToRoute(reassignBucketToRouteCommand.taskId, reassignBucketToRouteCommand.bucketId,
+                        reassignBucketToRouteCommand.originalRoute, reassignBucketToRouteCommand.newRoute);
+            } else if (message instanceof BucketDistributionQueryCommand) {
+                System.out.println("I received BucketDistributionQueryCommand!");
+
+                BucketDistributionQueryCommand command = (BucketDistributionQueryCommand) message;
+                getSender().tell(ElasticTaskHolder.instance().getBucketDistributionForBalancedRoutingTable(command.taskid), getSelf());
+            } else if (message instanceof WorkerLogicalNameMessage) {
+                WorkerLogicalNameMessage logicalNameMessage = (WorkerLogicalNameMessage) message;
+                System.out.println("Assigned logical name is" + logicalNameMessage.name);
+                _logicalName = logicalNameMessage.name;
+            } else {
+                System.out.println("[Elastic]: Unknown message.");
+                unhandled(message);
             }
-        }else if (message instanceof HelloMessage) {
-            HelloMessage helloMessage = (HelloMessage) message;
-//            _nameToActors.put(helloMessage.getName(), getSender());
-            _nameToPath.put(helloMessage.getName(), getSender().path());
-//            getContext().actorFor( getSender().path()).tell("Hi, I am " + _name + " Your path is "+ getSender().path().toString(), getSelf() );
-            System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
-//            sendMessageToMaster("I am connected with " + helloMessage.getName());
-        } else if (message instanceof TaskMigrationCommand) {
-            System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
-            TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
-            handleTaskMigrationCommandMessage(taskMigrationCommand);
-//            if(!_nameToActors.containsKey(taskMigrationCommand._targetHostName)) {
-//                System.out.println("[Elastic]:target host "+taskMigrationCommand._targetHostName+"does not exist!");
-//                return;
-//            }
-//
-//            ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
-//            if(migrationMessage!=null) {
-//                System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
-//
-//                _nameToActors.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
-//                System.out.println("[Elastic]: elastic message has been sent to "+_nameToActors.get(taskMigrationCommand._targetHostName)+"["+_nameToActors.get(taskMigrationCommand._targetHostName).path()+"]");
-//                _master.tell("I have passed the elastic message to "+taskMigrationCommand._targetHostName,null);
-//            } else {
-//                _master.tell("I do not contains the task for task id"+taskMigrationCommand._taskID,null);
-//            }
-
-        } else if (message instanceof ElasticTaskMigrationMessage) {
-            sendMessageToMaster("Received Migration Message!!!!");
-            handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
-//            System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
-//            _master.tell("I received elastic mask migration message from "+getSender().path(),getSelf());
-//            ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo((ElasticTaskMigrationMessage)message,getSender().path().toString()));
-//            _master.tell("I generate confirm message ",getSelf());
-//
-//            if(confirmMessage!=null) {
-//                getSender().tell(confirmMessage, getSelf());
-//                _master.tell("I have handled the mask migration message",getSelf());
-//            } else {
-//                System.err.println("Failed to deploy remote elastic tasks!");
-//                _master.tell("Failed to deploy elastic tasks", null);
-//            }
-        } else if (message instanceof ElasticTaskMigrationConfirmMessage) {
-            ElasticTaskMigrationConfirmMessage confirmMessage = (ElasticTaskMigrationConfirmMessage) message;
-            handleElasticTaskMigrationConfirmMessage(confirmMessage);
-//            confirmMessage._ip=extractIpFromActorAddress(getSender().path().toString());
-//
-//            String ip = confirmMessage._ip;
-//            int port = confirmMessage._port;
-//            int taskId = confirmMessage._taskId;
-//
-//            ElasticTaskHolder holder = ElasticTaskHolder.instance();
-//            System.out.print("Received ElasticTaskMigrationConfirmMessage #. routes: "+confirmMessage._routes.size());
-//            for(int i: confirmMessage._routes) {
-//                holder.establishConnectionToRemoteTaskHolder(taskId, i, ip, port);
-//            }
-
-        } else if (message instanceof RoutingCreatingCommand) {
-            RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
-            handleRoutingCreatingCommand(creatingCommand);
-
-        } else if (message instanceof RemoteRouteWithdrawCommand) {
-            RemoteRouteWithdrawCommand withdrawCommand = (RemoteRouteWithdrawCommand) message;
-            handleWithdrawRemoteElasticTasks(withdrawCommand);
-        } else if (message instanceof String) {
-            System.out.println("I received message " + message);
-            sendMessageToMaster("I received message " + message);
-        } else if (message instanceof ThroughputQueryCommand) {
-            ThroughputQueryCommand throughputQueryCommand = (ThroughputQueryCommand) message;
-            double throughput = ElasticTaskHolder.instance().getThroughput(throughputQueryCommand.taskid);
-            getSender().tell(throughput, getSelf());
-        } else if (message instanceof DistributionQueryCommand) {
-            DistributionQueryCommand distributionQueryCommand = (DistributionQueryCommand)message;
-            Histograms distribution = ElasticTaskHolder.instance().getDistribution(distributionQueryCommand.taskid);
-            getSender().tell(distribution, getSelf());
-        } else if (message instanceof RoutingTableQueryCommand) {
-            RoutingTableQueryCommand queryCommand = (RoutingTableQueryCommand)message;
-            RoutingTable queryResult = ElasticTaskHolder.instance().getRoutingTable(queryCommand.taskid);
-            getSender().tell(queryResult, getSelf());
-        } else if (message instanceof ReassignBucketToRouteCommand) {
-            System.out.println("I received ReassignBucketToRouteCommand message " + message);
-            ReassignBucketToRouteCommand reassignBucketToRouteCommand = (ReassignBucketToRouteCommand) message;
-            ElasticTaskHolder.instance().reassignHashBucketToRoute(reassignBucketToRouteCommand.taskId, reassignBucketToRouteCommand.bucketId,
-                    reassignBucketToRouteCommand.originalRoute, reassignBucketToRouteCommand.newRoute);
-        } else if (message instanceof BucketDistributionQueryCommand) {
-            System.out.println("I received BucketDistributionQueryCommand!");
-
-            BucketDistributionQueryCommand command = (BucketDistributionQueryCommand) message;
-            getSender().tell(ElasticTaskHolder.instance().getBucketDistributionForBalancedRoutingTable(command.taskid), getSelf());
-        } else {
-            System.out.println("[Elastic]: Unknown message.");
-            unhandled(message);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+    }
+
+    public void sendMessageToNode(String targetNode, Object object) throws HostNotExistException {
+        if(!_nameToPath.containsKey(targetNode)) {
+            throw new HostNotExistException(targetNode +" does not exist");
+        }
+        getContext().actorFor(_nameToPath.get(targetNode)).tell(object, getSelf());
     }
 
     ElasticTaskMigrationMessage addIpInfo(ElasticTaskMigrationMessage message, String address) {
@@ -259,6 +275,7 @@ public class Slave extends UntypedActor {
     }
 
     private void handleTaskMigrationCommandMessage(TaskMigrationCommand taskMigrationCommand) {
+        sendMessageToMaster("Breakpoint 1");
         SubtaskMigrationTimer.instance().start();
 
         if(!_nameToPath.containsKey(taskMigrationCommand._targetHostName)) {
@@ -266,37 +283,19 @@ public class Slave extends UntypedActor {
             sendMessageToMaster(taskMigrationCommand._targetHostName+" does not exist! Valid names are "+_nameToPath.keySet());
             return;
         }
+
+        if(!_nameToPath.containsKey(taskMigrationCommand._originalHostName)) {
+            System.out.println("[Elastic]:target host "+ taskMigrationCommand._targetHostName+" does not exist!");
+            sendMessageToMaster(taskMigrationCommand._originalHostName+" does not exist! Valid names are "+_nameToPath.keySet());
+            return;
+        }
+        sendMessageToMaster("Breakpoint 2");
         try{
-            ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskMigrationCommand._taskID, taskMigrationCommand._route);
-//            _nameToPath.get(taskMigrationCommand._targetHostName).tell(migrationMessage, getSelf());
-            if(migrationMessage!=null) {
-
-//                final Inbox inbox = Inbox.create(getContext().system());
-//                inbox.send(getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)), migrationMessage);
-//                return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
-                SubtaskMigrationTimer.instance().prepare();
-                getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)).tell(migrationMessage, getSelf());
-                System.out.println("[Elastic]: elastic message has been sent to "+_nameToPath.get(taskMigrationCommand._targetHostName)+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
-//                sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
-//                ExecutionResult result = (ExecutionResult)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
-
-//                if(result.result == ExecutionResult.Status.Fail) {
-//                    throw new RuntimeException("migration command message failed to deploy. Reason: " + result.msg);
-//                }
-
-
-            } else {
-                throw new RuntimeException("generateRemoteElasticTasks returns null!");
-            }
+//            ElasticTaskHolder.instance().migrateSubtaskToRemoteHost(taskMigrationCommand._targetHostName, taskMigrationCommand._taskID, taskMigrationCommand._route);
+            ElasticTaskHolder.instance().migrateSubtask(taskMigrationCommand._targetHostName, taskMigrationCommand._taskID, taskMigrationCommand._route);
         } catch (Exception e) {
             sendMessageToMaster(e.getMessage());
-//            ("I do not contains the task for task id"+ taskMigrationCommand._taskID,null);
         }
-//        if(migrationMessage!=null) {
-//            System.out.print("The number of routes in the generated elastic tasks:"+migrationMessage._elasticTask.get_routingTable().getRoutes().size());
-//
-//        } else {
-//        }
     }
 
     private void handleElasticTaskMigrationMessage(ElasticTaskMigrationMessage elasticTaskMigrationMessage) {
@@ -413,6 +412,10 @@ public class Slave extends UntypedActor {
     public void reportWorkerCPULoadToMaster(double workerLoad, double systemLoad) {
         WorkerCPULoad workerCPULoad = new WorkerCPULoad(_name, workerLoad, systemLoad);
         _master.tell(workerCPULoad, getSelf());
+    }
+
+    public String getLogicalName() {
+        return _logicalName;
     }
 
 }

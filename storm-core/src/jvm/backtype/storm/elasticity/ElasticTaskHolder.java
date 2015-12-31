@@ -19,7 +19,10 @@ import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.timer.SmartTimer;
+import backtype.storm.elasticity.utils.timer.SubtaskMigrationTimer;
 import backtype.storm.elasticity.utils.timer.SubtaskWithdrawTimer;
+import backtype.storm.generated.HostNotExistException;
+import backtype.storm.generated.TaskNotExistException;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
@@ -699,7 +702,7 @@ public class ElasticTaskHolder {
         }
 
 
-        SmartTimer.getInstance().stop("ShardReassignment","prepare");
+        SmartTimer.getInstance().stop("ShardReassignment", "prepare");
         SmartTimer.getInstance().start("ShardReassignment","rerouting");
         // 1. pause sending RemoteTuples to the target subtask
         pauseSendingToTargetSubtask(taskid, targetRoute);
@@ -716,7 +719,7 @@ public class ElasticTaskHolder {
         } else {
             handleBucketToRouteReassignment(reassignment);
         }
-        SmartTimer.getInstance().stop("ShardReassignment","rerouting");
+        SmartTimer.getInstance().stop("ShardReassignment", "rerouting");
         SmartTimer.getInstance().start("ShardReassignment","state migration");
         // 3. send state migration command to the source subtask
         HashBucketFilter filter = new HashBucketFilter(balancedHashRouting.getNumberOfBuckets(), bucketId);
@@ -726,7 +729,7 @@ public class ElasticTaskHolder {
         } else {
             handleStateMigrationToken(stateMigrationToken);
         }
-        SmartTimer.getInstance().stop("ShardReassignment","state migration");
+        SmartTimer.getInstance().stop("ShardReassignment", "state migration");
         SmartTimer.getInstance().start("ShardReassignment","rerouting2");
         // 4. update the routing table on the target subtask
 //        _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
@@ -735,7 +738,7 @@ public class ElasticTaskHolder {
         } else {
             handleBucketToRouteReassignment(reassignment);
         }
-        SmartTimer.getInstance().stop("ShardReassignment","rerouting2");
+        SmartTimer.getInstance().stop("ShardReassignment", "rerouting2");
         // 5. resume sending RemoteTuples to the target subtask
         System.out.println("Begin to resume!");
         resumeSendingToTargetSubtask(taskid, targetRoute);
@@ -790,6 +793,38 @@ public class ElasticTaskHolder {
         }
         RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
         return ((BalancedHashRouting)RoutingTableUtils.getBalancecHashRouting(routingTable)).getBucketsDistribution();
+    }
+
+    public void migrateSubtask(String targetHost, int taskId, int routeId)  throws InvalidRouteException, RoutingTypeNotSupportedException, HostNotExistException, TaskNotExistingException {
+//        boolean targetSubtaskOnRemote;
+        _slaveActor.sendMessageToMaster("Breakpoint 3");
+        String workerLogicalName = _slaveActor.getLogicalName();
+        if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
+            if(!workerLogicalName.equals(targetHost)) {
+                _slaveActor.sendMessageToMaster("Migration from local to remote!");
+                migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
+            }
+            else
+                throw new RuntimeException("Cannot migrate " + taskId + "." + routeId + " on " + targetHost + ", because the subtask is already running on the host!");
+        } else {
+            if(workerLogicalName.equals(targetHost)) {
+                _slaveActor.sendMessageToMaster("Migration from remote to local!");
+                withdrawRemoteElasticTasks(taskId,routeId);
+            } else {
+                _slaveActor.sendMessageToMaster("Migration from remote to remote!");
+                withdrawRemoteElasticTasks(taskId, routeId);
+                _slaveActor.sendMessageToMaster("Breakpoint 6");
+                migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
+                _slaveActor.sendMessageToMaster("Breakpoint 7");
+            }
+        }
+        _slaveActor.sendMessageToMaster("Breakpoint 4");
+    }
+      
+    public void migrateSubtaskToRemoteHost(String targetHost, int taskId, int routeId) throws InvalidRouteException, RoutingTypeNotSupportedException, HostNotExistException {
+        ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskId, routeId);
+        SubtaskMigrationTimer.instance().prepare();
+        _slaveActor.sendMessageToNode(targetHost, migrationMessage);
     }
 
 }
