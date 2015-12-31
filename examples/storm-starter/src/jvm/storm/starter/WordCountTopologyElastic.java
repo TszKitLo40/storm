@@ -106,17 +106,17 @@ public class WordCountTopologyElastic {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 4);
+        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 16);
 
         builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
-        builder.setBolt("print", new Printer(),4).globalGrouping("count");
+        builder.setBolt("print", new Printer(),16).globalGrouping("count");
 
         Config conf = new Config();
         if(args.length>2&&args[2].equals("debug"))
             conf.setDebug(true);
 
         if (args != null && args.length > 0) {
-            conf.setNumWorkers(3);
+            conf.setNumWorkers(8);
 
             StormSubmitter.submitTopologyWithProgressBar(args[0], conf, builder.createTopology());
         }

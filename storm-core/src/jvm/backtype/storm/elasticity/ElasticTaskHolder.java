@@ -18,6 +18,7 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.elasticity.utils.timer.SubtaskWithdrawTimer;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
@@ -126,16 +127,16 @@ public class ElasticTaskHolder {
     public ElasticTaskMigrationMessage generateRemoteElasticTasks(int taskid, int route) throws RoutingTypeNotSupportedException, InvalidRouteException {
         if(!_bolts.containsKey(taskid)){
             System.err.println("task "+taskid+" does not exist! Remember to use withdraw command if you want to move a remote subtask to the original host!");
-            return null;
+            throw new RuntimeException("task "+taskid+" does not exist! Remember to use withdraw command if you want to move a remote subtask to the original host!");
         }
 
         System.out.println("Add exceptions to the routing table...");
         /* set exceptions for existing routing table and get the complement routing table */
         PartialHashingRouting complementHashingRouting = _bolts.get(taskid).get_elasticTasks().addExceptionForHashRouting(route, _sendingQueue);
 
-        if(complementHashingRouting==null) {
-            return null;
-        }
+//        if(complementHashingRouting==null) {
+//            return null;
+//        }
 
         System.out.println("Constructing the instance of ElasticTask for remote execution...");
         /* construct the instance of ElasticTasks to be executed remotely */
@@ -409,7 +410,7 @@ public class ElasticTaskHolder {
         } else {
 
             sendMessageToMaster("Remote state does not need to be sent, as the remote state is already balls the original holder!");
-            handleRemoteState(remoteState);
+//            handleRemoteState(remoteState); //@Li: This line is commented, as it seems that the state should not be migrate if the target subtask and the original subtask are in the same node.
         }
     }
 
@@ -659,6 +660,8 @@ public class ElasticTaskHolder {
     }
 
     public void reassignHashBucketToRoute(int taskid, int bucketId, int orignalRoute, int targetRoute) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException, BucketNotExistingException {
+        SmartTimer.getInstance().start("ShardReassignment","total");
+        SmartTimer.getInstance().start("ShardReassignment","prepare");
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException("Task " + taskid + " does not exist balls the ElasticHolder!");
         }
@@ -696,6 +699,8 @@ public class ElasticTaskHolder {
         }
 
 
+        SmartTimer.getInstance().stop("ShardReassignment","prepare");
+        SmartTimer.getInstance().start("ShardReassignment","rerouting");
         // 1. pause sending RemoteTuples to the target subtask
         pauseSendingToTargetSubtask(taskid, targetRoute);
 
@@ -711,7 +716,8 @@ public class ElasticTaskHolder {
         } else {
             handleBucketToRouteReassignment(reassignment);
         }
-
+        SmartTimer.getInstance().stop("ShardReassignment","rerouting");
+        SmartTimer.getInstance().start("ShardReassignment","state migration");
         // 3. send state migration command to the source subtask
         HashBucketFilter filter = new HashBucketFilter(balancedHashRouting.getNumberOfBuckets(), bucketId);
         StateMigrationToken stateMigrationToken = new StateMigrationToken(taskid, targetRoute, filter);
@@ -720,7 +726,8 @@ public class ElasticTaskHolder {
         } else {
             handleStateMigrationToken(stateMigrationToken);
         }
-
+        SmartTimer.getInstance().stop("ShardReassignment","state migration");
+        SmartTimer.getInstance().start("ShardReassignment","rerouting2");
         // 4. update the routing table on the target subtask
 //        _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
         if(_taskidRouteToConnection.containsKey(taskid+"."+targetRoute)){
@@ -728,13 +735,13 @@ public class ElasticTaskHolder {
         } else {
             handleBucketToRouteReassignment(reassignment);
         }
-
+        SmartTimer.getInstance().stop("ShardReassignment","rerouting2");
         // 5. resume sending RemoteTuples to the target subtask
         System.out.println("Begin to resume!");
         resumeSendingToTargetSubtask(taskid, targetRoute);
         System.out.println("Resumed!");
-
-
+        SmartTimer.getInstance().stop("ShardReassignment", "total"); 
+        _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("ShardReassignment"));
 
     }
 

@@ -274,11 +274,11 @@ public class Slave extends UntypedActor {
 //                final Inbox inbox = Inbox.create(getContext().system());
 //                inbox.send(getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)), migrationMessage);
 //                return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+                SubtaskMigrationTimer.instance().prepare();
                 getContext().actorFor(_nameToPath.get(taskMigrationCommand._targetHostName)).tell(migrationMessage, getSelf());
                 System.out.println("[Elastic]: elastic message has been sent to "+_nameToPath.get(taskMigrationCommand._targetHostName)+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
 //                sendMessageToMaster("I have passed the elastic message to "+ taskMigrationCommand._targetHostName+"["+_nameToPath.get(taskMigrationCommand._targetHostName)+"]");
 //                ExecutionResult result = (ExecutionResult)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
-                SubtaskMigrationTimer.instance().prepare();
 
 //                if(result.result == ExecutionResult.Status.Fail) {
 //                    throw new RuntimeException("migration command message failed to deploy. Reason: " + result.msg);

@@ -5,7 +5,7 @@ package backtype.storm.elasticity.config;
  */
 public class Config {
 
-    public static int NumberOfShard = 64;
+    public static int NumberOfShard = 256;
 
     public static int SubtaskInputQueueCapacity = 64;
 
@@ -17,7 +17,7 @@ public class Config {
 
     public static int StateCheckPointingCycleInSecs = 10;
 
-    public static int ElasticTaskHolderOutputQueueCapacity = 256;
+    public static int ElasticTaskHolderOutputQueueCapacity = 32;
 
     public static int CreateBalancedHashRoutingSamplingTimeInSecs = 3;
 
@@ -30,5 +30,9 @@ public class Config {
     public static int WorkerLevelLoadBalancingCycleInSecs = 10;
 
     public static int SubtaskLevelLoadBalancingCycleInSecs = 15;
+
+    public static boolean EnableWorkerLevelLoadBalancing = true;
+
+    public static boolean EnableSubtaskLevelLoadBalancing = false;
 
 }
