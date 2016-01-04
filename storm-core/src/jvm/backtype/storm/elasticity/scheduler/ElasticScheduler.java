@@ -1,6 +1,7 @@
 package backtype.storm.elasticity.scheduler;
 
 import backtype.storm.elasticity.actors.Master;
+import backtype.storm.elasticity.common.RouteId;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.resource.ResourceManager;
@@ -201,6 +202,24 @@ public class ElasticScheduler {
         }
     }
 
+    public String naiveWorkerLevelLoadBalancing(int taskId) throws TException {
+        SubtaskReassignmentPlan plan = new SubtaskReassignmentPlan();
+        ArrayList<String> workers = new ArrayList<>();
+        workers.addAll(resourceManager.systemCPULoad.keySet());
+        int workerIndex = 0;
+        Map<String, String> taskIdRouteToWorkers = master._taskidRouteToWorker;
+        for(String xdy: taskIdRouteToWorkers.keySet()) {
+            if(!taskIdRouteToWorkers.get(xdy).equals(workers.get(workerIndex))) {
+                RouteId routeId = new RouteId(xdy);
+                plan.addSubtaskReassignment(taskIdRouteToWorkers.get(xdy), workers.get(workerIndex), routeId.TaskId, routeId.Route);
+            }
+            workerIndex = (workerIndex + 1) % workers.size();
+        }
+        applySubtaskReassignmentPlan(plan);
+
+        return plan.toString();
+    }
+
     public String workerLevelLoadBalancing(int taskId) throws TException {
         if(!master._elasticTaskIdToWorker.containsKey(taskId))
             throw new TaskNotExistException("Task " + taskId + " does not exists!");
@@ -220,6 +239,25 @@ public class ElasticScheduler {
 
         System.out.println("Load balancing plan: " + totalPlan);
         applySubtaskReassignmentPlan(totalPlan);
+
+
+        Map<String, ArrayList<String>> workerToSubtaskRoute = new HashMap<>();
+        for(String xdy: taskIdRouteToWorkers.keySet()) {
+            String worker = taskIdRouteToWorkers.get(xdy);
+            if(!workerToSubtaskRoute.containsKey(worker)) {
+                workerToSubtaskRoute.put(worker, new ArrayList<String>());
+            }
+            workerToSubtaskRoute.get(worker).add(xdy);
+        }
+        System.out.println("Existing assignment:");
+        for(String worker: workerToSubtaskRoute.keySet()) {
+            String str = "";
+            str += worker + ": ";
+            for(String xdy: workerToSubtaskRoute.get(worker)) {
+                str += xdy + " ";
+            }
+            System.out.println(str);
+        }
 
         return totalPlan.toString();
     }

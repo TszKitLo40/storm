@@ -51,6 +51,15 @@ public class ResourceManager {
         }
     }
 
+    public String printString() {
+        String ret = "";
+        NumberFormat format = new DecimalFormat("#0.000");
+        for(String worker: workerCPULoad.keySet()) {
+            ret += worker + ": " + format.format(workerCPULoad.get(worker)) + "\t" + format.format(systemCPULoad.get(worker)) + "\n";
+        }
+        return ret;
+    }
+
     public Map<String, Double> getWorkerCPULoadCopy() {
         Map<String, Double> ret = new HashMap<>();
         ret.putAll(workerCPULoad);

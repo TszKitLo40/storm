@@ -249,7 +249,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
         try {
 //            _taskidToActorName.get(taskId);
-            getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
+            getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo), getSelf());
 //            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(originalHostName))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
     //        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
             log("[Elastic]: Migration message has been sent!");
@@ -360,6 +360,18 @@ public class Master extends UntypedActor implements MasterService.Iface {
             e.printStackTrace();
             return e.getMessage();
         }
+    }
+
+    @Override
+    public String queryWorkerLoad() throws TException {
+        return ResourceManager.instance().printString();
+    }
+
+    @Override
+    public String naiveWorkerLevelLoadBalancing(int taskid) throws TaskNotExistException, TException {
+        if(!_elasticTaskIdToWorker.containsKey(taskid))
+            throw new TaskNotExistException("Task " + taskid + " does not exist!");
+        return ElasticScheduler.getInstance().naiveWorkerLevelLoadBalancing(taskid);
     }
 
     String extractIpFromActorAddress(String address) {
