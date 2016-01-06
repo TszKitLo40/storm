@@ -190,9 +190,6 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         if (null == msgs || msgs.size() == 0 || closing) {
             return;
         }
-        for (TaskMessage message: msgs) {
-            message.set_name("Server.enqueue()");
-        }
         addReceiveCount(from, msgs.size());
         ArrayList<TaskMessage> messageGroups[] = groupMessages(msgs);
 
@@ -238,9 +235,6 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         if (null != ret) {
             messagesDequeued.addAndGet(ret.size());
             pendingMessages[queueId].addAndGet(0 - ret.size());
-            for(TaskMessage taskmessage: ret) {
-                taskmessage.set_name("Server.recv()");
-            }
             return ret.iterator();
         }
         return null;

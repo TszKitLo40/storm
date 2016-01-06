@@ -40,6 +40,8 @@ public class Slave extends UntypedActor {
 
     String _logicalName;
 
+    String _ip;
+
     ActorSelection _master;
 
     static Slave _instance;
@@ -211,6 +213,7 @@ public class Slave extends UntypedActor {
                 ReassignBucketToRouteCommand reassignBucketToRouteCommand = (ReassignBucketToRouteCommand) message;
                 ElasticTaskHolder.instance().reassignHashBucketToRoute(reassignBucketToRouteCommand.taskId, reassignBucketToRouteCommand.bucketId,
                         reassignBucketToRouteCommand.originalRoute, reassignBucketToRouteCommand.newRoute);
+                getSender().tell("Finished", getSelf());
             } else if (message instanceof BucketDistributionQueryCommand) {
                 System.out.println("I received BucketDistributionQueryCommand!");
 
@@ -218,8 +221,9 @@ public class Slave extends UntypedActor {
                 getSender().tell(ElasticTaskHolder.instance().getBucketDistributionForBalancedRoutingTable(command.taskid), getSelf());
             } else if (message instanceof WorkerLogicalNameMessage) {
                 WorkerLogicalNameMessage logicalNameMessage = (WorkerLogicalNameMessage) message;
-                System.out.println("Assigned logical name is" + logicalNameMessage.name);
-                _logicalName = logicalNameMessage.name;
+                System.out.println("Assigned logical name is" + logicalNameMessage);
+                _logicalName = logicalNameMessage.toString();
+                _ip = logicalNameMessage.ip;
             } else {
                 System.out.println("[Elastic]: Unknown message.");
                 unhandled(message);

@@ -148,10 +148,11 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 log(helloMessage.getName()+" is registered again! ");
 //            _nameToActors.put(helloMessage.getName(), getSender());
             _nameToPath.put(helloMessage.getName(), getSender().path());
-            String logicalName = extractIpFromActorAddress(getSender().path().toString())+":"+helloMessage.getPort();
+            final String ip = extractIpFromActorAddress(getSender().path().toString());
+            final String logicalName = ip +":"+helloMessage.getPort();
             _hostNameToWorkerLogicalName.put(helloMessage.getName(), logicalName);
             log("[" +  helloMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(helloMessage.getName()));
-            getSender().tell(new WorkerLogicalNameMessage(logicalName), getSelf());
+            getSender().tell(new WorkerLogicalNameMessage(ip, helloMessage.getPort()), getSelf());
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
@@ -336,7 +337,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
-        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
+        inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+//        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
     }
 
     @Override

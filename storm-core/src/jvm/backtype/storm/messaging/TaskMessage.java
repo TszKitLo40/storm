@@ -23,26 +23,12 @@ import java.nio.ByteBuffer;
 public class TaskMessage implements Serializable {
     private int _task;
     private byte[] _message;
-    private String _name;
-    
+
     public TaskMessage(int task, byte[] message) {
         _task = task;
         _message = message;
     }
 
-    public TaskMessage(int task, byte[] message, String name) {
-        this(task, message);
-        _name = name;
-    }
-
-    public String name() {
-        return _name;
-    }
-
-    public void set_name(String name) {
-        _name = name;
-    }
-    
     public int task() {
         return _task;
     }

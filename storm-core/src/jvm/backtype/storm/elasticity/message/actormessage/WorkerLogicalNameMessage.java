@@ -5,10 +5,16 @@ package backtype.storm.elasticity.message.actormessage;
  */
 public class WorkerLogicalNameMessage implements IMessage {
 
-    public String name;
+    public String ip;
+    public int port;
 
-    public WorkerLogicalNameMessage(String name) {
-        this.name = name;
+    public WorkerLogicalNameMessage(String ip, int port) {
+        this.ip = ip;
+        this.port = port;
+    }
+
+    public String toString() {
+        return ip + ":" + port;
     }
 
 }

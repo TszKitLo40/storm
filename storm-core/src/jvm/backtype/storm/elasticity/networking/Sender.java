@@ -35,7 +35,7 @@ public class Sender implements IConnection {
 
     @Override
     public void send(int taskId, byte[] payload) {
-        TaskMessage taskMessage = new TaskMessage(taskId, payload, "send");
+        TaskMessage taskMessage = new TaskMessage(taskId, payload);
         try {
             out.writeObject(taskMessage);
 

@@ -61,10 +61,10 @@ public class TupleImpl extends IndifferentAccessMap implements Seqable, Indexed,
 
     public TupleImpl(GeneralTopologyContext context, List<Object> values, int taskId, String streamId) {
         this(context, values, taskId, streamId, MessageId.makeUnanchored());
-    }    
-    
-    Long _processSampleStartTime = null;
-    Long _executeSampleStartTime = null;
+    }
+
+    transient Long _processSampleStartTime = null;
+    transient Long _executeSampleStartTime = null;
     
     public void setProcessSampleStartTime(long ms) {
         _processSampleStartTime = ms;
@@ -81,8 +81,8 @@ public class TupleImpl extends IndifferentAccessMap implements Seqable, Indexed,
     public Long getExecuteSampleStartTime() {
         return _executeSampleStartTime;
     }
-    
-    long _outAckVal = 0;
+
+    transient long _outAckVal = 0;
     
     public void updateAckVal(long val) {
         _outAckVal = _outAckVal ^ val;

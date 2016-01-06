@@ -212,7 +212,7 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
 
     @Override
     public void send(int taskId, byte[] payload) {
-        TaskMessage msg = new TaskMessage(taskId, payload, "Client.send()");
+        TaskMessage msg = new TaskMessage(taskId, payload);
         List<TaskMessage> wrapper = new ArrayList<TaskMessage>(1);
         wrapper.add(msg);
         send(wrapper.iterator());
@@ -251,7 +251,6 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
         synchronized (writeLock) {
             while (msgs.hasNext()) {
                 TaskMessage message = msgs.next();
-                message.set_name("Client.send2()");
                 MessageBatch full = batcher.add(message);
                 if(full != null){
                     flushMessages(channel, full);
