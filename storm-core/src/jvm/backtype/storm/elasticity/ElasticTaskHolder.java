@@ -72,11 +72,7 @@ public class ElasticTaskHolder {
 
     Map<String, Semaphore> _taskidRouteToStateWaitingSemaphore = new ConcurrentHashMap<>();
 
-
-
     Map<String, Semaphore> _taskIdRouteToSendingWaitingSemaphore = new HashMap<>();
-
-    private LinkedBlockingQueue<ITaskMessage> _remoteTupleOutputQueue = new LinkedBlockingQueue<>(256);
 
     private Map<String, IConnection> _taskidRouteToConnection = new HashMap<>();
 
@@ -201,7 +197,7 @@ public class ElasticTaskHolder {
 
         }
 
-        ElasticTaskMigrationConfirmMessage confirmMessage = new ElasticTaskMigrationConfirmMessage(message._elasticTask.get_taskID(),"",_port, message._elasticTask.get_routingTable().getRoutes() );
+        ElasticTaskMigrationConfirmMessage confirmMessage = new ElasticTaskMigrationConfirmMessage(message._elasticTask.get_taskID(), _slaveActor.getIp() , _port, message._elasticTask.get_routingTable().getRoutes() );
 
 
         return confirmMessage;
@@ -642,10 +638,10 @@ public class ElasticTaskHolder {
     public void reassignHashBucketToRoute(int taskid, int bucketId, int orignalRoute, int targetRoute) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException, BucketNotExistingException {
         SmartTimer.getInstance().start("ShardReassignment","total");
         SmartTimer.getInstance().start("ShardReassignment","prepare");
+
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException("Task " + taskid + " does not exist balls the ElasticHolder!");
         }
-
         if(getBalancedHashRoutingFromOriginalBolt(taskid)==null) {
             throw new RoutingTypeNotSupportedException("ReassignHashBucketToRoute only applies on BalancedHashRouting or PartialHashRouting with a internal BalancedHashRouting");
         }
@@ -802,7 +798,6 @@ public class ElasticTaskHolder {
     }
 
     public void migrateSubtask(String targetHost, int taskId, int routeId)  throws InvalidRouteException, RoutingTypeNotSupportedException, HostNotExistException, TaskNotExistingException {
-        _slaveActor.sendMessageToMaster("Breakpoint 3");
         String workerLogicalName = _slaveActor.getLogicalName();
         if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
             if(!workerLogicalName.equals(targetHost)) {
@@ -820,19 +815,37 @@ public class ElasticTaskHolder {
             } else {
                 _slaveActor.sendMessageToMaster("Migration from remote to remote!");
                 withdrawRemoteElasticTasks(taskId, routeId);
-                _slaveActor.sendMessageToMaster("Breakpoint 6");
                 migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
-                _slaveActor.sendMessageToMaster("Breakpoint 7");
             }
         }
-        _slaveActor.sendMessageToMaster("Breakpoint 4");
     }
       
     public void migrateSubtaskToRemoteHost(String targetHost, int taskId, int routeId) throws InvalidRouteException, RoutingTypeNotSupportedException, HostNotExistException {
         ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskId, routeId);
         SubtaskMigrationTimer.instance().prepare();
-        _slaveActor.sendMessageToNode(targetHost, migrationMessage);
         routeIdToRemoteHost.put(new RouteId(taskId, routeId), targetHost);
+        ElasticTaskMigrationConfirmMessage confirmMessage = (ElasticTaskMigrationConfirmMessage) _slaveActor.sendMessageToNodeAndWaitForResponse(targetHost, migrationMessage);
+        if(confirmMessage != null)
+            handleElasticTaskMigrationConfirmMessage(confirmMessage);
+        else {
+            sendMessageToMaster("Waiting for confirm message time out!");
+        }
     }
+
+    private void handleElasticTaskMigrationConfirmMessage(ElasticTaskMigrationConfirmMessage confirmMessage) {
+
+        String ip = confirmMessage._ip;
+        int port = confirmMessage._port;
+        int taskId = confirmMessage._taskId;
+
+        System.out.print("Received ElasticTaskMigrationConfirmMessage #. routes: "+confirmMessage._routes.size());
+        for(int i: confirmMessage._routes) {
+            establishConnectionToRemoteTaskHolder(taskId, i, ip, port);
+        }
+        SubtaskMigrationTimer.instance().launched();
+        sendMessageToMaster("Task Migration completes!");
+        sendMessageToMaster(SubtaskMigrationTimer.instance().toString());
+    }
+
 
 }

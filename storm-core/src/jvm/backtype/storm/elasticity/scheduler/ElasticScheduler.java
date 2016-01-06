@@ -59,7 +59,7 @@ public class ElasticScheduler {
                             for(Integer task: taskIds) {
                                 try {
 //                                    workerLevelLoadBalancing(task);
-                                } catch (TException e ) {
+                                } catch (Exception e ) {
                                     e.printStackTrace();
                                 }
                             }
@@ -84,7 +84,7 @@ public class ElasticScheduler {
                             for(Integer task: taskIds) {
                                 try {
 //                                    optimizeBucketToRoutingMapping(task);
-                                } catch (Exception e ) {s
+                                } catch (Exception e ) {
                                     e.printStackTrace();
                                 }
                             }
