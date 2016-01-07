@@ -35,4 +35,6 @@ public class Config {
 
     public static boolean EnableSubtaskLevelLoadBalancing = false;
 
+    public static int LoggingServerPort = 10000;
+
 }

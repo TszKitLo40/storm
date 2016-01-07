@@ -3,17 +3,17 @@ package backtype.storm.elasticity.message.actormessage;
 /**
  * Created by Robert on 11/11/15.
  */
-public class HelloMessage implements IMessage {
+public class WorkerRegistrationMessage implements IMessage {
 
     String _name;
 
     int _port;
 
-    public HelloMessage(String name) {
+    public WorkerRegistrationMessage(String name) {
         _name = name;
     }
 
-    public HelloMessage(String name, int port) {
+    public WorkerRegistrationMessage(String name, int port) {
         _name = name;
         _port = port;
     }

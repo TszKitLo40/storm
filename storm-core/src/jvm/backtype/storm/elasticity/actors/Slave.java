@@ -11,8 +11,14 @@ import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.timer.SubtaskMigrationTimer;
 import backtype.storm.generated.HostNotExistException;
+import backtype.storm.generated.MasterService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TSocket;
+import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.transport.TTransportException;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.lang.management.ManagementFactory;
@@ -49,6 +55,23 @@ public class Slave extends UntypedActor {
     int _port;
 
     String _ip;
+
+    MasterService.Client thriftClient;
+
+    void connectToMasterThriftServer(String ip, int port) {
+        System.out.println("Thrift server ip: " + ip + " port: " + port);
+        TTransport transport = new TSocket(ip, port);
+        try {
+            transport.open();
+
+            TProtocol protocol = new TBinaryProtocol(transport);
+
+            thriftClient = new MasterService.Client(protocol);
+        } catch (TTransportException e) {
+            e.printStackTrace();
+        }
+
+    }
 
     public Slave(String name, String port) {
 //        _name = name+":"+port+"-"+ ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
@@ -131,10 +154,10 @@ public class Slave extends UntypedActor {
                     }
 
                 }
-            }else if (message instanceof HelloMessage) {
-                HelloMessage helloMessage = (HelloMessage) message;
-                _nameToPath.put(helloMessage.getName(), getSender().path());
-                System.out.println("[Elastic]: I am connected with " + ((HelloMessage) message).getName() + "[" + getSender() + "]");
+            }else if (message instanceof WorkerRegistrationMessage) {
+                WorkerRegistrationMessage workerRegistrationMessage = (WorkerRegistrationMessage) message;
+                _nameToPath.put(workerRegistrationMessage.getName(), getSender().path());
+                System.out.println("[Elastic]: I am connected with " + ((WorkerRegistrationMessage) message).getName() + "[" + getSender() + "]");
             } else if (message instanceof TaskMigrationCommand) {
                 System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
                 TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
@@ -175,11 +198,12 @@ public class Slave extends UntypedActor {
 
                 BucketDistributionQueryCommand command = (BucketDistributionQueryCommand) message;
                 getSender().tell(ElasticTaskHolder.instance().getBucketDistributionForBalancedRoutingTable(command.taskid), getSelf());
-            } else if (message instanceof WorkerLogicalNameMessage) {
-                WorkerLogicalNameMessage logicalNameMessage = (WorkerLogicalNameMessage) message;
-                System.out.println("Assigned logical name is" + logicalNameMessage);
-                _logicalName = logicalNameMessage.toString();
-                _ip = logicalNameMessage.ip;
+            } else if (message instanceof WorkerRegistrationResponseMessage) {
+                WorkerRegistrationResponseMessage responseMessage = (WorkerRegistrationResponseMessage) message;
+                System.out.println("Assigned logical name is" + responseMessage);
+                _logicalName = responseMessage.toString();
+                _ip = responseMessage.ip;
+                connectToMasterThriftServer(responseMessage.masterIp, 9090);
             } else {
                 System.out.println("[Elastic]: Unknown message.");
                 unhandled(message);
@@ -225,18 +249,32 @@ public class Slave extends UntypedActor {
     void register(Member member) {
         if(member.hasRole("master")) {
             _master = getContext().actorSelection(member.address()+"/user/master");
-            _master.tell(new HelloMessage(_name, _port),getSelf());
+            _master.tell(new WorkerRegistrationMessage(_name, _port),getSelf());
             System.out.println("I have sent registration message to master.");
         } else if (member.hasRole("slave")) {
             getContext().actorSelection(member.address()+"/user/slave")
-                    .tell(new HelloMessage(_name, _port),getSelf());
+                    .tell(new WorkerRegistrationMessage(_name, _port),getSelf());
             System.out.format("I have sent registration message to %s\n", member.address());
 //            sendMessageToMaster("I have sent registration message to "+ member.address());
         }
     }
 
     public void sendMessageToMaster(String message) {
-        _master.tell(new LogMessage(message, _name ), getSelf());
+//        _master.tell(new LogMessage(message, _name ), getSelf());
+        try {
+            thriftClient.logOnMaster(_logicalName, message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void logOnMaster(String message) {
+        try {
+            thriftClient.logOnMaster(_logicalName, message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void registerOriginalElasticTaskToMaster(int taskId) {

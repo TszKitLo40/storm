@@ -125,6 +125,14 @@ class Iface:
     """
     pass
 
+  def logOnMaster(self, from, msg):
+    """
+    Parameters:
+     - from
+     - msg
+    """
+    pass
+
 
 class Client(Iface):
   def __init__(self, iprot, oprot=None):
@@ -555,6 +563,37 @@ class Client(Iface):
       raise result.tnee
     raise TApplicationException(TApplicationException.MISSING_RESULT, "naiveWorkerLevelLoadBalancing failed: unknown result");
 
+  def logOnMaster(self, from, msg):
+    """
+    Parameters:
+     - from
+     - msg
+    """
+    self.send_logOnMaster(from, msg)
+    self.recv_logOnMaster()
+
+  def send_logOnMaster(self, from, msg):
+    self._oprot.writeMessageBegin('logOnMaster', TMessageType.CALL, self._seqid)
+    args = logOnMaster_args()
+    args.from = from
+    args.msg = msg
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_logOnMaster(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = logOnMaster_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    return
+
 
 class Processor(Iface, TProcessor):
   def __init__(self, handler):
@@ -573,6 +612,7 @@ class Processor(Iface, TProcessor):
     self._processMap["subtaskLevelLoadBalancing"] = Processor.process_subtaskLevelLoadBalancing
     self._processMap["queryWorkerLoad"] = Processor.process_queryWorkerLoad
     self._processMap["naiveWorkerLevelLoadBalancing"] = Processor.process_naiveWorkerLevelLoadBalancing
+    self._processMap["logOnMaster"] = Processor.process_logOnMaster
 
   def process(self, iprot, oprot):
     (name, type, seqid) = iprot.readMessageBegin()
@@ -760,6 +800,17 @@ class Processor(Iface, TProcessor):
     except TaskNotExistException, tnee:
       result.tnee = tnee
     oprot.writeMessageBegin("naiveWorkerLevelLoadBalancing", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_logOnMaster(self, seqid, iprot, oprot):
+    args = logOnMaster_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = logOnMaster_result()
+    self._handler.logOnMaster(args.from, args.msg)
+    oprot.writeMessageBegin("logOnMaster", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -2618,6 +2669,130 @@ class naiveWorkerLevelLoadBalancing_result:
     value = 17
     value = (value * 31) ^ hash(self.success)
     value = (value * 31) ^ hash(self.tnee)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class logOnMaster_args:
+  """
+  Attributes:
+   - from
+   - msg
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.STRING, 'from', None, None, ), # 1
+    (2, TType.STRING, 'msg', None, None, ), # 2
+  )
+
+  def __init__(self, from=None, msg=None,):
+    self.from = from
+    self.msg = msg
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.STRING:
+          self.from = iprot.readString().decode('utf-8')
+        else:
+          iprot.skip(ftype)
+      elif fid == 2:
+        if ftype == TType.STRING:
+          self.msg = iprot.readString().decode('utf-8')
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('logOnMaster_args')
+    if self.from is not None:
+      oprot.writeFieldBegin('from', TType.STRING, 1)
+      oprot.writeString(self.from.encode('utf-8'))
+      oprot.writeFieldEnd()
+    if self.msg is not None:
+      oprot.writeFieldBegin('msg', TType.STRING, 2)
+      oprot.writeString(self.msg.encode('utf-8'))
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.from)
+    value = (value * 31) ^ hash(self.msg)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class logOnMaster_result:
+
+  thrift_spec = (
+  )
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('logOnMaster_result')
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
     return value
 
   def __repr__(self):

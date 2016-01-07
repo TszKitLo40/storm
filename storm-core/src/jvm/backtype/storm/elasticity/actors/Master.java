@@ -53,6 +53,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<String, String> _hostNameToWorkerLogicalName = new HashMap<>();
 
+//    IConnection _loggingInput;
+
     static Master _instance;
 
     public static Master getInstance() {
@@ -63,6 +65,22 @@ public class Master extends UntypedActor implements MasterService.Iface {
         _instance = this;
         createThriftServiceThread();
     }
+
+//    public void deployLoggingServer() {
+//        _loggingInput = new MyContext().bind("logging", backtype.storm.elasticity.config.Config.LoggingServerPort);
+//        new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                while(true) {
+//                    Iterator<TaskMessage> iterator = _loggingInput.recv(0, 0);
+//                    while(iterator.hasNext()) {
+//                        TaskMessage message = iterator.next();
+//
+//                    }
+//                }
+//            }
+//        })
+//    }
 
     public void createThriftServiceThread() {
 
@@ -142,17 +160,17 @@ public class Master extends UntypedActor implements MasterService.Iface {
 //            System.out.println("_nameToPath: "+_nameToPath);
 //            System.out.println("_nameToWorkerLogicalName: " + _hostNameToWorkerLogicalName);
 
-        } else if(message instanceof HelloMessage) {
-            HelloMessage helloMessage = (HelloMessage)message;
-            if(_nameToPath.containsKey(helloMessage.getName()))
-                log(helloMessage.getName()+" is registered again! ");
-//            _nameToActors.put(helloMessage.getName(), getSender());
-            _nameToPath.put(helloMessage.getName(), getSender().path());
+        } else if(message instanceof WorkerRegistrationMessage) {
+            WorkerRegistrationMessage workerRegistrationMessage = (WorkerRegistrationMessage)message;
+            if(_nameToPath.containsKey(workerRegistrationMessage.getName()))
+                log(workerRegistrationMessage.getName()+" is registered again! ");
+//            _nameToActors.put(workerRegistrationMessage.getName(), getSender());
+            _nameToPath.put(workerRegistrationMessage.getName(), getSender().path());
             final String ip = extractIpFromActorAddress(getSender().path().toString());
-            final String logicalName = ip +":"+helloMessage.getPort();
-            _hostNameToWorkerLogicalName.put(helloMessage.getName(), logicalName);
-            log("[" +  helloMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(helloMessage.getName()));
-            getSender().tell(new WorkerLogicalNameMessage(ip, helloMessage.getPort()), getSelf());
+            final String logicalName = ip +":"+ workerRegistrationMessage.getPort();
+            _hostNameToWorkerLogicalName.put(workerRegistrationMessage.getName(), logicalName);
+            log("[" +  workerRegistrationMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(workerRegistrationMessage.getName()));
+            getSender().tell(new WorkerRegistrationResponseMessage(InetAddress.getLocalHost().getHostAddress(), ip, workerRegistrationMessage.getPort()), getSelf());
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
@@ -338,8 +356,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
         final Inbox inbox = Inbox.create(getContext().system());
+
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
-        inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+
 //        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
     }
 
@@ -378,6 +398,11 @@ public class Master extends UntypedActor implements MasterService.Iface {
         return ElasticScheduler.getInstance().naiveWorkerLevelLoadBalancing(taskid);
     }
 
+    @Override
+    public void logOnMaster(String from, String msg) throws TException {
+        log(from, msg);
+    }
+
     String extractIpFromActorAddress(String address) {
         Pattern p = Pattern.compile( "@([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)" );
         Matcher m = p.matcher(address);
@@ -411,6 +436,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new BucketDistributionQueryCommand(taskid));
         return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    public String getRouteHosterName(int taskid, int route) {
+        return _taskidRouteToWorker.get(taskid + "." + route);
     }
 
 //    public class MasterService extends backtype.storm.generated.MasterService.Iface {
