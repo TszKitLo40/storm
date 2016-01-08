@@ -162,6 +162,7 @@ public class Slave extends UntypedActor {
                 System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
                 TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
                 handleTaskMigrationCommandMessage(taskMigrationCommand);
+                getSender().tell("Task Migration finishes!", getSelf());
             } else if (message instanceof ElasticTaskMigrationMessage) {
                 sendMessageToMaster("Received Migration Message!!!!");
                 handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
@@ -225,6 +226,7 @@ public class Slave extends UntypedActor {
             throw new HostNotExistException(targetNode + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
+        sendMessageToMaster("Begin to send " + object + " to targetNode!");
         inbox.send(getContext().actorFor(_nameToPath.get(targetNode)), object);
         return inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
     }

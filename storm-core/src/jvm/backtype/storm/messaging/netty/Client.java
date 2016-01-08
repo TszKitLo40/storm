@@ -130,9 +130,14 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
         closing = false;
         this.scheduler = scheduler;
         this.context = context;
+        //Li Wang
+//        int bufferSize = 1024*512;
         int bufferSize = Utils.getInt(stormConf.get(Config.STORM_MESSAGING_NETTY_BUFFER_SIZE));
         LOG.info("creating Netty Client, connecting to {}:{}, bufferSize: {}", host, port, bufferSize);
-        int messageBatchSize = Utils.getInt(stormConf.get(Config.STORM_NETTY_MESSAGE_BATCH_SIZE), 262144);
+
+        //Li Wang
+        int messageBatchSize = 512;
+//        int messageBatchSize = Utils.getInt(stormConf.get(Config.STORM_NETTY_MESSAGE_BATCH_SIZE), 262144);
 
         maxReconnectionAttempts = Utils.getInt(stormConf.get(Config.STORM_MESSAGING_NETTY_MAX_RETRIES));
         int minWaitMs = Utils.getInt(stormConf.get(Config.STORM_MESSAGING_NETTY_MIN_SLEEP_MS));
@@ -322,8 +327,8 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
             return;
         }
 
-
-        while(pendingMessages.get()>1024*64) {
+        //Li Wang
+        while(pendingMessages.get()>64) {
             try{
                 Thread.sleep(1);
             } catch (InterruptedException e ) {

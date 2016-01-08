@@ -11,6 +11,7 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.generated.TaskNotExistException;
+import backtype.storm.utils.Utils;
 import org.apache.thrift.TException;
 import org.eclipse.jetty.util.ArrayQueue;
 
@@ -213,6 +214,7 @@ public class ElasticScheduler {
             System.out.println("Begin to conduct the " + i++ + "th movements, " + totalMovements + " in total!");
             master.migrateTasks(reassignment.originalHost, reassignment.targetHost, reassignment.taskId, reassignment.routeId);
         }
+        System.out.println(totalMovements + " subtask movements are completed!");
     }
 
     public String naiveWorkerLevelLoadBalancing(int taskId) throws TException {

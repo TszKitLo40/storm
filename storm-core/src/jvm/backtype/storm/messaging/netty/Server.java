@@ -90,6 +90,8 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         }
         
         // Configure the server.
+        // Li Wang
+//        int buffer_size = 1024*512;
         int buffer_size = Utils.getInt(storm_conf.get(Config.STORM_MESSAGING_NETTY_BUFFER_SIZE));
         int backlog = Utils.getInt(storm_conf.get(Config.STORM_MESSAGING_NETTY_SOCKET_BACKLOG), 500);
         int maxWorkers = Utils.getInt(storm_conf.get(Config.STORM_MESSAGING_NETTY_SERVER_WORKER_THREADS));
@@ -200,7 +202,8 @@ class Server extends ConnectionWithStatus implements IStatefulObject {
         for (int receiverId = 0; receiverId < messageGroups.length; receiverId++) {
             ArrayList<TaskMessage> msgGroup = messageGroups[receiverId];
             if (null != msgGroup) {
-                while(pendingMessages[receiverId].get()>1024*64) {
+                //Li Wang
+                while(pendingMessages[receiverId].get()>512) {
                     Thread.sleep(1);
                 }
                 message_queue[receiverId].put(msgGroup);

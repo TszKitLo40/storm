@@ -267,11 +267,14 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_nameToPath.containsKey(getHostByWorkerLogicalName(targetHostName)))
             throw new MigrationException("targetHostName " + targetHostName + " does not exists!");
         try {
-//            _taskidToActorName.get(taskId);
-            getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo), getSelf());
-//            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(originalHostName))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
-    //        _nameToActors.get(getHostByWorkerLogicalName(originalHostName)).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName),getHostByWorkerLogicalName(targetHostName),taskId,routeNo),getSelf());
-            log("[Elastic]: Migration message has been sent!");
+//            getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo), getSelf());
+//            log("[Elastic]: Migration message has been sent!");
+
+            final Inbox inbox = Inbox.create(getContext().system());
+            inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
+            inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+            return;
+
         } catch (Exception e) {
             e.printStackTrace();
         }

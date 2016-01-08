@@ -173,6 +173,7 @@ public class ElasticTaskHolder {
     }
 
     public ElasticTaskMigrationConfirmMessage handleGuestElasticTasks(ElasticTaskMigrationMessage message) {
+        sendMessageToMaster("ElasticTaskMigrationMessage: "+ message.getString());
         System.out.println("ElasticTaskMigrationMessage: "+ message.getString());
         System.out.println("#. of routes"+message._elasticTask.get_routingTable().getRoutes().size());
 //        _remoteTasks.put(message._elasticTask.get_taskID(), message._elasticTask);
@@ -186,6 +187,8 @@ public class ElasticTaskHolder {
         _originalTaskIdToExecutorResultConnection.put(message._elasticTask.get_taskID(), remoteExecutionResultConnection);
 
         System.out.println("Connected with original Task Holders");
+        sendMessageToMaster("Connected with original Task holders!");
+
 
         if(!_originalTaskIdToRemoteTaskExecutor.containsKey(message._elasticTask.get_taskID())) {
             //This is the first RemoteTasks assigned to this host.
@@ -232,8 +235,9 @@ public class ElasticTaskHolder {
                 Integer count = 0;
                 while (true) {
                     try {
-
+                        System.out.println("fetching...");
                         final ITaskMessage message = _sendingQueue.take();
+                        System.out.println("sending...");
                         LOG.debug("An element is taken from the sendingQueue");
                         if(message instanceof RemoteTupleExecuteResult) {
                             LOG.debug("The element is RemoteTupleExecuteResult");
@@ -292,7 +296,7 @@ public class ElasticTaskHolder {
                         } else {
                             System.err.print("Unknown element from the sending queue");
                         }
-
+                        System.out.println("sent...");
                     } catch (InterruptedException e) {
                         System.out.println("sending thread has been interrupted!");
                     } catch (SerializationException ex) {
@@ -420,6 +424,8 @@ public class ElasticTaskHolder {
                             handleStateFlushToken(token);
 
 
+                        } else if (object instanceof String) {
+                            System.out.println(object);
                         } else {
                             System.err.println("Unexpected Object: " + object);
                         }
@@ -754,20 +760,6 @@ public class ElasticTaskHolder {
 
         BucketToRouteReassignment reassignment = new BucketToRouteReassignment(taskid, bucketId, targetRoute);
 
-        SmartTimer.getInstance().stop("ShardReassignment", "prepare");
-        SmartTimer.getInstance().start("ShardReassignment","rerouting");
-        // 1. pause sending RemoteTuples to the target subtask
-        pauseSendingToTargetSubtask(taskid, targetRoute);
-
-        // 2.1 change the routing table on original ElasticTaskHolder
-        handleBucketToRouteReassignment(reassignment);
-
-        SmartTimer.getInstance().stop("ShardReassignment", "rerouting");
-        SmartTimer.getInstance().start("ShardReassignment","state migration");
-
-
-        // 3. send state migration command to the source subtask, if necessary
-
         String targetHost, originalHost;
         if(routeIdToRemoteHost.containsKey(new RouteId(taskid, orignalRoute)))
             originalHost = routeIdToRemoteHost.get(new RouteId(taskid, orignalRoute));
@@ -779,12 +771,48 @@ public class ElasticTaskHolder {
         else
             targetHost = "local";
 
+        SmartTimer.getInstance().stop("ShardReassignment", "prepare");
+
+        // Update the routing table on the target subtask
+        if(_taskidRouteToConnection.containsKey(taskid+"."+targetRoute)){
+            _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
+        }
+//        else {
+//            handleBucketToRouteReassignment(reassignment);
+//        }
+
+
+        SmartTimer.getInstance().start("ShardReassignment","rerouting");
+        // Pause sending RemoteTuples to the target subtask
+//        pauseSendingToTargetSubtask(taskid, targetRoute);
+//        pauseSendingToTargetSubtask(taskid, orignalRoute);
+
+        // Update the routing table on original ElasticTaskHolder
+        handleBucketToRouteReassignment(reassignment);
+
+        // Update the routing table on the source
+            int ran = new Random().nextInt();
+        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
+            sendMessageToMaster("BucketToRouteReassignment is sent to the original Host " + ran);
+            _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
+            for(int i=0; i< 10000; i++) {
+                _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize("-_- " + ran + " seq:" + i));
+            }
+        }
+        SmartTimer.getInstance().stop("ShardReassignment", "rerouting");
+        SmartTimer.getInstance().start("ShardReassignment","state migration");
+        sendMessageToMaster("Begin state migration session!");
+
+        // 3. handle state for that shard, if necessary
         if(!targetHost.equals(originalHost)) {
                 HashBucketFilter filter = new HashBucketFilter(balancedHashRouting.getNumberOfBuckets(), bucketId);
             if(!originalHost.equals("local")) {
                 StateFlushToken stateFlushToken = new StateFlushToken(taskid, orignalRoute, filter);
-                _slaveActor.sendMessageToMaster("State Flush Token has been sent to " + originalHost);
                 _taskidRouteToConnection.get(taskid+ "." + orignalRoute).send(taskid, SerializationUtils.serialize(stateFlushToken));
+                _slaveActor.sendMessageToMaster("State Flush Token has been sent to " + originalHost);
+                for(int i=0; i< 10000; i++) {
+                    _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize("^_^ " + ran + " seq:" + i));
+                }
                 _taskidRouteToStateWaitingSemaphore.put(taskid+ "." + orignalRoute, new Semaphore(0));
                 try {
                     _slaveActor.sendMessageToMaster("Waiting for remote state!");
@@ -794,7 +822,7 @@ public class ElasticTaskHolder {
                     e.printStackTrace();
                 }
             } else {
-                _slaveActor.sendMessageToMaster("original host is local!");
+                _slaveActor.sendMessageToMaster("State for the shard does not need to be flushed, as the source subtask is run on the original host!");
             }
             if (!targetHost.equals("local")) {
                 KeyValueState partialState = getState(taskid).getValidState(filter);
@@ -802,33 +830,17 @@ public class ElasticTaskHolder {
                 _taskidRouteToConnection.get(taskid + "." + targetRoute).send(taskid, SerializationUtils.serialize(remoteState));
                 sendMessageToMaster("State has been sent to " + targetHost);
             } else {
-                _slaveActor.sendMessageToMaster("target host is local!");
+                _slaveActor.sendMessageToMaster("State for the shard does not need to migrate, as the target subtask is run on the original host!");
             }
+        } else {
+            _slaveActor.sendMessageToMaster("State movement is not necessary, as the shard is moved within a host!");
         }
         SmartTimer.getInstance().stop("ShardReassignment", "state migration");
-        SmartTimer.getInstance().start("ShardReassignment","rerouting2");
-
-        // 2.2 change the routing table on the source
-        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
-            _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
-        }
-//        else {
-//            handleBucketToRouteReassignment(reassignment);
-//        }
-
-        // 4. update the routing table on the target subtask
-//        _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
-        if(_taskidRouteToConnection.containsKey(taskid+"."+targetRoute)){
-            _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
-        } else {
-            handleBucketToRouteReassignment(reassignment);
-        }
-        SmartTimer.getInstance().stop("ShardReassignment", "rerouting2");
-
 
         // 5. resume sending RemoteTuples to the target subtask
         System.out.println("Begin to resume!");
-        resumeSendingToTargetSubtask(taskid, targetRoute);
+//        resumeSendingToTargetSubtask(taskid, targetRoute);
+//        resumeSendingToTargetSubtask(taskid, orignalRoute);
         System.out.println("Resumed!");
         SmartTimer.getInstance().stop("ShardReassignment", "total"); 
         _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("ShardReassignment"));
