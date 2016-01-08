@@ -784,8 +784,8 @@ public class ElasticTaskHolder {
 
         SmartTimer.getInstance().start("ShardReassignment","rerouting");
         // Pause sending RemoteTuples to the target subtask
-//        pauseSendingToTargetSubtask(taskid, targetRoute);
-//        pauseSendingToTargetSubtask(taskid, orignalRoute);
+        pauseSendingToTargetSubtask(taskid, targetRoute);
+        pauseSendingToTargetSubtask(taskid, orignalRoute);
 
         // Update the routing table on original ElasticTaskHolder
         handleBucketToRouteReassignment(reassignment);
@@ -839,8 +839,8 @@ public class ElasticTaskHolder {
 
         // 5. resume sending RemoteTuples to the target subtask
         System.out.println("Begin to resume!");
-//        resumeSendingToTargetSubtask(taskid, targetRoute);
-//        resumeSendingToTargetSubtask(taskid, orignalRoute);
+        resumeSendingToTargetSubtask(taskid, targetRoute);
+        resumeSendingToTargetSubtask(taskid, orignalRoute);
         System.out.println("Resumed!");
         SmartTimer.getInstance().stop("ShardReassignment", "total"); 
         _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("ShardReassignment"));
