@@ -1,5 +1,7 @@
 package backtype.storm.elasticity.routing;
 
+import backtype.storm.elasticity.utils.Histograms;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
@@ -12,6 +14,9 @@ public interface RoutingTable extends Serializable {
     public int route(Object key);
     public int getNumberOfRoutes();
     public ArrayList<Integer> getRoutes();
+    public Histograms getRoutingDistribution();
+    public void enableRoutingDistributionSampling();
+
     
 
 

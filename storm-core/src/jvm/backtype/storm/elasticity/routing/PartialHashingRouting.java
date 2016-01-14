@@ -1,5 +1,8 @@
 package backtype.storm.elasticity.routing;
 
+import backtype.storm.elasticity.utils.Histograms;
+import org.eclipse.jetty.util.ConcurrentHashSet;
+
 import java.util.*;
 
 /**
@@ -12,6 +15,7 @@ public class PartialHashingRouting implements RoutingTable {
     Set<Integer> _validRoutes = new HashSet<>();
 
     RoutingTable _routingTable;
+
 //    /**
 //     * @param nRoutes is the number of routes processed by elastic tasks.
 //     */
@@ -56,7 +60,17 @@ public class PartialHashingRouting implements RoutingTable {
     }
 
     @Override
-    public int route(Object key) {
+    public Histograms getRoutingDistribution() {
+        return _routingTable.getRoutingDistribution();
+    }
+
+    @Override
+    public synchronized void enableRoutingDistributionSampling() {
+        _routingTable.enableRoutingDistributionSampling();
+    }
+
+    @Override
+    public synchronized int route(Object key) {
         int route = _routingTable.route(key);
         if (_validRoutes.contains(route))
             return route;

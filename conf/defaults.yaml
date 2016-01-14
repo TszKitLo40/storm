@@ -137,7 +137,7 @@ supervisor.memory.capacity.mb: 3072.0
 #By convention 1 cpu core should be about 100, but this can be adjusted if needed
 # using 100 makes it simple to set the desired value to the capacity measurement
 # for single threaded bolts
-supervisor.cpu.capacity: 400.0
+supervisor.cpu.capacity: 800.0
 
 ### worker.* configs are for task workers
 worker.childopts: "-Xmx768m"
@@ -164,13 +164,13 @@ zmq.linger.millis: 5000
 zmq.hwm: 0
 
 
-storm.messaging.netty.server_worker_threads: 1
-storm.messaging.netty.client_worker_threads: 1
+storm.messaging.netty.server_worker_threads: 4
+storm.messaging.netty.client_worker_threads: 4
 storm.messaging.netty.buffer_size: 5242880 #5MB buffer
 # Since nimbus.task.launch.secs and supervisor.worker.start.timeout.secs are 120, other workers should also wait at least that long before giving up on connecting to the other worker. The reconnection period need also be bigger than storm.zookeeper.session.timeout(default is 20s), so that we can abort the reconnection when the target worker is dead.
 storm.messaging.netty.max_retries: 300
 storm.messaging.netty.max_wait_ms: 1000
-storm.messaging.netty.min_wait_ms: 100
+storm.messaging.netty.min_wait_ms: 200
 
 # If the Netty messaging layer is busy(netty internal buffer not writable), the Netty client will try to batch message as more as possible up to the size of storm.messaging.netty.transfer.batch.size bytes, otherwise it will try to flush message as soon as possible to reduce latency.
 storm.messaging.netty.transfer.batch.size: 262144

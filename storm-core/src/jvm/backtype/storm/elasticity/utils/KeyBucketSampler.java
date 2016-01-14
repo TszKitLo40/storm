@@ -41,7 +41,7 @@ public class KeyBucketSampler {
 
     public void clear() {
         for(int i=0; i<_nBuckets; i++) {
-            buckets[i] = 0L;
+            buckets[i] = 1L;
         }
     }
 

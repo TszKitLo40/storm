@@ -1,5 +1,7 @@
 package backtype.storm.elasticity.routing;
 
+import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.SlidingWindowRouteSampler;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
@@ -14,6 +16,8 @@ public class HashingRouting implements RoutingTable {
 
     HashFunction hashFunction;
 
+    SlidingWindowRouteSampler sampler;
+
 
     /**
      *
@@ -22,7 +26,6 @@ public class HashingRouting implements RoutingTable {
     public HashingRouting(int nRoutes) {
         numberOfRoutes = nRoutes;
         hashFunction = Hashing.murmur3_32();
-
     }
 
     public HashingRouting(HashingRouting hashingRouting) {
@@ -38,15 +41,18 @@ public class HashingRouting implements RoutingTable {
      * @return the number of route this key belongs to.
      */
     @Override
-    public int route(Object key) {
+    public synchronized int route(Object key) {
 //        if(key instanceof String) {
 //            final int hashvalue = hashFunction.hashString(key.toString()).asInt();
 //            return Math.abs(hashvalue%(numberOfRoutes + 1)) - 1;
 //        } else {
             final int hashValue = key.hashCode();
 
+            final int ret = Math.abs((hashValue*1171+5843))%9973%(numberOfRoutes);
+        if(sampler!=null)
+            sampler.record(ret);
 
-            return Math.abs((hashValue*1171+5843))%9973%(numberOfRoutes);
+            return ret;
 //        }
     }
 
@@ -62,5 +68,16 @@ public class HashingRouting implements RoutingTable {
             ret.add(i);
         }
         return ret;
+    }
+
+    @Override
+    public Histograms getRoutingDistribution() {
+        return sampler.getDistribution();
+    }
+
+    @Override
+    public synchronized void enableRoutingDistributionSampling() {
+        sampler = new SlidingWindowRouteSampler(numberOfRoutes);
+        sampler.enable();
     }
 }

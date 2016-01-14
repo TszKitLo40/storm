@@ -3,6 +3,7 @@ package backtype.storm.elasticity.routing;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlideWindowKeyBucketSample;
+import backtype.storm.elasticity.utils.SlidingWindowRouteSampler;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
@@ -22,6 +23,7 @@ public class BalancedHashRouting implements RoutingTable {
     int numberOfHashValues;
 
     transient SlideWindowKeyBucketSample sample;
+    transient SlidingWindowRouteSampler routeDistributionSampler;
 
     public BalancedHashRouting(Map<Integer, Integer> hashValueToPartition, int numberOfRoutes) {
         this.numberOfRoutes = numberOfRoutes;
@@ -46,7 +48,11 @@ public class BalancedHashRouting implements RoutingTable {
         if(sample!=null)
             sample.record(key);
 
-        return hashValueToRoute.get(hashFunction.hash(key) % numberOfHashValues);
+        final int ret = hashValueToRoute.get(hashFunction.hash(key) % numberOfHashValues);
+        if(routeDistributionSampler != null)
+            routeDistributionSampler.record(ret);
+
+        return ret;
     }
 
     @Override
@@ -61,6 +67,17 @@ public class BalancedHashRouting implements RoutingTable {
             ret.add(i);
         }
         return ret;
+    }
+
+    @Override
+    public Histograms getRoutingDistribution() {
+        return routeDistributionSampler.getDistribution();
+    }
+
+    @Override
+    public synchronized void enableRoutingDistributionSampling() {
+        routeDistributionSampler = new SlidingWindowRouteSampler(numberOfRoutes);
+        routeDistributionSampler.enable();
     }
 
     public Set<Integer> getBucketSet() {

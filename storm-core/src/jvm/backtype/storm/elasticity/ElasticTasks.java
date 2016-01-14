@@ -251,6 +251,7 @@ public class ElasticTasks implements Serializable {
      * @return a PartialHashRouting that routes the excepted routes
      */
     public synchronized PartialHashingRouting addExceptionForHashRouting(ArrayList<Integer> list, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
+        System.out.println("The entrance of addExceptionForHashRouting");
         if((!(_routingTable instanceof HashingRouting))&&(!(_routingTable instanceof BalancedHashRouting))&&(!(_routingTable instanceof PartialHashingRouting))) {
             throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing: " + _routingTable.getClass().toString());
 //            System.err.println("cannot set Exception for non-hash routing");
@@ -293,6 +294,7 @@ public class ElasticTasks implements Serializable {
     public PartialHashingRouting addExceptionForHashRouting(int r, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
         ArrayList<Integer> list = new ArrayList<>();
         list.add(r);
+        System.out.println("before calling addExceptionForHashRouting...");
         return addExceptionForHashRouting(list, exceptedRoutingQueue);
     }
 

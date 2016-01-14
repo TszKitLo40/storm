@@ -7,17 +7,17 @@ public class Config {
 
     public static int NumberOfShard = 256;
 
-    public static int SubtaskInputQueueCapacity = 64;
-
     public static double RoutingSamplingRate = 1.0;
 
-    public static int ResultQueueCapacity = 128;
+    public static int SubtaskInputQueueCapacity = 64;
 
-    public static int RemoteExecutorInputQueueCapacity = 128;
+    public static int ResultQueueCapacity = 1024*16;
+
+    public static int RemoteExecutorInputQueueCapacity = 1024*16;
+
+    public static int ElasticTaskHolderOutputQueueCapacity = 1024*16;
 
     public static int StateCheckPointingCycleInSecs = 10;
-
-    public static int ElasticTaskHolderOutputQueueCapacity = 32;
 
     public static int CreateBalancedHashRoutingSamplingTimeInSecs = 3;
 

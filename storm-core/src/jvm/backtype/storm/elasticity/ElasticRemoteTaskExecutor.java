@@ -10,6 +10,7 @@ import backtype.storm.elasticity.state.*;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -41,9 +42,11 @@ public class ElasticRemoteTaskExecutor {
         _bolt = bolt;
     }
 
-    public void prepare(KeyValueState state ) {
+    public void prepare(Map<Object, Object> state ) {
         _outputCollector = new RemoteElasticOutputCollector(_resultQueue, _elasticTasks.get_taskID());
-        _elasticTasks.prepare(_outputCollector, state);
+        KeyValueState keyValueState = new KeyValueState();
+        keyValueState.getState().putAll(state);
+        _elasticTasks.prepare(_outputCollector, keyValueState);
         _elasticTasks.createAndLaunchElasticTasks();
         createProcessingThread();
         createStateCheckpointingThread();
@@ -53,6 +56,7 @@ public class ElasticRemoteTaskExecutor {
         _processingRunnable = new InputTupleRouting();
         _processingThread = new Thread(_processingRunnable);
         _processingThread.start();
+        ElasticTaskHolder.instance().createQueueUtilizationMonitoringThread(_inputQueue, "Remote Input Queue", Config.RemoteExecutorInputQueueCapacity, 0.9, 0.1);
 
         System.out.println("processing thread is created!");
     }
@@ -70,30 +74,33 @@ public class ElasticRemoteTaskExecutor {
 
         @Override
         public void run() {
-            try {
                 int count = 0;
                 while (!_terminated) {
+                    try {
 
-                    Tuple input = _inputQueue.take();
+                        Tuple input = _inputQueue.take();
+                        
+                        if(input!=null)
+                            continue;
 
-                    boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
-                    count++;
-                    if(count % 10000 == 0) {
-                        System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
-                        count = 0;
+                        boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
+                        count++;
+                        if(count % 10000 == 0) {
+                            System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
+                            count = 0;
+                        }
+
+                        if(!handled)
+                            System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
+
+                    } catch (InterruptedException e) {
+                        System.out.println("InputTupleRouting thread is interrupted!");
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
-
-                    if(!handled)
-                        System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
-
 
                 }
                 System.out.println("Routing process is terminated!");
-            } catch (InterruptedException e) {
-                System.out.println("InputTupleRouting thread is interrupted!");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -124,7 +131,7 @@ public class ElasticRemoteTaskExecutor {
 //                    }
 //                    RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(), state, _elasticTasks.get_routingTable().getRoutes() );
                     RemoteState state = getStateForRoutes(_elasticTasks.get_routingTable().getRoutes());
-                    System.out.println("State (" + state._state.getState().size() + " element) has been added into the sending queue!");
+                    System.out.println("State (" + state._state.size() + " element) has been added into the sending queue!");
                     _resultQueue.put(state);
 
                 }
@@ -144,7 +151,7 @@ public class ElasticRemoteTaskExecutor {
                 stateForRoutes.setValueBySey(key, state.getValueByKey(key));
             }
         }
-        RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(),stateForRoutes,routes);
+        RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(),stateForRoutes.getState(),routes);
 //        _resultQueue.put(remoteState);
         return remoteState;
     }

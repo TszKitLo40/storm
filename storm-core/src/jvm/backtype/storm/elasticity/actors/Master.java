@@ -272,7 +272,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
             final Inbox inbox = Inbox.create(getContext().system());
             inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
-            inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+            inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
             return;
 
         } catch (Exception e) {

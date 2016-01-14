@@ -13,6 +13,8 @@ public class RemoteTuple implements ITaskMessage {
     public int _route;
     public Tuple _tuple;
 
+    public long sid;
+
     public RemoteTuple(int taskid, int route, Tuple tuple) {
         _taskId = taskid;
         _route = route;

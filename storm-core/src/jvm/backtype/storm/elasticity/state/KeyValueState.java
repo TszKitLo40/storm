@@ -3,13 +3,14 @@ package backtype.storm.elasticity.state;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by Robert on 11/3/15.
  */
 public class KeyValueState implements Serializable {
 
-    HashMap<Object, Object> state = new HashMap<>();
+    Map<Object, Object> state = new ConcurrentHashMap<>();
 
     public Object getValueByKey(Object key) {
         if (state.containsKey(key))
@@ -26,7 +27,11 @@ public class KeyValueState implements Serializable {
         state.putAll(newState.state);
     }
 
-    public HashMap<Object, Object> getState() {
+    public void update(Map<Object, Object> newState) {
+        state.putAll(newState);
+    }
+
+    public Map<Object, Object> getState() {
         return state;
     }
 

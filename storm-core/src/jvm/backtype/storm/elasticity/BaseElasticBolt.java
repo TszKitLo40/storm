@@ -42,5 +42,8 @@ public abstract class BaseElasticBolt implements Serializable {
 
     public void setState(KeyValueState s) {
         state = s;
+        if(state==null) {
+            state = new KeyValueState();
+        }
     }
 }

@@ -1,12 +1,10 @@
 package storm.starter;
 
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
 import backtype.storm.task.ShellBolt;
-import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -15,18 +13,25 @@ import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
-import storm.starter.spout.RandomSentenceSpout;
-import storm.starter.util.ComputationSimulator;
+import storm.starter.spout.InputGeneratorSpout;
 
 import java.util.Map;
 import java.util.Random;
 
 /**
- * Created by robert on 12/7/15.
+ * Created by robert on 1/8/16.
  */
-public class WordCountTopologyElastic {
-
+public class ElasticTopologySimulator {
+    public static class ComputationSimulator {
+        public static long compute(int timeInMils) {
+            final long start = System.nanoTime();
+            long seed = start;
+            while(System.nanoTime() - start < timeInMils) {
+                seed = (long) Math.sqrt(new Random().nextInt());
+            }
+            return seed;
+        }
+    }
     public static class SplitSentence extends ShellBolt implements IRichBolt {
 
         public SplitSentence() {
@@ -62,14 +67,14 @@ public class WordCountTopologyElastic {
                 count = 0;
             count++;
             setValueByKey(word,count);
-            collector.emit(tuple,new Values(word, count));
+//            collector.emit(tuple,new Values(word, count));
         }
 
 
 
         @Override
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
-            declarer.declare(new Fields("word", "count"));
+//            declarer.declare(new Fields("word", "count"));
         }
 
         @Override
@@ -99,10 +104,10 @@ public class WordCountTopologyElastic {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 16);
+        builder.setSpout("spout", new InputGeneratorSpout(8*1024), 16);
 
         builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
-        builder.setBolt("print", new Printer(),16).globalGrouping("count");
+//        builder.setBolt("print", new Printer(),16).globalGrouping("count");
 
         Config conf = new Config();
         if(args.length>2&&args[2].equals("debug"))
@@ -113,15 +118,7 @@ public class WordCountTopologyElastic {
 
             StormSubmitter.submitTopologyWithProgressBar(args[0], conf, builder.createTopology());
         }
-        else {
-            conf.setMaxTaskParallelism(3);
 
-            LocalCluster cluster = new LocalCluster();
-            cluster.submitTopology("word-count", conf, builder.createTopology());
-
-            Thread.sleep(1000000);
-
-            cluster.shutdown();
-        }
     }
 }
+

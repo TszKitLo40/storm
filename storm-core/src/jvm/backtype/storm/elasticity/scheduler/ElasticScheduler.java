@@ -211,8 +211,11 @@ public class ElasticScheduler {
         int totalMovements = plan.getSubTaskReassignments().size();
         int i = 0;
         for(SubtaskReassignment reassignment: plan.getSubTaskReassignments()) {
+            System.out.println("\n===================START========================");
             System.out.println("Begin to conduct the " + i++ + "th movements, " + totalMovements + " in total!");
+            System.out.println("Move " + reassignment.taskId + "." + reassignment.routeId + " from " + reassignment.originalHost + " to " + reassignment.targetHost);
             master.migrateTasks(reassignment.originalHost, reassignment.targetHost, reassignment.taskId, reassignment.routeId);
+            System.out.println("=====================END========================\n");
         }
         System.out.println(totalMovements + " subtask movements are completed!");
     }

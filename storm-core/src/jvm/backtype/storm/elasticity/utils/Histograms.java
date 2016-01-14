@@ -28,10 +28,17 @@ public class Histograms implements Serializable {
 
         Object[] keys = histograms.keySet().toArray();
         Arrays.sort(keys);
+        long max = Long.MIN_VALUE, min = Long.MAX_VALUE, different;
+        long sum = 0;
         for(Object key: keys) {
+            max = Math.max(histograms.get(key), max);
+            min = Math.min(histograms.get(key), min);
+            sum += histograms.get(key);
+
             ret += key + ": " + histograms.get(key) + " ";
         }
         ret += "\n";
+        ret += "Min: " + min + "  Max:" + max + "  Avg: " + sum/keys.length + "\n";
         return ret;
     }
 

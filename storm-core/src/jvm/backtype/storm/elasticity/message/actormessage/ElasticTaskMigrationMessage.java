@@ -3,6 +3,8 @@ package backtype.storm.elasticity.message.actormessage;
 import backtype.storm.elasticity.ElasticTasks;
 import backtype.storm.elasticity.state.*;
 
+import java.util.Map;
+
 /**
  * Created by Robert on 11/12/15.
  */
@@ -14,13 +16,13 @@ public class ElasticTaskMigrationMessage implements IMessage {
 
     public String _ip;
 
-    public KeyValueState state;
+    public Map<Object, Object> state;
 
     public ElasticTaskMigrationMessage(ElasticTasks task, int port, KeyValueState s) {
         _elasticTask = task;
 //        _ip = ip;
         _port = port;
-        state = s;
+        state = s.getState();
     }
 
     public String getString() {

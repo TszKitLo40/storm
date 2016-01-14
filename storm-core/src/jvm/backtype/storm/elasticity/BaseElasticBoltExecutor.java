@@ -97,12 +97,15 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         if(_holder!=null) {
             _holder.registerElasticBolt(this, _taskId);
         }
+        _elasticTasks.get_routingTable().enableRoutingDistributionSampling();
     }
 
     @Override
     public void execute(Tuple input) {
-
+        try {
         final Object key = _bolt.getKey(input);
+
+        // The following line is comment, as it is used to sample distribution of input streams and the the sampling is only used during the creation of balanced hash routing
         _keyBucketSampler.record(key);
 
         if(!_elasticTasks.tryHandleTuple(input,key)) {
@@ -113,7 +116,9 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 //        if(_elasticTasks==null||!_elasticTasks.tryHandleTuple(input,key))
 //            _bolt.execute(input, _outputCollector);
         _rateTracker.notify(1);
-
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

@@ -1,6 +1,7 @@
 package backtype.storm.elasticity;
 
 import backtype.storm.elasticity.routing.RoutingTable;
+import backtype.storm.elasticity.utils.Histograms;
 
 import java.util.*;
 
@@ -30,6 +31,16 @@ public class ConcreteRouting implements RoutingTable {
     @Override
     public ArrayList<Integer> getRoutes() {
         return new ArrayList<Integer>(routingTable.values());
+    }
+
+    @Override
+    public Histograms getRoutingDistribution() {
+        return null;
+    }
+
+    @Override
+    public void enableRoutingDistributionSampling() {
+
     }
 
     public void addRounting(Object key, Integer rount) {

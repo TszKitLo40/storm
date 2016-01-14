@@ -1,5 +1,7 @@
 package backtype.storm.elasticity.routing;
 
+import backtype.storm.elasticity.utils.Histograms;
+
 import java.util.ArrayList;
 
 /**
@@ -19,5 +21,15 @@ public class VoidRouting implements RoutingTable {
     @Override
     public ArrayList<Integer> getRoutes() {
         return null;
+    }
+
+    @Override
+    public Histograms getRoutingDistribution() {
+        return null;
+    }
+
+    @Override
+    public void enableRoutingDistributionSampling() {
+
     }
 }

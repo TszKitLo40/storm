@@ -58,6 +58,8 @@ public class Slave extends UntypedActor {
 
     MasterService.Client thriftClient;
 
+    final Object thriftClientLock = new Object();
+
     void connectToMasterThriftServer(String ip, int port) {
         System.out.println("Thrift server ip: " + ip + " port: " + port);
         TTransport transport = new TSocket(ip, port);
@@ -159,7 +161,7 @@ public class Slave extends UntypedActor {
                 _nameToPath.put(workerRegistrationMessage.getName(), getSender().path());
                 System.out.println("[Elastic]: I am connected with " + ((WorkerRegistrationMessage) message).getName() + "[" + getSender() + "]");
             } else if (message instanceof TaskMigrationCommand) {
-                System.out.println("[Elastic]: recieved  TaskMigrationCommand!");
+                System.out.println("[Elastic]: received  TaskMigrationCommand!");
                 TaskMigrationCommand taskMigrationCommand = (TaskMigrationCommand) message;
                 handleTaskMigrationCommandMessage(taskMigrationCommand);
                 getSender().tell("Task Migration finishes!", getSelf());
@@ -264,7 +266,9 @@ public class Slave extends UntypedActor {
     public void sendMessageToMaster(String message) {
 //        _master.tell(new LogMessage(message, _name ), getSelf());
         try {
-            thriftClient.logOnMaster(_logicalName, message);
+            synchronized (thriftClientLock) {
+                thriftClient.logOnMaster(_logicalName, message);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -273,7 +277,9 @@ public class Slave extends UntypedActor {
 
     public void logOnMaster(String message) {
         try {
+            synchronized (thriftClientLock) {
             thriftClient.logOnMaster(_logicalName, message);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
