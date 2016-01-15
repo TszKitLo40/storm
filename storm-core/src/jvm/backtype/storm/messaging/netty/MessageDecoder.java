@@ -103,12 +103,21 @@ public class MessageDecoder extends FrameDecoder {
             short task = code;
 
             // Make sure that we have received at least an integer (length)
+//            if (available < 2) {
+//                // need more data
+//                buf.resetReaderIndex();
+//                break;
+//            }
+//            short remoteTuple = buf.readShort();
+//
+//            available -= 2;
+
+            // Make sure that we have received at least an integer (length)
             if (available < 4) {
                 // need more data
                 buf.resetReaderIndex();
                 break;
             }
-
             // Read the length field.
             int length = buf.readInt();
 

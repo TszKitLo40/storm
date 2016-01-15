@@ -104,7 +104,7 @@ public class ElasticTopologySimulator {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new InputGeneratorSpout(8*1024), 16);
+        builder.setSpout("spout", new InputGeneratorSpout(8*1024), 2);
 
         builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
 //        builder.setBolt("print", new Printer(),16).globalGrouping("count");

@@ -27,6 +27,8 @@ import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
 import backtype.storm.messaging.netty.Context;
+import backtype.storm.serialization.KryoTupleDeserializer;
+import backtype.storm.serialization.KryoTupleSerializer;
 import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.TupleImpl;
@@ -68,6 +70,14 @@ public class ElasticTaskHolder {
 
     private WorkerTopologyContext _workerTopologyContext;
 
+    private Map stormConf;
+
+    private KryoTupleDeserializer tupleDeserializer;
+
+    private KryoTupleSerializer tupleSerializer;
+
+
+
     Map<Integer, BaseElasticBoltExecutor> _bolts = new HashMap<>();
 
     Map<Integer, ElasticRemoteTaskExecutor> _originalTaskIdToRemoteTaskExecutor = new HashMap<>();
@@ -103,6 +113,7 @@ public class ElasticTaskHolder {
 
     private ElasticTaskHolder(Map stormConf, String workerId, int port) {
         System.out.println("creating ElasticTaskHolder");
+        this.stormConf = stormConf;
         _context = new Context();
         _port = port + 10000;
         _context.prepare(stormConf);
@@ -248,102 +259,116 @@ public class ElasticTaskHolder {
 
     }
 
+    private void insertToConnectionToTaskMessageArray(Map<String, ArrayList<TaskMessage>> map, Map<String, IConnection> connectionNameToIConnection, IConnection connection, TaskMessage message) {
+        String connectionName = connection.toString();
+        if(!map.containsKey(connectionName)) {
+            map.put(connectionName, new ArrayList<TaskMessage>());
+            connectionNameToIConnection.put(connectionName, connection);
+        }
+        map.get(connectionName).add(message);
+    }
+
     private void createExecuteResultSendingThread() {
 
         final Thread sendingThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                Integer count = 0;
-                int sid = 0;
                 while (true) {
-                    Map<Integer, byte[]> routeToBytes = new HashMap<>();
                     try {
 //                        System.out.println("fetching...");
-                        final ITaskMessage message = _sendingQueue.take();
 
+                        Map<String, ArrayList<TaskMessage>> iConnectionNameToTaskMessageArray = new HashMap<>();
+                        Map<String, IConnection> connectionNameToIConnection = new HashMap<>();
 
+                        ArrayList<ITaskMessage> drainer = new ArrayList<>();
+                        ITaskMessage firstMessage = _sendingQueue.take();
+                        drainer.add(firstMessage);
+                        _sendingQueue.drainTo(drainer,512);
 
+                        for(ITaskMessage message: drainer) {
+    //                        System.out.println("sending...");
+                            LOG.debug("An element is taken from the sendingQueue");
+                            if(message instanceof RemoteTupleExecuteResult) {
+                                LOG.debug("The element is RemoteTupleExecuteResult");
 
-//                        System.out.println("sending...");
-                        LOG.debug("An element is taken from the sendingQueue");
-                        if(message instanceof RemoteTupleExecuteResult) {
-                            LOG.debug("The element is RemoteTupleExecuteResult");
+                                RemoteTupleExecuteResult remoteTupleExecuteResult = (RemoteTupleExecuteResult)message;
+                                if (_originalTaskIdToExecutorResultConnection.containsKey(remoteTupleExecuteResult._originalTaskID)) {
+                                    byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
+//                                    _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
+                                    TaskMessage taskMessage = new TaskMessage(remoteTupleExecuteResult._originalTaskID, bytes);
+                                    insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID), taskMessage);
 
-                            RemoteTupleExecuteResult remoteTupleExecuteResult = (RemoteTupleExecuteResult)message;
-                            if (_originalTaskIdToExecutorResultConnection.containsKey(remoteTupleExecuteResult._originalTaskID)) {
-                                byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
-                                _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
-
-                                LOG.debug("RemoteTupleExecutorResult is send back!");
-                            } else {
-//                                System.err.println("RemoteTupleExecuteResult will be ignored, because we cannot find the connection for tasks " + remoteTupleExecuteResult._originalTaskID);
-                            }
-                        } else if (message instanceof RemoteTuple) {
-
-//                            LOG.debug("The element is RemoteTuple");
-                            RemoteTuple remoteTuple = (RemoteTuple) message;
-
-
-                            final String key = remoteTuple.taskIdAndRoutePair();
-//                            LOG.debug("Key :"+key);
-                            if(_taskidRouteToConnection.containsKey(key)) {
-//                                LOG.debug("The element will be serialized!");
-                                remoteTuple.sid = sid++;
-//                                System.out.println("sending tuple for routing " + remoteTuple._route + "... sid = " + remoteTuple.sid);
-
-                                byte[] bytes = SerializationUtils.serialize(remoteTuple);
-
-//                                byte[] bytes;
-//                                if(routeToBytes.containsKey(remoteTuple._route)) {
-//                                    bytes = routeToBytes.get(remoteTuple._route);
-//                                } else {
-//                                    bytes = SerializationUtils.serialize(remoteTuple);
-//                                    routeToBytes.put(remoteTuple._route, bytes);
-//                                }
-
-                                if(remoteTuple!=null)
-                                    continue;
-
-                                _taskidRouteToConnection.get(key).send(remoteTuple._taskId, bytes);
-//                                System.out.println("Sent...");
-//                                LOG.debug("RemoteTuple is sent!");
-                            } else {
-//                                System.err.println("RemoteTuple will be ignored, because we cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
-                            }
-
-                        } else if (message instanceof RemoteSubtaskTerminationToken) {
-                            RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) message;
-                            final String key = remoteSubtaskTerminationToken.taskid + "." + remoteSubtaskTerminationToken.route;
-                            if(_taskidRouteToConnection.containsKey(key)) {
-                                final byte[] bytes = SerializationUtils.serialize(remoteSubtaskTerminationToken);
-                                _taskidRouteToConnection.get(key).send(remoteSubtaskTerminationToken.taskid, bytes);
-                                System.out.println("RemoteSubtaskTerminationToken is sent");
-                            } else {
-//                                System.err.println("RemoteSubtaskTerminationToken does not have a valid taskid and route: " +key);
-                            }
-
-                        } else if (message instanceof RemoteState) {
-                            RemoteState remoteState = (RemoteState) message;
-                            byte[] bytes = SerializationUtils.serialize(remoteState);
-                            IConnection connection = _originalTaskIdToConnection.get(remoteState._taskId);
-                            if(connection != null) {
-                                if(!remoteState.finalized&& !_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
-                                    System.out.println("Remote state is ignored to send, as the state is not finalized ans the original RemoteTaskExecutor does not exist!");
-                                    continue;
+                                    LOG.debug("RemoteTupleExecutorResult is send back!");
+                                } else {
+    //                                System.err.println("RemoteTupleExecuteResult will be ignored, because we cannot find the connection for tasks " + remoteTupleExecuteResult._originalTaskID);
                                 }
-                                connection.send(remoteState._taskId, bytes);
-                                System.out.println("RemoteState is sent back!");
+                            } else if (message instanceof RemoteTuple) {
+
+    //                            LOG.debug("The element is RemoteTuple");
+                                RemoteTuple remoteTuple = (RemoteTuple) message;
+
+
+                                final String key = remoteTuple.taskIdAndRoutePair();
+    //                            LOG.debug("Key :"+key);
+                                if(_taskidRouteToConnection.containsKey(key)) {
+                                      byte[] bytes = tupleSerializer.serialize(remoteTuple._tuple);
+
+                                    TaskMessage taskMessage = new TaskMessage(remoteTuple._taskId + 10000, bytes);
+                                    taskMessage.setRemoteTuple();
+                                    insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _taskidRouteToConnection.get(key), taskMessage);
+
+    //                                System.out.println("Sent...");
+    //                                LOG.debug("RemoteTuple is sent!");
+                                } else {
+    //                                System.err.println("RemoteTuple will be ignored, because we cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
+                                }
+
+                            } else if (message instanceof RemoteSubtaskTerminationToken) {
+                                RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) message;
+                                final String key = remoteSubtaskTerminationToken.taskid + "." + remoteSubtaskTerminationToken.route;
+                                if(_taskidRouteToConnection.containsKey(key)) {
+                                    final byte[] bytes = SerializationUtils.serialize(remoteSubtaskTerminationToken);
+//                                    _taskidRouteToConnection.get(key).send(remoteSubtaskTerminationToken.taskid, bytes);
+                                    TaskMessage taskMessage = new TaskMessage(remoteSubtaskTerminationToken.taskid, bytes);
+                                    insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _taskidRouteToConnection.get(key), taskMessage);
+                                    System.out.println("RemoteSubtaskTerminationToken is sent");
+                                } else {
+    //                                System.err.println("RemoteSubtaskTerminationToken does not have a valid taskid and route: " +key);
+                                }
+
+                            } else if (message instanceof RemoteState) {
+                                RemoteState remoteState = (RemoteState) message;
+                                byte[] bytes = SerializationUtils.serialize(remoteState);
+                                IConnection connection = _originalTaskIdToConnection.get(remoteState._taskId);
+                                if(connection != null) {
+                                    if(!remoteState.finalized&& !_originalTaskIdToRemoteTaskExecutor.containsKey(remoteState._taskId)) {
+                                        System.out.println("Remote state is ignored to send, as the state is not finalized ans the original RemoteTaskExecutor does not exist!");
+                                        continue;
+                                    }
+//                                    connection.send(remoteState._taskId, bytes);
+                                    TaskMessage taskMessage = new TaskMessage(remoteState._taskId, bytes);
+                                    insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, connection, taskMessage);
+
+                                    System.out.println("RemoteState is sent back!");
+                                } else {
+                                    System.err.println("Cannot find the connection for task " + remoteState._state);
+                                    System.out.println("TaskId: " + remoteState._taskId);
+                                    System.out.println("Connections: " + _originalTaskIdToConnection );
+                                }
                             } else {
-                                System.err.println("Cannot find the connection for task " + remoteState._state);
-                                System.out.println("TaskId: " + remoteState._taskId);
-                                System.out.println("Connections: " + _originalTaskIdToConnection );
+                                System.err.print("Unknown element from the sending queue");
                             }
-                        } else {
-                            System.err.print("Unknown element from the sending queue");
+    //                        System.out.println("sent...");
                         }
-//                        System.out.println("sent...");
-                    } catch (InterruptedException e) {
-                        System.out.println("sending thread has been interrupted!");
+                        for(String connectionName: iConnectionNameToTaskMessageArray.keySet()) {
+                            if(!iConnectionNameToTaskMessageArray.get(connectionName).isEmpty()) {
+                                System.out.println("sending to " + connectionName);
+                                connectionNameToIConnection.get(connectionName).send(iConnectionNameToTaskMessageArray.get(connectionName).iterator());
+                                System.out.println("sent " + iConnectionNameToTaskMessageArray.get(connectionName).size() + " Messages to " + connectionName);
+                            }
+                        }
+                        drainer.clear();
+
                     } catch (SerializationException ex) {
                         System.err.println("Serialization Error!");
                         ex.printStackTrace();
@@ -484,11 +509,18 @@ public class ElasticTaskHolder {
                     Iterator<TaskMessage> messageIterator = _inputConnection.recv(0, 0);
 
                     System.out.println("received...");
-                    if(messageIterator!=null)
-                        continue;
+//                    if(messageIterator!=null)
+//                        continue;
                     while(messageIterator.hasNext()) {
                         TaskMessage message = messageIterator.next();
                         int targetTaskId = message.task();
+                        if(message.task() > 10000) {
+                            int taskid = message.task() - 10000;
+                            Tuple remoteTuple = tupleDeserializer.deserialize(message.message());
+                            ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(taskid);
+                            LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
+                            queue.put(remoteTuple);
+                        } else {
                         Object object = SerializationUtils.deserialize(message.message());
                         System.out.println("Received " + object);
                         if(object instanceof RemoteTupleExecuteResult) {
@@ -500,9 +532,9 @@ public class ElasticTaskHolder {
                         } else if (object instanceof RemoteTuple) {
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
-                                System.out.println("A remote tuple " + remoteTuple._taskId + "." + remoteTuple._route + " (sid = " + remoteTuple.sid + ") is received!\n");
+//                                System.out.println("A remote tuple " + remoteTuple._taskId + "." + remoteTuple._route + " (sid = " + remoteTuple.sid + ") is received!\n");
                                 ((TupleImpl)remoteTuple._tuple).setContext(_workerTopologyContext);
-                                ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(remoteTuple._taskId);
+                                ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(message.task());
                                 LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
                                 queue.put(remoteTuple._tuple);
                                 System.out.println("handled!");
@@ -538,6 +570,7 @@ public class ElasticTaskHolder {
                             System.out.println(object);
                         } else {
                             System.err.println("Unexpected Object: " + object);
+                        }
                         }
                         System.out.println("Processed...");
                     }
@@ -812,6 +845,8 @@ public class ElasticTaskHolder {
 
     public void setworkerTopologyContext(WorkerTopologyContext context) {
         _workerTopologyContext = context;
+        tupleDeserializer = new KryoTupleDeserializer(stormConf, context);
+        tupleSerializer = new KryoTupleSerializer(stormConf, context);
     }
 
     public WorkerTopologyContext getWorkerTopologyContext() {

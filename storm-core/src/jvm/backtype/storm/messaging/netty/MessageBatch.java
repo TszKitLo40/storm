@@ -112,6 +112,7 @@ class MessageBatch {
             throw new RuntimeException("Task ID should not exceed "+Short.MAX_VALUE);
         
         bout.writeShort((short)task_id);
+//        bout.writeShort(message.remoteTuple);
         bout.writeInt(payload_len);
         if (payload_len >0)
             bout.write(message.message());

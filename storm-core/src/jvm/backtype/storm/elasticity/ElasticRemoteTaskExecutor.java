@@ -80,9 +80,6 @@ public class ElasticRemoteTaskExecutor {
 
                         Tuple input = _inputQueue.take();
                         
-                        if(input!=null)
-                            continue;
-
                         boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
                         count++;
                         if(count % 10000 == 0) {

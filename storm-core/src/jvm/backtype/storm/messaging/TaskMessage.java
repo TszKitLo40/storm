@@ -17,16 +17,24 @@
  */
 package backtype.storm.messaging;
 
+import org.apache.commons.lang.SerializationUtils;
+
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 public class TaskMessage implements Serializable {
     private int _task;
+    public short remoteTuple = 0;
     private byte[] _message;
 
     public TaskMessage(int task, byte[] message) {
         _task = task;
         _message = message;
+    }
+
+    public TaskMessage(int task, short remoteTuple, byte[] message) {
+        this(task, message);
+        this.remoteTuple = remoteTuple;
     }
 
     public int task() {
@@ -38,8 +46,9 @@ public class TaskMessage implements Serializable {
     }
     
     public ByteBuffer serialize() {
-        ByteBuffer bb = ByteBuffer.allocate(_message.length+2);
+        ByteBuffer bb = ByteBuffer.allocate(_message.length+4);
         bb.putShort((short)_task);
+        bb.putShort(remoteTuple);
         bb.put(_message);
         return bb;
     }
@@ -47,8 +56,30 @@ public class TaskMessage implements Serializable {
     public void deserialize(ByteBuffer packet) {
         if (packet==null) return;
         _task = packet.getShort();
-        _message = new byte[packet.limit()-2];
+        remoteTuple = packet.getShort();
+        _message = new byte[packet.limit()-4];
         packet.get(_message);
+    }
+
+    public void setRemoteTuple() {
+        remoteTuple = 1;
+    }
+
+    public static void main(String[] args) {
+        String content = "Content";
+        TaskMessage taskMessage = new TaskMessage(100, SerializationUtils.serialize(content));
+        taskMessage.setRemoteTuple();
+        ByteBuffer bytes = taskMessage.serialize();
+
+
+
+//        System.out.println("first: " + bytes.getShort(0));
+//        System.out.println("second: " + bytes.getShort(2));
+        TaskMessage taskMessage1 = new TaskMessage(1,null);
+        bytes.position(0);
+        taskMessage1.deserialize(bytes);
+
+        System.out.println(taskMessage.remoteTuple);
     }
 
 }

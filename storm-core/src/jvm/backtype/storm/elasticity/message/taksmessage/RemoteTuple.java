@@ -10,10 +10,10 @@ import backtype.storm.tuple.Tuple;
 public class RemoteTuple implements ITaskMessage {
 
     public int _taskId;
-    public int _route;
+    public transient int _route;
     public Tuple _tuple;
 
-    public long sid;
+//    public long sid;
 
     public RemoteTuple(int taskid, int route, Tuple tuple) {
         _taskId = taskid;

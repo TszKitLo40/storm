@@ -11,11 +11,11 @@ public class Config {
 
     public static int SubtaskInputQueueCapacity = 64;
 
-    public static int ResultQueueCapacity = 1024*16;
+    public static int ResultQueueCapacity = 1024;
 
-    public static int RemoteExecutorInputQueueCapacity = 1024*16;
+    public static int RemoteExecutorInputQueueCapacity = 1024;
 
-    public static int ElasticTaskHolderOutputQueueCapacity = 1024*16;
+    public static int ElasticTaskHolderOutputQueueCapacity = 1024;
 
     public static int StateCheckPointingCycleInSecs = 10;
 
