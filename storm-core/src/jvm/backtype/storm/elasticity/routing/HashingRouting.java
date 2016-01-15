@@ -1,5 +1,6 @@
 package backtype.storm.elasticity.routing;
 
+import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlidingWindowRouteSampler;
 import com.google.common.hash.HashFunction;
@@ -14,9 +15,10 @@ public class HashingRouting implements RoutingTable {
 
     private int numberOfRoutes;
 
-    HashFunction hashFunction;
 
     SlidingWindowRouteSampler sampler;
+
+    GlobalHashFunction hashFunction;
 
 
     /**
@@ -25,14 +27,12 @@ public class HashingRouting implements RoutingTable {
      */
     public HashingRouting(int nRoutes) {
         numberOfRoutes = nRoutes;
-        hashFunction = Hashing.murmur3_32();
+        hashFunction = new GlobalHashFunction();
     }
 
     public HashingRouting(HashingRouting hashingRouting) {
         numberOfRoutes = hashingRouting.numberOfRoutes;
-        hashFunction = Hashing.murmur3_32();
-
-
+        this.hashFunction = hashingRouting.hashFunction;
     }
 
     /**
@@ -46,9 +46,10 @@ public class HashingRouting implements RoutingTable {
 //            final int hashvalue = hashFunction.hashString(key.toString()).asInt();
 //            return Math.abs(hashvalue%(numberOfRoutes + 1)) - 1;
 //        } else {
-            final int hashValue = key.hashCode();
+//            final int hashValue =hashFunction.hash(key);
 
-            final int ret = Math.abs((hashValue*1171+5843))%9973%(numberOfRoutes);
+//            final int ret = Math.abs((hashValue*1171+5843))%9973%(numberOfRoutes);
+        final int ret = hashFunction.hash(key);
         if(sampler!=null)
             sampler.record(ret);
 
