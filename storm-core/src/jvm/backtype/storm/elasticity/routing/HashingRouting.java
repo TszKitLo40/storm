@@ -49,7 +49,7 @@ public class HashingRouting implements RoutingTable {
 //            final int hashValue =hashFunction.hash(key);
 
 //            final int ret = Math.abs((hashValue*1171+5843))%9973%(numberOfRoutes);
-        final int ret = hashFunction.hash(key);
+        final int ret = hashFunction.hash(key) % numberOfRoutes;
         if(sampler!=null)
             sampler.record(ret);
 
