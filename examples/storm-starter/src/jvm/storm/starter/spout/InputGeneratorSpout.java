@@ -22,6 +22,7 @@ public class InputGeneratorSpout extends BaseRichSpout {
     int numberOfDistinctString;
     SpoutOutputCollector outputCollector;
     transient Random random;
+    long currentValue;
 
     public InputGeneratorSpout(int numberOfDistinctString) {
         this.numberOfDistinctString = numberOfDistinctString;
@@ -38,11 +39,13 @@ public class InputGeneratorSpout extends BaseRichSpout {
         stringGenerator = new StringGenerator(numberOfDistinctString);
         random = new Random();
         outputCollector = collector;
+        currentValue = 0;
     }
 
     @Override
     public void nextTuple() {
-        Utils.sleep(10);
-        outputCollector.emit(new Values((long)random.nextInt(numberOfDistinctString), System.currentTimeMillis()));
+        Utils.sleep(1);
+        outputCollector.emit(new Values(currentValue, System.currentTimeMillis()));
+        currentValue = (currentValue + 1) % numberOfDistinctString;
     }
 }

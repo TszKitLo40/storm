@@ -16,7 +16,7 @@ public class HashingRouting implements RoutingTable {
     private int numberOfRoutes;
 
 
-    SlidingWindowRouteSampler sampler;
+    transient SlidingWindowRouteSampler sampler;
 
     GlobalHashFunction hashFunction;
 

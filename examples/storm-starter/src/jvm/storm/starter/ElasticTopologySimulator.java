@@ -70,6 +70,9 @@ public class ElasticTopologySimulator {
                 count = 0L;
             count++;
             setValueByKey(key,count);
+            if(new Random().nextFloat()<0.01) {
+                System.out.println("latency = " + (System.currentTimeMillis() - tuple.getLong(1)));
+            }
             collector.emit(tuple, new Values(key, count, tuple.getLong(1)));
         }
 
@@ -152,7 +155,7 @@ public class ElasticTopologySimulator {
         builder.setSpout("spout", new InputGeneratorSpout(8*1024), 2);
 
         builder.setBolt("count", new ElasticBolt(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("key"));
-        builder.setBolt("FinishingBolt", new FinishingBolt(),1).globalGrouping("count");
+//        builder.setBolt("FinishingBolt", new FinishingBolt(),1).globalGrouping("count");
 
         Config conf = new Config();
         if(args.length>2&&args[2].equals("debug"))

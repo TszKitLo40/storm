@@ -410,6 +410,10 @@ public class Slave extends UntypedActor {
         return _logicalName;
     }
 
+    public String getName() {
+        return _name;
+    }
+
     public String getIp() { return _ip;}
 
 }

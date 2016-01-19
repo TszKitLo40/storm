@@ -139,7 +139,7 @@ public class ElasticTaskHolder {
     public void registerElasticBolt(BaseElasticBoltExecutor bolt, int taskId) {
         _bolts.put(taskId, bolt);
         _slaveActor.registerOriginalElasticTaskToMaster(taskId);
-        createQueueUtilizationMonitoringThread(_sendingQueue, "Sending Queue", Config.ElasticTaskHolderOutputQueueCapacity, 0.9, 0.1);
+        createQueueUtilizationMonitoringThread(_sendingQueue, "Sending Queue", Config.ElasticTaskHolderOutputQueueCapacity, 0.9, null);
         LOG.info("A new ElasticTask is registered." + taskId);
     }
 
@@ -283,7 +283,7 @@ public class ElasticTaskHolder {
                         ArrayList<ITaskMessage> drainer = new ArrayList<>();
                         ITaskMessage firstMessage = _sendingQueue.take();
                         drainer.add(firstMessage);
-                        _sendingQueue.drainTo(drainer,512);
+                        _sendingQueue.drainTo(drainer,256);
 
                         for(ITaskMessage message: drainer) {
     //                        System.out.println("sending...");
@@ -1045,6 +1045,7 @@ public class ElasticTaskHolder {
 
     public void migrateSubtask(String targetHost, int taskId, int routeId)  throws InvalidRouteException, RoutingTypeNotSupportedException, HostNotExistException, TaskNotExistingException {
         String workerLogicalName = _slaveActor.getLogicalName();
+        String workerName = _slaveActor.getName();
         if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
             if(!workerLogicalName.equals(targetHost)) {
                 _slaveActor.sendMessageToMaster("Migration from local to remote!");
@@ -1054,7 +1055,7 @@ public class ElasticTaskHolder {
             else
                 throw new RuntimeException("Cannot migrate " + taskId + "." + routeId + " on " + targetHost + ", because the subtask is already running on the host!");
         } else {
-            if(workerLogicalName.equals(targetHost)) {
+            if(workerName.equals(targetHost)) {
                 _slaveActor.sendMessageToMaster("Migration from remote to local!");
                 withdrawRemoteElasticTasks(taskId,routeId);
 
