@@ -9,6 +9,7 @@ import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.exceptions.TaskNotExistingException;
+import backtype.storm.elasticity.message.actormessage.TestAliveMessage;
 import backtype.storm.elasticity.message.taksmessage.*;
 import backtype.storm.elasticity.networking.MyContext;
 import backtype.storm.elasticity.resource.ResourceMonitor;
@@ -20,7 +21,6 @@ import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.timer.SmartTimer;
-import backtype.storm.elasticity.utils.timer.SubtaskMigrationTimer;
 import backtype.storm.elasticity.utils.timer.SubtaskWithdrawTimer;
 import backtype.storm.generated.HostNotExistException;
 import backtype.storm.messaging.IConnection;
@@ -155,23 +155,25 @@ public class ElasticTaskHolder {
         }
 
         try {
-        System.out.println("Add exceptions to the routing table...");
-        /* set exceptions for existing routing table and get the complement routing table */
-        PartialHashingRouting complementHashingRouting = _bolts.get(taskid).get_elasticTasks().addExceptionForHashRouting(route, _sendingQueue);
+//            System.out.println("Add exceptions to the routing table...");
+            /* set exceptions for existing routing table and get the complement routing table */
+            PartialHashingRouting complementHashingRouting = _bolts.get(taskid).get_elasticTasks().addExceptionForHashRouting(route, _sendingQueue);
+            _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("Rerouting"));
+            SmartTimer.getInstance().stop("SubtaskMigrate", "rerouting 1");
+            SmartTimer.getInstance().start("SubtaskMigrate", "state construction");
+    //        if(complementHashingRouting==null) {
+    //            return null;
+    //        }
 
-//        if(complementHashingRouting==null) {
-//            return null;
-//        }
+            System.out.println("Constructing the instance of ElasticTask for remote execution...");
+            /* construct the instance of ElasticTasks to be executed remotely */
+            ElasticTasks existingElasticTasks = _bolts.get(taskid).get_elasticTasks();
+            ElasticTasks remoteElasticTasks = new ElasticTasks(existingElasticTasks.get_bolt(),existingElasticTasks.get_taskID());
+            remoteElasticTasks.set_routingTable(complementHashingRouting);
 
-        System.out.println("Constructing the instance of ElasticTask for remote execution...");
-        /* construct the instance of ElasticTasks to be executed remotely */
-        ElasticTasks existingElasticTasks = _bolts.get(taskid).get_elasticTasks();
-        ElasticTasks remoteElasticTasks = new ElasticTasks(existingElasticTasks.get_bolt(),existingElasticTasks.get_taskID());
-        remoteElasticTasks.set_routingTable(complementHashingRouting);
-
-        System.out.println("Packing the involved state...");
-        long start = System.currentTimeMillis();
-        KeyValueState existingState = existingElasticTasks.get_bolt().getState();
+            System.out.println("Packing the involved state...");
+            long start = System.currentTimeMillis();
+            KeyValueState existingState = existingElasticTasks.get_bolt().getState();
 
 
             KeyValueState state = new KeyValueState();
@@ -186,7 +188,8 @@ public class ElasticTaskHolder {
                 }
 //                System.out.println("<----");
             }
-        sendMessageToMaster((System.currentTimeMillis() - start) + "ms to prepare the state to migrate!");
+
+            sendMessageToMaster((System.currentTimeMillis() - start) + "ms to prepare the state to migrate!");
             System.out.println("State for migration is ready!");
             sendMessageToMaster("State is ready for migration!");
             return new ElasticTaskMigrationMessage(remoteElasticTasks, _port, state);
@@ -512,16 +515,21 @@ public class ElasticTaskHolder {
 //                    if(messageIterator!=null)
 //                        continue;
                     while(messageIterator.hasNext()) {
+                        System.out.println("Breakpoint 1");
                         TaskMessage message = messageIterator.next();
                         int targetTaskId = message.task();
                         if(message.task() > 10000) {
+                            System.out.println("Breakpoint 2");
                             int taskid = message.task() - 10000;
                             Tuple remoteTuple = tupleDeserializer.deserialize(message.message());
                             ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(taskid);
                             LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
                             queue.put(remoteTuple);
+                            System.out.println("Breakpoint 3");
                         } else {
+                            System.out.println("Breakpoint 4");
                         Object object = SerializationUtils.deserialize(message.message());
+                            System.out.println("Breakpoint 5");
                         System.out.println("Received " + object);
                         if(object instanceof RemoteTupleExecuteResult) {
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
@@ -746,7 +754,7 @@ public class ElasticTaskHolder {
 
     }
 
-    public void withdrawRemoteElasticTasks(int taskid, int route) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException {
+    public void withdrawRemoteElasticTasks(int taskid, int route) throws TaskNotExistingException, RoutingTypeNotSupportedException, InvalidRouteException, HostNotExistException {
         SubtaskWithdrawTimer.getInstance().start();
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException(taskid);
@@ -785,7 +793,10 @@ public class ElasticTaskHolder {
             _slaveActor.sendMessageToMaster("Remote " + taskid + "." + route + "has been withdrawn!");
             SubtaskWithdrawTimer.getInstance().terminated();
             _slaveActor.sendMessageToMaster(SubtaskWithdrawTimer.getInstance().toString());
+            String originalHost = routeIdToRemoteHost.get(new RouteId(taskid, route));
             routeIdToRemoteHost.remove(new RouteId(taskid, route));
+            _slaveActor.sendMessageToNode(originalHost, new TestAliveMessage("Alive after withdraw!"));
+
         } catch (InterruptedException e ) {
             e.printStackTrace();
         }
@@ -880,6 +891,7 @@ public class ElasticTaskHolder {
         SmartTimer.getInstance().start("ShardReassignment","total");
         SmartTimer.getInstance().start("ShardReassignment","prepare");
 
+
         if(!_bolts.containsKey(taskid)) {
             throw new TaskNotExistingException("Task " + taskid + " does not exist balls the ElasticHolder!");
         }
@@ -920,6 +932,8 @@ public class ElasticTaskHolder {
         else
             targetHost = "local";
 
+        sendMessageToMaster("From + " + originalHost + " to " + targetHost);
+
         SmartTimer.getInstance().stop("ShardReassignment", "prepare");
 
         // Update the routing table on the target subtask
@@ -940,13 +954,9 @@ public class ElasticTaskHolder {
         handleBucketToRouteReassignment(reassignment);
 
         // Update the routing table on the source
-            int ran = new Random().nextInt();
         if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
-            sendMessageToMaster("BucketToRouteReassignment is sent to the original Host " + ran);
+            sendMessageToMaster("BucketToRouteReassignment is sent to the original Host ");
             _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
-            for(int i=0; i< 10000; i++) {
-                _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize("-_- " + ran + " seq:" + i));
-            }
         }
         SmartTimer.getInstance().stop("ShardReassignment", "rerouting");
         SmartTimer.getInstance().start("ShardReassignment","state migration");
@@ -959,9 +969,6 @@ public class ElasticTaskHolder {
                 StateFlushToken stateFlushToken = new StateFlushToken(taskid, orignalRoute, filter);
                 _taskidRouteToConnection.get(taskid+ "." + orignalRoute).send(taskid, SerializationUtils.serialize(stateFlushToken));
                 _slaveActor.sendMessageToMaster("State Flush Token has been sent to " + originalHost);
-                for(int i=0; i< 10000; i++) {
-                    _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize("^_^ " + ran + " seq:" + i));
-                }
                 _taskidRouteToStateWaitingSemaphore.put(taskid+ "." + orignalRoute, new Semaphore(0));
                 try {
                     _slaveActor.sendMessageToMaster("Waiting for remote state!");
@@ -993,6 +1000,7 @@ public class ElasticTaskHolder {
         System.out.println("Resumed!");
         SmartTimer.getInstance().stop("ShardReassignment", "total"); 
         _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("ShardReassignment"));
+
 
     }
 
@@ -1048,8 +1056,9 @@ public class ElasticTaskHolder {
         String workerName = _slaveActor.getName();
         if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
             if(!workerLogicalName.equals(targetHost)) {
-                _slaveActor.sendMessageToMaster("Migration from local to remote!");
+                _slaveActor.sendMessageToMaster("========== Migration from local to remote =========");
                 migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
+                _slaveActor.sendMessageToMaster("====================== E N D ======================");
 
             }
             else
@@ -1070,25 +1079,37 @@ public class ElasticTaskHolder {
                 System.out.println("===Migrate End===");
             }
         }
+
     }
       
     public void migrateSubtaskToRemoteHost(String targetHost, int taskId, int routeId) throws InvalidRouteException, RoutingTypeNotSupportedException, HostNotExistException {
-
+        _slaveActor.sendMessageToNode(targetHost, new TestAliveMessage("at the beginning of migrateSubtaskToRemoteHost. "));
+        SmartTimer.getInstance().start("SubtaskMigrate", "rerouting 1");
         ElasticTaskMigrationMessage migrationMessage = ElasticTaskHolder.instance().generateRemoteElasticTasks(taskId, routeId);
-        Map<Object, Object> state = migrationMessage.state;
+        SmartTimer.getInstance().stop("SubtaskMigrate", "state construction");
+        SmartTimer.getInstance().start("SubtaskMigrate", "state migration");
 //        migrationMessage.state = new HashMap<>();
-        SubtaskMigrationTimer.instance().prepare();
         routeIdToRemoteHost.put(new RouteId(taskId, routeId), targetHost);
         System.out.println("Sending the ElasticTaskMigrationMessage to " + targetHost);
-        sendMessageToMaster("Serialization size: " + SerializationUtils.serialize(migrationMessage).length);
+        sendMessageToMaster("State contains " + migrationMessage.state.keySet().size() + " elements.");
+//        sendMessageToMaster("Serialization size: " + SerializationUtils.serialize(migrationMessage).length);
+//        _slaveActor.sendMessageToNode(targetHost, new TestAliveMessage("Before sending..."));
+//        Utils.sleep(10);
+//        migrationMessage.id = new Random().nextInt();
+//        sendMessageToMaster("Migration Message Id = " + migrationMessage.id);
         ElasticTaskMigrationConfirmMessage confirmMessage = (ElasticTaskMigrationConfirmMessage) _slaveActor.sendMessageToNodeAndWaitForResponse(targetHost, migrationMessage);
+        SmartTimer.getInstance().stop("SubtaskMigrate", "state migration");
+        SmartTimer.getInstance().start("SubtaskMigrate", "reconnect");
         System.out.println("Received ElasticTaskMigrationConfirmMessage!");
         if(confirmMessage != null)
             handleElasticTaskMigrationConfirmMessage(confirmMessage);
         else {
             sendMessageToMaster("Waiting for confirm message time out!");
         }
-        RemoteState remoteState = new RemoteState(taskId, state, routeId);
+//        RemoteState remoteState = new RemoteState(taskId, state, routeId);
+        SmartTimer.getInstance().stop("SubtaskMigrate", "reconnect");
+        sendMessageToMaster(SmartTimer.getInstance().getTimerString("SubtaskMigrate"));
+        _slaveActor.sendMessageToNode(targetHost, new TestAliveMessage("local to remote migration completes!"));
 //        _taskidRouteToConnection.get(taskId + "." + routeId).send(taskId, SerializationUtils.serialize(remoteState));
     }
 
@@ -1102,9 +1123,7 @@ public class ElasticTaskHolder {
         for(int i: confirmMessage._routes) {
             establishConnectionToRemoteTaskHolder(taskId, i, ip, port);
         }
-        SubtaskMigrationTimer.instance().launched();
         sendMessageToMaster("Task Migration completes!");
-        sendMessageToMaster(SubtaskMigrationTimer.instance().toString());
     }
 
 

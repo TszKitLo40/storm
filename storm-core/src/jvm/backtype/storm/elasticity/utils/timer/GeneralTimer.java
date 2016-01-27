@@ -28,10 +28,12 @@ public class GeneralTimer {
 
     public String toString() {
         String ret = "";
+        long sum = 0;
         for(String e: eventTimers.keySet()) {
             ret += e +": " + eventTimers.get(e).getDuration() +"  ";
-
+            sum += eventTimers.get(e).getDuration();
         }
+        ret += "total: " + sum;
         return ret;
     }
 

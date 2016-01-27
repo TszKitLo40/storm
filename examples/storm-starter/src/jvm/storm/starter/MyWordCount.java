@@ -162,6 +162,11 @@ public class MyWordCount {
             declarer.declare(new Fields("word", "count"));
         }
 
+        @Override
+        public void prepare(Map stormConf, TopologyContext context) {
+            declareStatefulOperator();
+        }
+
 
         @Override
         public void cleanup(){

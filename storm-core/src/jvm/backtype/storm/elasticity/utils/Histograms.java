@@ -1,7 +1,5 @@
 package backtype.storm.elasticity.utils;
 
-import backtype.storm.utils.Utils;
-import scala.Array;
 
 import java.io.Serializable;
 import java.util.*;

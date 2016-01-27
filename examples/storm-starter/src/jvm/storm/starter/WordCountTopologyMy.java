@@ -23,6 +23,7 @@ import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
 import backtype.storm.task.ShellBolt;
+import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.TopologyBuilder;
@@ -74,7 +75,12 @@ public class WordCountTopologyMy {
       declarer.declare(new Fields("word", "count"));
     }
 
-    @Override
+      @Override
+      public void prepare(Map stormConf, TopologyContext context) {
+          declareStatefulOperator();
+      }
+
+      @Override
     public Object getKey(Tuple tuple) {
       return tuple.getString(0);
     }

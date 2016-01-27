@@ -9,7 +9,7 @@ import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.message.actormessage.*;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.utils.Histograms;
-import backtype.storm.elasticity.utils.timer.SubtaskMigrationTimer;
+import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
 import com.typesafe.config.Config;
@@ -166,7 +166,7 @@ public class Slave extends UntypedActor {
                 handleTaskMigrationCommandMessage(taskMigrationCommand);
                 getSender().tell("Task Migration finishes!", getSelf());
             } else if (message instanceof ElasticTaskMigrationMessage) {
-                sendMessageToMaster("Received Migration Message!!!!");
+//                sendMessageToMaster("Received Migration Message!!!!"+ ((ElasticTaskMigrationMessage) message).id);
                 handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
             } else if (message instanceof RoutingCreatingCommand) {
                 RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
@@ -207,7 +207,9 @@ public class Slave extends UntypedActor {
                 _logicalName = responseMessage.toString();
                 _ip = responseMessage.ip;
                 connectToMasterThriftServer(responseMessage.masterIp, 9090);
-            } else {
+            } else if (message instanceof TestAliveMessage) {
+                sendMessageToMaster("Alive: " + ((TestAliveMessage) message).msg);
+            } else  {
                 System.out.println("[Elastic]: Unknown message.");
                 unhandled(message);
             }
@@ -290,7 +292,6 @@ public class Slave extends UntypedActor {
     }
 
     private void handleTaskMigrationCommandMessage(TaskMigrationCommand taskMigrationCommand) {
-        SubtaskMigrationTimer.instance().start();
 
         if(!_nameToPath.containsKey(taskMigrationCommand._targetHostName)) {
             System.out.println("[Elastic]:target host "+ taskMigrationCommand._targetHostName+" does not exist!");
@@ -312,12 +313,15 @@ public class Slave extends UntypedActor {
     }
 
     private void handleElasticTaskMigrationMessage(ElasticTaskMigrationMessage elasticTaskMigrationMessage) {
-        System.out.println("[Elastic]: received elastic mask migration message from"+getSender());
+        System.out.println("[Elastic]: received elastic mask migration message from" + getSender());
+        SmartTimer.getInstance().start("SubtaskMigrateTarget", "launch");
         ElasticTaskMigrationConfirmMessage confirmMessage = ElasticTaskHolder.instance().handleGuestElasticTasks(addIpInfo(elasticTaskMigrationMessage,getSender().path().toString()));
 
 //        registerRoutesOnMaster(elasticTaskMigrationMessage._elasticTask.get_taskID(), elasticTaskMigrationMessage._elasticTask.get_routingTable().getRoutes());
 
         if(confirmMessage!=null) {
+            SmartTimer.getInstance().stop("SubtaskMigrateTarget", "launch");
+            sendMessageToMaster(SmartTimer.getInstance().getTimerString("SubtaskMigrateTarget"));
             getSender().tell(confirmMessage, getSelf());
             sendMessageToMaster("I have handled the mask migration message");
         } else {
@@ -348,6 +352,7 @@ public class Slave extends UntypedActor {
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + InetAddress.getLocalHost().getHostAddress()))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                     .withFallback(ConfigFactory.load());
             ActorSystem system = ActorSystem.create("ClusterSystem", config); 
             system.actorOf(Props.create(Slave.class, name, port), "slave");

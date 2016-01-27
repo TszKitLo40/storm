@@ -2,12 +2,15 @@ package storm.starter.bolt;
 
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
+import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 import storm.starter.WordCountTopologyElastic;
 import storm.starter.util.ComputationSimulator;
+
+import java.util.Map;
 
 /**
  * Created by robert on 1/8/16.
@@ -38,6 +41,11 @@ public class ElasticSimulatorBolt extends BaseElasticBolt{
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         declarer.declare(new Fields("word", "count"));
+    }
+
+    @Override
+    public void prepare(Map stormConf, TopologyContext context) {
+        declareStatefulOperator();
     }
 
     @Override

@@ -5,6 +5,7 @@ import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
 import backtype.storm.elasticity.ElasticTaskHolder;
+import backtype.storm.elasticity.state.KeyValueState;
 import backtype.storm.task.ShellBolt;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.BasicOutputCollector;
@@ -56,24 +57,58 @@ public class ElasticTopologySimulator {
     public static class ElasticBolt extends BaseElasticBolt {
 
         int computationCostPerTupleInNanoseconds;
+        int warmupTimeInSeconds;
+        long startTime;
+        int payloadSize;
+
+        public ElasticBolt(int computationCostPerTupleInNanoseconds, int payloadSize, int warmupTimeInSeconds) {
+            this.computationCostPerTupleInNanoseconds = computationCostPerTupleInNanoseconds;
+            this.payloadSize = payloadSize;
+            this.warmupTimeInSeconds = warmupTimeInSeconds;
+        }
+
+        public ElasticBolt(int computationCostPerTupleInNanoseconds, int warmupInSeconds) {
+            this(computationCostPerTupleInNanoseconds, 0 , warmupInSeconds);
+        }
 
         public ElasticBolt(int computationCostPerTupleInNanoseconds) {
-            this.computationCostPerTupleInNanoseconds = computationCostPerTupleInNanoseconds;
+            this(computationCostPerTupleInNanoseconds, 0);
         }
 
         @Override
+        public void prepare(Map stormConf, TopologyContext context) {
+            declareStatefulOperator();
+            startTime = System.currentTimeMillis();
+        };
+
+        @Override
         public void execute(Tuple tuple, ElasticOutputCollector collector) {
-            ComputationSimulator.compute(computationCostPerTupleInNanoseconds);
+
+            if(System.currentTimeMillis() - startTime >= warmupTimeInSeconds * 1000)
+                ComputationSimulator.compute(computationCostPerTupleInNanoseconds);
+
             Long key = tuple.getLong(0);
-            Long count = (Long)getValueByKey(key);
-            if (count == null)
-                count = 0L;
-            count++;
-            setValueByKey(key,count);
-            if(new Random().nextFloat()<0.01) {
-                System.out.println("latency = " + (System.currentTimeMillis() - tuple.getLong(1)));
+            Object[] value = (Object[])getValueByKey(key);
+            if (value == null) {
+                value = new Object[2];
+                value[0] = 0L;
+                if(payloadSize>0)
+                    value[1] = new byte[payloadSize];
             }
-            collector.emit(tuple, new Values(key, count, tuple.getLong(1)));
+            value[0] = (long)value[0] +1;
+            setValueByKey(key, value);
+
+            collector.emit(tuple, new Values(key, value[0], tuple.getLong(1)));
+
+
+
+//            Long count = (Long)getValueByKey(key);
+//            if (count == null)
+//                count = 0L;
+//            count++;
+//            setValueByKey(key,count);
+//
+//            collector.emit(tuple, new Values(key, count, tuple.getLong(1)));
         }
 
         @Override
@@ -100,27 +135,27 @@ public class ElasticTopologySimulator {
             latencyCount = new AtomicLong(0);
             latencySum = new AtomicLong(0);
             final Integer taskId = context.getThisTaskId();
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        DecimalFormat format = new DecimalFormat("####.#######");
-                        while(true) {
-                            Thread.sleep(1000);
-                            double averageLatency = 0;
-                            if(latencyCount.get()!=0) {
-                                averageLatency = (double)latencySum.get()/latencyCount.get();
-                            }
-
-                            ElasticTaskHolder.instance().sendMessageToMaster("Task " + taskId + ": " + format.format(averageLatency) + " ms" + " (" + latencyCount.get() + " tuples evaluated)");
-                            latencySum.set(0);
-                            latencyCount.set(0);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            }).start();
+//            new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    try {
+//                        DecimalFormat format = new DecimalFormat("####.#######");
+//                        while(true) {
+//                            Thread.sleep(1000);
+//                            double averageLatency = 0;
+//                            if(latencyCount.get()!=0) {
+//                                averageLatency = (double)latencySum.get()/latencyCount.get();
+//                            }
+//
+//                            ElasticTaskHolder.instance().sendMessageToMaster("Task " + taskId + ": " + format.format(averageLatency) + " ms" + " (" + latencyCount.get() + " tuples evaluated)");
+//                            latencySum.set(0);
+//                            latencyCount.set(0);
+//                        }
+//                    } catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//                }
+//            }).start();
             random = new Random();
 
         }
@@ -146,20 +181,27 @@ public class ElasticTopologySimulator {
 
     public static void main(String[] args) throws Exception {
 
-        if(args.length == 0) {
-            System.out.println("args: topology-name sleep-time-in-millis [debug|any other]");
+        if(args.length != 5) {
+            System.out.println("args: topology-name state-size-in-KB sleep-time-in-microseconds value-layload-size warm-up-time-in-seconds");
+            System.out.println("Please correct the arguments and try again!");
+            return;
         }
+
+        final int numberOfDistinctCount = Integer.parseInt(args[1])*1024;
+        final int computationTimePerTupleInNanoSeconds = Integer.parseInt(args[2]) * 1000;
+        final int payloadSize = Integer.parseInt(args[3]);
+        final int warmUpTimeInSeconds = Integer.parseInt(args[4]);
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new InputGeneratorSpout(8*1024), 2);
+        builder.setSpout("spout", new InputGeneratorSpout(numberOfDistinctCount, warmUpTimeInSeconds), 2);
 
-        builder.setBolt("count", new ElasticBolt(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("key"));
-//        builder.setBolt("FinishingBolt", new FinishingBolt(),1).globalGrouping("count");
+        builder.setBolt("count", new ElasticBolt(computationTimePerTupleInNanoSeconds, payloadSize, warmUpTimeInSeconds), 1).fieldsGrouping("spout", new Fields("key"));
+        builder.setBolt("FinishingBolt", new FinishingBolt(),1).globalGrouping("count");
 
         Config conf = new Config();
-        if(args.length>2&&args[2].equals("debug"))
-            conf.setDebug(true);
+//        if(args.length>2&&args[2].equals("debug"))
+//            conf.setDebug(true);
 
         if (args != null && args.length > 0) {
             conf.setNumWorkers(8);

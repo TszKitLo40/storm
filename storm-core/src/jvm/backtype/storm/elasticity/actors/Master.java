@@ -193,9 +193,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             log("message received: " + message);
         } else if (message instanceof LogMessage) {
             LogMessage logMessage = (LogMessage) message;
-            DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
             //get current date time with Date()
-            Date date = new Date();
             log(getWorkerLogicalName(logMessage.host), logMessage.msg);
 //            System.out.println(dateFormat.format(date)+"[" + getWorkerLogicalName(logMessage.host) + "] "+ logMessage.msg);
         } else if (message instanceof WorkerCPULoad) {
@@ -205,9 +203,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     void log(String logger, String content) {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+        DateFormat dateFormat = new SimpleDateFormat("yy/MM/dd HH:mm:ss.SSS");
         Date date = new Date();
-        System.out.println(dateFormat.format(date)+ "[" + logger + "] " + content);
+        System.out.println(dateFormat.format(date)+ " [" + logger + "]: " + content);
     }
 
     void log(String content) {
@@ -360,9 +358,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
         ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
         final Inbox inbox = Inbox.create(getContext().system());
 
+        System.out.println("\n======================= BEGIN SHARD REASSIGNMENT =======================");
+
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
         inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
 
+        System.out.println("======================= End SHARD REASSIGNMENT =======================\n");
 //        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
     }
 

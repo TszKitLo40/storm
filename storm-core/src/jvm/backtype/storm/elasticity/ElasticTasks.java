@@ -8,6 +8,7 @@ import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
 import backtype.storm.elasticity.routing.*;
 import backtype.storm.elasticity.utils.KeyFrequencySampler;
+import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.tuple.Tuple;
 
 import java.io.Serializable;
@@ -251,7 +252,6 @@ public class ElasticTasks implements Serializable {
      * @return a PartialHashRouting that routes the excepted routes
      */
     public synchronized PartialHashingRouting addExceptionForHashRouting(ArrayList<Integer> list, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
-        System.out.println("The entrance of addExceptionForHashRouting");
         if((!(_routingTable instanceof HashingRouting))&&(!(_routingTable instanceof BalancedHashRouting))&&(!(_routingTable instanceof PartialHashingRouting))) {
             throw new RoutingTypeNotSupportedException("cannot set Exception for non-hash routing: " + _routingTable.getClass().toString());
 //            System.err.println("cannot set Exception for non-hash routing");
@@ -264,37 +264,32 @@ public class ElasticTasks implements Serializable {
 //                return null;
             }
         }
-
         _remoteTupleQueue = exceptedRoutingQueue;
 
 //        HashingRouting routing = (HashingRouting)_routingTable;
         if(!(_routingTable instanceof PartialHashingRouting)) {
             _routingTable = new PartialHashingRouting(_routingTable);
         }
-
-        System.out.println("Original Routing (Before adding exception): getRoutes:" +get_routingTable().getRoutes());
+//        System.out.println("Original Routing (Before adding exception): getRoutes:" +get_routingTable().getRoutes());
         ((PartialHashingRouting)_routingTable).addExceptionRoutes(list);
-
         for(int i: list) {
-            System.out.println("Terminating the thread for route " + i);
+//            System.out.println("Terminating the thread for route " + i);
             terminateGivenQuery(i);
         }
-        System.out.println("Original Routing (After adding exception): getRoutes:" +get_routingTable().getRoutes());
+//        System.out.println("Original Routing (After adding exception): getRoutes:" +get_routingTable().getRoutes());
         PartialHashingRouting ret = ((PartialHashingRouting)_routingTable).createComplementRouting();
-        System.out.println("Complement Routing: getRoutes:" + ret.getRoutes());
+//        System.out.println("Complement Routing: getRoutes:" + ret.getRoutes());
         ret.invalidAllRoutes();
         ret.addValidRoutes(list);
-        System.out.println("Complement Routing: getRoutes:" +ret.getRoutes());
+//        System.out.println("Complement Routing: getRoutes:" +ret.getRoutes());
 
-        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
-
+//        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
         return ret;
     }
 
     public PartialHashingRouting addExceptionForHashRouting(int r, LinkedBlockingQueue<ITaskMessage> exceptedRoutingQueue) throws InvalidRouteException, RoutingTypeNotSupportedException {
         ArrayList<Integer> list = new ArrayList<>();
         list.add(r);
-        System.out.println("before calling addExceptionForHashRouting...");
         return addExceptionForHashRouting(list, exceptedRoutingQueue);
     }
 

@@ -18,6 +18,7 @@ public class ElasticTaskMigrationMessage implements IMessage {
 
     public Map<Object, Object> state;
 
+
     public ElasticTaskMigrationMessage(ElasticTasks task, int port, KeyValueState s) {
         _elasticTask = task;
 //        _ip = ip;
@@ -28,4 +29,6 @@ public class ElasticTaskMigrationMessage implements IMessage {
     public String getString() {
         return "source: "+_ip+":"+_port+" task id: "+_elasticTask.get_taskID();
     }
+
+
 }

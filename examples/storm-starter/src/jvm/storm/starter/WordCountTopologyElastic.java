@@ -73,6 +73,11 @@ public class WordCountTopologyElastic {
         }
 
         @Override
+        public void prepare(Map stormConf, TopologyContext context) {
+            declareStatefulOperator();
+        }
+
+        @Override
         public Object getKey(Tuple tuple) {
             return tuple.getString(0);
         }

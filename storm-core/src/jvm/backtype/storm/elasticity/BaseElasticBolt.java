@@ -29,8 +29,14 @@ public abstract class BaseElasticBolt implements Serializable {
     public abstract void declareOutputFields(OutputFieldsDeclarer declarer);
 
     public void prepare(Map stormConf, TopologyContext context) {
-        state = new KeyValueState();
+        declareStatefulOperator();
     };
+
+//    public abstract void prepare(Map stormConf, TopologyContext context);
+
+    public void declareStatefulOperator() {
+        state = new KeyValueState();
+    }
 
     public void cleanup() {
 
