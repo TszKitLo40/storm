@@ -12,7 +12,7 @@ import java.util.*;
 /**
  * Created by robert on 11/26/15.
  */
-public class BalancedHashRouting implements RoutingTable {
+public class BalancedHashRouting implements RoutingTable, ScalableRouting {
 
     GlobalHashFunction hashFunction = GlobalHashFunction.getInstance();
 
@@ -56,12 +56,12 @@ public class BalancedHashRouting implements RoutingTable {
     }
 
     @Override
-    public int getNumberOfRoutes() {
+    public synchronized int getNumberOfRoutes() {
         return numberOfRoutes;
     }
 
     @Override
-    public ArrayList<Integer> getRoutes() {
+    public synchronized ArrayList<Integer> getRoutes() {
         ArrayList<Integer> ret = new ArrayList<>();
         for(int i=0; i<numberOfRoutes; i++) {
             ret.add(i);
@@ -88,7 +88,7 @@ public class BalancedHashRouting implements RoutingTable {
         hashValueToRoute.put(bucketid, targetRoute);
     }
 
-    public String toString() {
+    public synchronized String toString() {
 
 //        ArrayList<ArrayList<Integer>> routeToBuckets = new ArrayList<ArrayList<Integer>>();
 //        for(int i=0; i < numberOfRoutes; i++ ) {
@@ -159,4 +159,20 @@ public class BalancedHashRouting implements RoutingTable {
         return this.hashValueToRoute;
     }
 
+    /**
+     * create a new route (empty route)
+     * @return new route id
+     */
+    @Override
+    public synchronized int scalingOut() {
+        numberOfRoutes++;
+        routeDistributionSampler = new SlidingWindowRouteSampler(numberOfRoutes);
+        routeDistributionSampler.enable();
+        return numberOfRoutes - 1;
+    }
+
+    @Override
+    public void scalingIn() {
+
+    }
 }

@@ -209,12 +209,16 @@ public class Slave extends UntypedActor {
                 connectToMasterThriftServer(responseMessage.masterIp, 9090);
             } else if (message instanceof TestAliveMessage) {
                 sendMessageToMaster("Alive: " + ((TestAliveMessage) message).msg);
+            } else if (message instanceof ScalingOutSubtaskCommand) {
+
+                getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
             } else  {
                 System.out.println("[Elastic]: Unknown message.");
                 unhandled(message);
             }
         } catch (Exception e) {
             e.printStackTrace();
+            sendMessageToMaster(e.getMessage());
         }
     }
 

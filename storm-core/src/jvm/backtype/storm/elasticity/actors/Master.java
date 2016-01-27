@@ -403,6 +403,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     @Override
+    public void scalingOutSubtask(int taskid) throws TaskNotExistException, TException {
+        if(!_elasticTaskIdToWorker.containsKey(taskid)) {
+            throw new TaskNotExistException("Task " + taskid + " does not exist!");
+        }
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingOutSubtaskCommand(taskid));
+        inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    @Override
     public void logOnMaster(String from, String msg) throws TException {
         log(from, msg);
     }

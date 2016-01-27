@@ -125,6 +125,13 @@ class Iface:
     """
     pass
 
+  def scalingOutSubtask(self, taskid):
+    """
+    Parameters:
+     - taskid
+    """
+    pass
+
   def logOnMaster(self, from, msg):
     """
     Parameters:
@@ -563,6 +570,37 @@ class Client(Iface):
       raise result.tnee
     raise TApplicationException(TApplicationException.MISSING_RESULT, "naiveWorkerLevelLoadBalancing failed: unknown result");
 
+  def scalingOutSubtask(self, taskid):
+    """
+    Parameters:
+     - taskid
+    """
+    self.send_scalingOutSubtask(taskid)
+    self.recv_scalingOutSubtask()
+
+  def send_scalingOutSubtask(self, taskid):
+    self._oprot.writeMessageBegin('scalingOutSubtask', TMessageType.CALL, self._seqid)
+    args = scalingOutSubtask_args()
+    args.taskid = taskid
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_scalingOutSubtask(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = scalingOutSubtask_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    if result.tnee is not None:
+      raise result.tnee
+    return
+
   def logOnMaster(self, from, msg):
     """
     Parameters:
@@ -612,6 +650,7 @@ class Processor(Iface, TProcessor):
     self._processMap["subtaskLevelLoadBalancing"] = Processor.process_subtaskLevelLoadBalancing
     self._processMap["queryWorkerLoad"] = Processor.process_queryWorkerLoad
     self._processMap["naiveWorkerLevelLoadBalancing"] = Processor.process_naiveWorkerLevelLoadBalancing
+    self._processMap["scalingOutSubtask"] = Processor.process_scalingOutSubtask
     self._processMap["logOnMaster"] = Processor.process_logOnMaster
 
   def process(self, iprot, oprot):
@@ -800,6 +839,20 @@ class Processor(Iface, TProcessor):
     except TaskNotExistException, tnee:
       result.tnee = tnee
     oprot.writeMessageBegin("naiveWorkerLevelLoadBalancing", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_scalingOutSubtask(self, seqid, iprot, oprot):
+    args = scalingOutSubtask_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = scalingOutSubtask_result()
+    try:
+      self._handler.scalingOutSubtask(args.taskid)
+    except TaskNotExistException, tnee:
+      result.tnee = tnee
+    oprot.writeMessageBegin("scalingOutSubtask", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -2668,6 +2721,137 @@ class naiveWorkerLevelLoadBalancing_result:
   def __hash__(self):
     value = 17
     value = (value * 31) ^ hash(self.success)
+    value = (value * 31) ^ hash(self.tnee)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class scalingOutSubtask_args:
+  """
+  Attributes:
+   - taskid
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.I32, 'taskid', None, None, ), # 1
+  )
+
+  def __init__(self, taskid=None,):
+    self.taskid = taskid
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.I32:
+          self.taskid = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('scalingOutSubtask_args')
+    if self.taskid is not None:
+      oprot.writeFieldBegin('taskid', TType.I32, 1)
+      oprot.writeI32(self.taskid)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.taskid)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class scalingOutSubtask_result:
+  """
+  Attributes:
+   - tnee
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.STRUCT, 'tnee', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
+  )
+
+  def __init__(self, tnee=None,):
+    self.tnee = tnee
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.STRUCT:
+          self.tnee = TaskNotExistException()
+          self.tnee.read(iprot)
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('scalingOutSubtask_result')
+    if self.tnee is not None:
+      oprot.writeFieldBegin('tnee', TType.STRUCT, 1)
+      self.tnee.write(oprot)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
     value = (value * 31) ^ hash(self.tnee)
     return value
 

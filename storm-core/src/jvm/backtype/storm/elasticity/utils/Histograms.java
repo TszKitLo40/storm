@@ -10,7 +10,7 @@ import java.util.*;
  */
 public class Histograms implements Serializable {
 
-    private Map<Integer, Long> histograms;
+    public Map<Integer, Long> histograms;
 
     public Histograms(Map<Integer, Long> histograms) {
         this.histograms = new HashMap<>();

@@ -588,6 +588,7 @@ service MasterService {
   string subtaskLevelLoadBalancing(1: i32 taskid) throws (1: TaskNotExistException tnee);
   string queryWorkerLoad();
   string naiveWorkerLevelLoadBalancing(1: i32 taskid) throws (1: TaskNotExistException tnee);
+  void scalingOutSubtask(1: i32 taskid) throws (1: TaskNotExistException tnee);
   void logOnMaster(1: string from, 2: string msg);
 
 }

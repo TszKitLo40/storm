@@ -55,6 +55,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  string subtaskLevelLoadBalancing(i32 taskid)')
   print('  string queryWorkerLoad()')
   print('  string naiveWorkerLevelLoadBalancing(i32 taskid)')
+  print('  void scalingOutSubtask(i32 taskid)')
   print('  void logOnMaster(string from, string msg)')
   print('')
   sys.exit(0)
@@ -189,6 +190,12 @@ elif cmd == 'naiveWorkerLevelLoadBalancing':
     print('naiveWorkerLevelLoadBalancing requires 1 args')
     sys.exit(1)
   pp.pprint(client.naiveWorkerLevelLoadBalancing(eval(args[0]),))
+
+elif cmd == 'scalingOutSubtask':
+  if len(args) != 1:
+    print('scalingOutSubtask requires 1 args')
+    sys.exit(1)
+  pp.pprint(client.scalingOutSubtask(eval(args[0]),))
 
 elif cmd == 'logOnMaster':
   if len(args) != 2:

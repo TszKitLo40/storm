@@ -1,6 +1,9 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.actors.utils.SubtaskLevelLoadBalancing;
 import backtype.storm.elasticity.common.RouteId;
+import backtype.storm.elasticity.common.ShardWorkload;
+import backtype.storm.elasticity.common.SubTaskWorkload;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.BucketNotExistingException;
 import backtype.storm.elasticity.message.actormessage.ElasticTaskMigrationConfirmMessage;
@@ -1126,5 +1129,72 @@ public class ElasticTaskHolder {
         sendMessageToMaster("Task Migration completes!");
     }
 
+    public String handleScalingOutSubtaskCommand(int taskId){
+        try {
+            if(!_bolts.containsKey(taskId)) {
+                throw new TaskNotExistingException(taskId);
+            }
+            RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
+
+            if(!(routingTable instanceof BalancedHashRouting)) {
+                throw new RoutingTypeNotSupportedException("Only support balanced hash routing for scaling out now!");
+            }
+
+            BalancedHashRouting balancedHashRouting = (BalancedHashRouting) routingTable;
+
+            int newRouteId = balancedHashRouting.scalingOut();
+
+            _bolts.get(taskId).get_elasticTasks().createAndLaunchElasticTasksForGivenRoute(newRouteId);
+
+            // so far, a new, empty subtask is create. The next step is to move some shard from existing subtasks.
+
+            Histograms histograms = balancedHashRouting.getBucketsDistribution();
+
+            Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
+
+
+            ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
+            for(int i = 0; i < newRouteId; i++ ) {
+                subTaskWorkloads.add(new SubTaskWorkload(i));
+            }
+            for(int shardId: histograms.histograms.keySet()) {
+                subTaskWorkloads.get(shardToRoutingMapping.get(shardId)).increaseOrDecraeseWorkload(histograms.histograms.get(shardId));
+            }
+
+            Map<Integer, Set<ShardWorkload>> subtaskToShards = new HashMap<>();
+            for(int i = 0; i < newRouteId; i++) {
+                subtaskToShards.put(0, new HashSet<ShardWorkload>());
+            }
+            for(int shardId: shardToRoutingMapping.keySet()) {
+                subtaskToShards.get(shardToRoutingMapping.get(shardId)).add(new ShardWorkload(shardId, histograms.histograms.get(shardId)));
+            }
+
+
+            long targetSubtaskWorkload = 0;
+            Comparator<ShardWorkload> shardComparator = ShardWorkload.createReverseComparator();
+            Comparator<SubTaskWorkload> subTaskComparator = SubTaskWorkload.createReverseComparator();
+            boolean moved = true;
+            while(moved) {
+                Collections.sort(subTaskWorkloads, subTaskComparator);
+                for(SubTaskWorkload subTaskWorkload: subTaskWorkloads) {
+                    int subtask = subTaskWorkload.subtaskId;
+                    List<ShardWorkload> shardWorkloads = new ArrayList<ShardWorkload>(subtaskToShards.get(subtask));
+                    Collections.sort(shardWorkloads, shardComparator);
+                    boolean localMoved = false;
+                    for(ShardWorkload shardWorkload: shardWorkloads) {
+                        if(targetSubtaskWorkload + )
+                    }
+
+                }
+            }
+
+
+        return "Succeed!";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return e.getMessage();
+        }
+
+    }
 
 }
