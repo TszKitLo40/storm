@@ -52,16 +52,17 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
         @Override
         public void run() {
-            try {
-                while(true) {
+            while(true) {
+                try {
                     TupleExecuteResult result = _resultQueue.take();
                     handle(result);
                     LOG.debug("an execution result is emit!");
+                }  catch (InterruptedException ee ) {
+                    ee.printStackTrace();
+                    break;
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (InterruptedException ie) {
-                LOG.info("ResultHandler is interrupted!");
-            } catch (Exception e) {
-                e.printStackTrace();
             }
         }
 
@@ -69,7 +70,10 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 //            System.out.println("Tuple content: "+result._streamId + " " + result._inputTuple + " "+ result._outputTuple);
             switch (result._commandType) {
                 case TupleExecuteResult.Emit:
-                    _originalCollector.emit(result._streamId, result._inputTuple, result._outputTuple);
+                    if(result._inputTuple!=null)
+                        _originalCollector.emit(result._streamId, result._inputTuple, result._outputTuple);
+                    else
+                        _originalCollector.emit(result._streamId, result._outputTuple);
                     break;
                 default:
                     assert(false);
@@ -92,7 +96,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _elasticTasks = ElasticTasks.createHashRouting(1,_bolt,_taskId, _outputCollector);
 //        createTest();
 //        _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
-        _rateTracker = new RateTracker(10000, 5);
+        _rateTracker = new RateTracker(5000, 5);
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
             _holder.registerElasticBolt(this, _taskId);

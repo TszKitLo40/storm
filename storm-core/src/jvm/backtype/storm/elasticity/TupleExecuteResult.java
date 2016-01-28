@@ -18,7 +18,7 @@ public class TupleExecuteResult implements Serializable{
 
     protected String _streamId;
 
-    transient protected Tuple _inputTuple;
+    protected Tuple _inputTuple;
 
     protected List<Object> _outputTuple;
 

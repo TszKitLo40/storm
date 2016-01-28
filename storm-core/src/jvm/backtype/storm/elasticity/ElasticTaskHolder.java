@@ -20,6 +20,9 @@ import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.routing.RoutingTableUtils;
+import backtype.storm.elasticity.scheduler.ElasticScheduler;
+import backtype.storm.elasticity.scheduler.ShardReassignment;
+import backtype.storm.elasticity.scheduler.ShardReassignmentPlan;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
@@ -161,7 +164,6 @@ public class ElasticTaskHolder {
 //            System.out.println("Add exceptions to the routing table...");
             /* set exceptions for existing routing table and get the complement routing table */
             PartialHashingRouting complementHashingRouting = _bolts.get(taskid).get_elasticTasks().addExceptionForHashRouting(route, _sendingQueue);
-            _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("Rerouting"));
             SmartTimer.getInstance().stop("SubtaskMigrate", "rerouting 1");
             SmartTimer.getInstance().start("SubtaskMigrate", "state construction");
     //        if(complementHashingRouting==null) {
@@ -368,9 +370,7 @@ public class ElasticTaskHolder {
                         }
                         for(String connectionName: iConnectionNameToTaskMessageArray.keySet()) {
                             if(!iConnectionNameToTaskMessageArray.get(connectionName).isEmpty()) {
-                                System.out.println("sending to " + connectionName);
                                 connectionNameToIConnection.get(connectionName).send(iConnectionNameToTaskMessageArray.get(connectionName).iterator());
-                                System.out.println("sent " + iConnectionNameToTaskMessageArray.get(connectionName).size() + " Messages to " + connectionName);
                             }
                         }
                         drainer.clear();
@@ -483,7 +483,8 @@ public class ElasticTaskHolder {
                             Object object = SerializationUtils.deserialize(message.message());
                             if(object instanceof RemoteTupleExecuteResult) {
                                 RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
-                                ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
+                                if(result._inputTuple != null)
+                                    ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
                                 LOG.debug("A query result is received for "+result._originalTaskID);
                                 _bolts.get(result._originalTaskID).insertToResultQueue(result);
                                 LOG.debug("a query result tuple is added into the input queue");
@@ -511,29 +512,21 @@ public class ElasticTaskHolder {
                 int count = 0;
                 while (true) {
                 try {
-                    System.out.println("receiving...");
                     Iterator<TaskMessage> messageIterator = _inputConnection.recv(0, 0);
 
-                    System.out.println("received...");
 //                    if(messageIterator!=null)
 //                        continue;
                     while(messageIterator.hasNext()) {
-                        System.out.println("Breakpoint 1");
                         TaskMessage message = messageIterator.next();
                         int targetTaskId = message.task();
                         if(message.task() > 10000) {
-                            System.out.println("Breakpoint 2");
                             int taskid = message.task() - 10000;
                             Tuple remoteTuple = tupleDeserializer.deserialize(message.message());
                             ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(taskid);
                             LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
                             queue.put(remoteTuple);
-                            System.out.println("Breakpoint 3");
                         } else {
-                            System.out.println("Breakpoint 4");
                         Object object = SerializationUtils.deserialize(message.message());
-                            System.out.println("Breakpoint 5");
-                        System.out.println("Received " + object);
                         if(object instanceof RemoteTupleExecuteResult) {
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
                             ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
@@ -583,7 +576,6 @@ public class ElasticTaskHolder {
                             System.err.println("Unexpected Object: " + object);
                         }
                         }
-                        System.out.println("Processed...");
                     }
 
                     } catch (Exception e ) {
@@ -1131,30 +1123,34 @@ public class ElasticTaskHolder {
 
     public String handleScalingOutSubtaskCommand(int taskId){
         try {
+            SmartTimer.getInstance().start("ScalingOut", "Create Empty subtask");
             if(!_bolts.containsKey(taskId)) {
                 throw new TaskNotExistingException(taskId);
             }
             RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
 
-            if(!(routingTable instanceof BalancedHashRouting)) {
+            BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+
+            if(balancedHashRouting == null) {
                 throw new RoutingTypeNotSupportedException("Only support balanced hash routing for scaling out now!");
             }
 
-            BalancedHashRouting balancedHashRouting = (BalancedHashRouting) routingTable;
 
-            int newRouteId = balancedHashRouting.scalingOut();
-
-            _bolts.get(taskId).get_elasticTasks().createAndLaunchElasticTasksForGivenRoute(newRouteId);
-
-            // so far, a new, empty subtask is create. The next step is to move some shard from existing subtasks.
-
+            // collect necessary statistics first, otherwise those data might not be available after scaling out of the routing table.
             Histograms histograms = balancedHashRouting.getBucketsDistribution();
-
             Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
 
+            int newSubtaskId = balancedHashRouting.scalingOut();
 
+            _bolts.get(taskId).get_elasticTasks().createAndLaunchElasticTasksForGivenRoute(newSubtaskId);
+
+            // so far, a new, empty subtask is create. The next step is to move some shards from existing subtasks.
+
+
+            SmartTimer.getInstance().stop("ScalingOut", "Create Empty subtask");
+            SmartTimer.getInstance().start("ScalingOut", "Algorithm");
             ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
-            for(int i = 0; i < newRouteId; i++ ) {
+            for(int i = 0; i < newSubtaskId; i++ ) {
                 subTaskWorkloads.add(new SubTaskWorkload(i));
             }
             for(int shardId: histograms.histograms.keySet()) {
@@ -1162,36 +1158,71 @@ public class ElasticTaskHolder {
             }
 
             Map<Integer, Set<ShardWorkload>> subtaskToShards = new HashMap<>();
-            for(int i = 0; i < newRouteId; i++) {
-                subtaskToShards.put(0, new HashSet<ShardWorkload>());
-            }
-            for(int shardId: shardToRoutingMapping.keySet()) {
-                subtaskToShards.get(shardToRoutingMapping.get(shardId)).add(new ShardWorkload(shardId, histograms.histograms.get(shardId)));
+            for(int i = 0; i < newSubtaskId; i++) {
+                subtaskToShards.put(i, new HashSet<ShardWorkload>());
             }
 
+
+            for(int shardId: shardToRoutingMapping.keySet()) {
+                int subtask = shardToRoutingMapping.get(shardId);
+                final Set<ShardWorkload> shardWorkloads = subtaskToShards.get(subtask);
+                final long workload = histograms.histograms.get(shardId);
+                shardWorkloads.add(new ShardWorkload(shardId, workload));
+            }
 
             long targetSubtaskWorkload = 0;
             Comparator<ShardWorkload> shardComparator = ShardWorkload.createReverseComparator();
             Comparator<SubTaskWorkload> subTaskComparator = SubTaskWorkload.createReverseComparator();
+            ShardReassignmentPlan plan = new ShardReassignmentPlan();
             boolean moved = true;
             while(moved) {
+                moved = false;
                 Collections.sort(subTaskWorkloads, subTaskComparator);
                 for(SubTaskWorkload subTaskWorkload: subTaskWorkloads) {
                     int subtask = subTaskWorkload.subtaskId;
-                    List<ShardWorkload> shardWorkloads = new ArrayList<ShardWorkload>(subtaskToShards.get(subtask));
+                    List<ShardWorkload> shardWorkloads = new ArrayList<>(subtaskToShards.get(subtask));
                     Collections.sort(shardWorkloads, shardComparator);
                     boolean localMoved = false;
                     for(ShardWorkload shardWorkload: shardWorkloads) {
-                        if(targetSubtaskWorkload + )
+                        if(targetSubtaskWorkload + shardWorkload.workload < subTaskWorkload.workload) {
+                            plan.addReassignment(taskId, shardWorkload.shardId, subTaskWorkload.subtaskId, newSubtaskId);
+                            subtaskToShards.get(subTaskWorkload.subtaskId).remove(new ShardWorkload(shardWorkload.shardId));
+                            targetSubtaskWorkload += shardWorkload.workload;
+                            subTaskWorkload.increaseOrDecraeseWorkload(-shardWorkload.workload);
+                            localMoved = true;
+                            moved = true;
+                            System.out.println("Move " + shardWorkload.shardId + " from " + subTaskWorkload.subtaskId + " to " + newSubtaskId);
+                            break;
+                        }
+                    }
+                    if(localMoved) {
+                        break;
                     }
 
                 }
             }
+            SmartTimer.getInstance().stop("ScalingOut", "Algorithm");
 
+            for(int i = 0; i < newSubtaskId; i++) {
+                sendMessageToMaster("Subtask " + i + ": " + subTaskWorkloads.get(i).workload);
+            }
+            sendMessageToMaster("new subtask: " + targetSubtaskWorkload);
 
-        return "Succeed!";
+            SmartTimer.getInstance().start("ScalingOut", "Conduct");
+            for(ShardReassignment reassignment: plan.getReassignmentList()) {
+                sendMessageToMaster("=============== START ===============");
+                reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
+                sendMessageToMaster("=============== END ===============");
+            }
+            SmartTimer.getInstance().stop("ScalingOut", "Conduct");
+            sendMessageToMaster(SmartTimer.getInstance().getTimerString("ScalingOut"));
+            sendMessageToMaster("Scaling out succeeds with " + plan.getReassignmentList().size() + " movements!");
+
+            return "Succeed!";
+
         } catch (Exception e) {
             e.printStackTrace();
+            sendMessageToMaster(e.getMessage());
             return e.getMessage();
         }
 

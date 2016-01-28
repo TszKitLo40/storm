@@ -24,7 +24,7 @@ public class RemoteElasticOutputCollector extends ElasticOutputCollector {
     @Override
     public List<Integer> emit(String streamId, Tuple inputTuple, List<Object> tuple) {
         try {
-            _outputQueue.put(RemoteTupleExecuteResult.createEmit(_originalTaskId,streamId, inputTuple, tuple));
+            _outputQueue.put(new RemoteTupleExecuteResult(_originalTaskId, 0, streamId, inputTuple, tuple, RemoteTupleExecuteResult.Emit));
         } catch (InterruptedException e) {
             System.out.println("_outputQueue.put() is interrupted!");
         }
@@ -34,9 +34,19 @@ public class RemoteElasticOutputCollector extends ElasticOutputCollector {
     @Override
     public List<Integer> emit(Tuple inputTuple, List<Object> tuple) {
         try {
-            _outputQueue.put(RemoteTupleExecuteResult.createEmit(_originalTaskId,Utils.DEFAULT_STREAM_ID, inputTuple, tuple));
+            _outputQueue.put(new RemoteTupleExecuteResult(_originalTaskId, 0,Utils.DEFAULT_STREAM_ID, inputTuple, tuple, RemoteTupleExecuteResult.Emit));
         } catch (InterruptedException e) {
             System.out.println("_outputQueue.put() is interrupted!");
+        }
+        return null;
+    }
+
+    @Override
+    public List<Integer> emit(List<Object> tuple) {
+        try {
+            _outputQueue.put(new RemoteTupleExecuteResult(_originalTaskId, 0,Utils.DEFAULT_STREAM_ID, null, tuple, RemoteTupleExecuteResult.Emit));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
         return null;
     }

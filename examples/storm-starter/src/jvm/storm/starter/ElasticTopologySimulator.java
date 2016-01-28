@@ -98,7 +98,7 @@ public class ElasticTopologySimulator {
             value[0] = (long)value[0] +1;
             setValueByKey(key, value);
 
-            collector.emit(tuple, new Values(key, value[0], tuple.getLong(1)));
+            collector.emit(new Values(key, value[0], tuple.getLong(1)));
 
 
 

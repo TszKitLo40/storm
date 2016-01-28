@@ -17,8 +17,4 @@ public class RemoteTupleExecuteResult extends TupleExecuteResult implements ITas
         _originalTaskID = orignalTaskID;
     }
 
-    public static RemoteTupleExecuteResult createEmit(int originalTaskID, String streamId, Tuple inputTuple, List<Object> outputTuple) {
-        return new RemoteTupleExecuteResult(originalTaskID,0, streamId, inputTuple, outputTuple, Emit);
-    }
-
 }

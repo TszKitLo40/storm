@@ -43,6 +43,7 @@ public class ElasticTasks implements Serializable {
 
     public transient KeyFrequencySampler _sample;
 
+
     public ElasticTasks(BaseElasticBolt bolt, Integer taskID) {
         _bolt = bolt;
         _taskID = taskID;
@@ -99,7 +100,6 @@ public class ElasticTasks implements Serializable {
     public synchronized boolean tryHandleTuple(Tuple tuple, Object key) {
         int route = _routingTable.route(key);
 //        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
-        _sample.record(route);
 //        if(route==RoutingTable.origin)
 //            return false;
 //        else
@@ -111,12 +111,9 @@ public class ElasticTasks implements Serializable {
         if(new Random().nextFloat()<0.002) {
             System.out.println("A tuple is route to " + route);
         }
-
         _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
-
         if (route == RoutingTable.remote) {
 //            System.out.println("a tuple is routed to remote!");
-
             RemoteTuple remoteTuple = new RemoteTuple(_taskID, ((PartialHashingRouting)_routingTable).getOrignalRoute(key), tuple);
             try {
                 _remoteTupleQueue.put(remoteTuple);
@@ -219,7 +216,7 @@ public class ElasticTasks implements Serializable {
 
     public void launchElasticTasksForGivenRoute(int i) {
         LinkedBlockingQueue<Tuple> inputQueue = _queues.get(i);
-        QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
+        QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector, i);
         _queryRunnables.put(i, query);
         Thread newThread = new Thread(query);
         newThread.start();
@@ -237,7 +234,7 @@ public class ElasticTasks implements Serializable {
         LinkedBlockingQueue<Tuple> inputQueue = new LinkedBlockingQueue<>(Config.SubtaskInputQueueCapacity);
         _queues.put(i, inputQueue);
 
-        QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector);
+        QueryRunnable query = new QueryRunnable(_bolt, inputQueue, _elasticOutputCollector, i);
         _queryRunnables.put(i, query);
         Thread newThread = new Thread(query);
         newThread.start();

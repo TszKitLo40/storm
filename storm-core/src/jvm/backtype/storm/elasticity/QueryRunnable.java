@@ -21,10 +21,13 @@ public class QueryRunnable implements Runnable {
 
     private boolean interrupted = false;
 
-    public QueryRunnable(BaseElasticBolt bolt, LinkedBlockingQueue<Tuple> pendingTuples, ElasticOutputCollector outputCollector) {
+    private int id;
+
+    public QueryRunnable(BaseElasticBolt bolt, LinkedBlockingQueue<Tuple> pendingTuples, ElasticOutputCollector outputCollector, int id) {
         _bolt = bolt;
         _pendingTuples = pendingTuples;
         _outputCollector = outputCollector;
+        this.id = id;
     }
 
     /**
@@ -42,8 +45,9 @@ public class QueryRunnable implements Runnable {
                 System.out.println(_pendingTuples.size()+" elements remaining in the pending list!");
                 Thread.sleep(1);
             }
+            System.out.println("**********Query Runnable (" + id + ") is terminated!");
         } catch (InterruptedException e) {
-
+            e.printStackTrace();
         }
     }
 
@@ -53,7 +57,6 @@ public class QueryRunnable implements Runnable {
             while (!_terminationRequest || !_pendingTuples.isEmpty()) {
                 Tuple input = _pendingTuples.poll(5, TimeUnit.MILLISECONDS);
                 if(input!=null) {
-                    //if input tuple is a token, wait for the state migration.
                     _bolt.execute(input, _outputCollector);
                 }
             }
@@ -62,10 +65,11 @@ public class QueryRunnable implements Runnable {
         }catch (InterruptedException e) {
             e.printStackTrace();
         }catch (Exception ee) {
-            System.err.print("Something is wrong balls the query thread!");
+            System.err.print("Something is wrong in the query thread!");
             ee.printStackTrace();
         }
         System.out.println("A query thread is terminated!");
+        ElasticTaskHolder.instance().sendMessageToMaster("**********Query Runnable (" + id + ") is terminated!");
 
     }
 }

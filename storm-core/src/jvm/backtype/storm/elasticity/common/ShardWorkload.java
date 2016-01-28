@@ -1,6 +1,8 @@
 package backtype.storm.elasticity.common;
 
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created by robert on 1/27/16.
@@ -33,4 +35,25 @@ public class ShardWorkload {
             }
         };
     }
+
+    @Override
+    public int hashCode() {
+        return new Integer(1).hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof ShardWorkload) {
+            return ((ShardWorkload) obj).shardId == shardId;
+        } else
+            return false;
+    }
+
+    static public void main(String[] args) {
+        Set<ShardWorkload> workloadSet = new HashSet<>();
+        workloadSet.add(new ShardWorkload(1, 10000L));
+        workloadSet.remove(new ShardWorkload(1, 200L));
+        System.out.println(workloadSet.size());
+    }
+
 }
