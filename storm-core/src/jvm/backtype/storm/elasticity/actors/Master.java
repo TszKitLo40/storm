@@ -382,6 +382,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     @Override
     public String subtaskLevelLoadBalancing(int taskid) throws TaskNotExistException, TException {
+        if(!_elasticTaskIdToWorker.containsKey(taskid)) {
+            throw new TaskNotExistException("Task " + taskid + " does not exist!");
+        }
+        final Inbox inbox = Inbox.create(getContext().system());
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new SubtaskLevelLoadBalancingCommand(taskid));
+        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+    }
+
+    @Override
+    public String workerLevelLoadBalancing(int taskid) throws TaskNotExistException, TException {
         try {
             return ElasticScheduler.getInstance().workerLevelLoadBalancing(taskid);
         } catch (Exception e) {

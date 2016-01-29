@@ -1121,6 +1121,83 @@ public class ElasticTaskHolder {
         sendMessageToMaster("Task Migration completes!");
     }
 
+    public String handleSubtaskLevelLoadBalancingCommand(int taskId) {
+        try {
+            if(!_bolts.containsKey(taskId)) {
+                throw new TaskNotExistingException(taskId);
+            }
+
+            RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
+
+            BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+
+            if(balancedHashRouting == null) {
+                throw new RoutingTypeNotSupportedException("Only support balanced hash routing for scaling out now!");
+            }
+
+            int numberOfSubtasks = balancedHashRouting.getNumberOfRoutes();
+            // collect the necessary metrics first.
+            Histograms histograms = balancedHashRouting.getBucketsDistribution();
+            Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
+
+            ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
+            for(int i = 0; i < numberOfSubtasks; i++ ) {
+                subTaskWorkloads.add(new SubTaskWorkload(i));
+            }
+            for(int shardId: histograms.histograms.keySet()) {
+                subTaskWorkloads.get(shardToRoutingMapping.get(shardId)).increaseOrDecraeseWorkload(histograms.histograms.get(shardId));
+            }
+
+            Map<Integer, Set<ShardWorkload>> subtaskToShards = new HashMap<>();
+            for(int i = 0; i < numberOfSubtasks; i++) {
+                subtaskToShards.put(i, new HashSet<ShardWorkload>());
+            }
+
+
+            for(int shardId: shardToRoutingMapping.keySet()) {
+                int subtask = shardToRoutingMapping.get(shardId);
+                final Set<ShardWorkload> shardWorkloads = subtaskToShards.get(subtask);
+                final long workload = histograms.histograms.get(shardId);
+                shardWorkloads.add(new ShardWorkload(shardId, workload));
+            }
+
+            long targetSubtaskWorkload = 0;
+            Comparator<ShardWorkload> shardComparator = ShardWorkload.createReverseComparator();
+            Comparator<SubTaskWorkload> subTaskComparator = SubTaskWorkload.createReverseComparator();
+            ShardReassignmentPlan plan = new ShardReassignmentPlan();
+
+            boolean moved = true;
+
+            while(moved) {
+                moved = false;
+                Collections.sort(subTaskWorkloads, subTaskComparator);
+                for(int i = subTaskWorkloads.size() - 1 ; i > 0; i ++) {
+                    SubTaskWorkload subtaskWorloadToMoveIn = subTaskWorkloads.get(i);
+                    SubTaskWorkload subtaskWorloadToMoveFrom = subTaskWorkloads.get(i);
+                    Set<ShardWorkload> shardWorkloadsInTheSubtaskWithLargestWorkload = subtaskToShards.get(subTaskWorkloads.get(0).subtaskId);
+                    List<ShardWorkload> sortedShardWorkloadsInTheSubtaskWithLargestWorkload = new ArrayList<>(shardWorkloadsInTheSubtaskWithLargestWorkload);
+                    Collections.sort(sortedShardWorkloadsInTheSubtaskWithLargestWorkload, shardComparator);
+                    boolean localMoved = false;
+                    for(ShardWorkload shardWorkload: sortedShardWorkloadsInTheSubtaskWithLargestWorkload) {
+                        if(shardWorkload.workload + subtaskWorloadToMoveIn.workload < subtaskWorloadToMoveFrom.workload) {
+                            plan.addReassignment(taskId, shardWorkload.shardId, subtaskWorloadToMoveFrom.subtaskId, subtaskWorloadToMoveIn.subtaskId);
+                            localMoved = true;
+                            shardWorkloadsInTheSubtaskWithLargestWorkload.remove(new ShardWorkload(shardWorkload.shardId));
+                            
+                        }
+                    }
+
+                }
+            }
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendMessageToMaster(e.getMessage());
+        }
+        return "Succeed!";
+    }
+
     public String handleScalingInSubtaskCommand(int taskId) {
         /**
          * Subtask with the largest index will be removed to achieve scaling in.

@@ -53,6 +53,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  void reassignBucketToRoute(i32 taskid, i32 bucket, i32 originalRoute, i32 newRoute)')
   print('  string optimizeBucketToRoute(i32 taskid)')
   print('  string subtaskLevelLoadBalancing(i32 taskid)')
+  print('  string workerLevelLoadBalancing(i32 taskid)')
   print('  string queryWorkerLoad()')
   print('  string naiveWorkerLevelLoadBalancing(i32 taskid)')
   print('  void scalingOutSubtask(i32 taskid)')
@@ -179,6 +180,12 @@ elif cmd == 'subtaskLevelLoadBalancing':
     print('subtaskLevelLoadBalancing requires 1 args')
     sys.exit(1)
   pp.pprint(client.subtaskLevelLoadBalancing(eval(args[0]),))
+
+elif cmd == 'workerLevelLoadBalancing':
+  if len(args) != 1:
+    print('workerLevelLoadBalancing requires 1 args')
+    sys.exit(1)
+  pp.pprint(client.workerLevelLoadBalancing(eval(args[0]),))
 
 elif cmd == 'queryWorkerLoad':
   if len(args) != 0:
