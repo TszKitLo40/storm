@@ -212,6 +212,9 @@ public class Slave extends UntypedActor {
             } else if (message instanceof ScalingOutSubtaskCommand) {
 
                 getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
+            } else if (message instanceof ScalingInSubtaskCommand) {
+
+                getSender().tell(ElasticTaskHolder.instance().handleScalingInSubtaskCommand(((ScalingInSubtaskCommand) message).taskId), getSelf());
             } else  {
                 System.out.println("[Elastic]: Unknown message.");
                 unhandled(message);

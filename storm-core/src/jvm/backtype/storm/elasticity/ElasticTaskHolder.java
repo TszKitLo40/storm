@@ -291,7 +291,7 @@ public class ElasticTaskHolder {
                         ArrayList<ITaskMessage> drainer = new ArrayList<>();
                         ITaskMessage firstMessage = _sendingQueue.take();
                         drainer.add(firstMessage);
-                        _sendingQueue.drainTo(drainer,256);
+                        _sendingQueue.drainTo(drainer, 256);
 
                         for(ITaskMessage message: drainer) {
     //                        System.out.println("sending...");
@@ -1121,6 +1121,88 @@ public class ElasticTaskHolder {
         sendMessageToMaster("Task Migration completes!");
     }
 
+    public String handleScalingInSubtaskCommand(int taskId) {
+        /**
+         * Subtask with the largest index will be removed to achieve scaling in.
+         * Shard already assigned to that subtask will be moved to other existing subtask in a load balance manner.
+         *
+         */
+
+        try {
+            SmartTimer.getInstance().start("Scaling In Subtask", "prepare");
+            if(!_bolts.containsKey(taskId)) {
+                throw new TaskNotExistingException(taskId);
+            }
+            RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
+
+            BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+
+            if(balancedHashRouting == null) {
+                throw new RoutingTypeNotSupportedException("Only support balanced hash routing for scaling out now!");
+            }
+
+            int targetSubtaskId = balancedHashRouting.getNumberOfRoutes() -1;
+            int numberOfSubtasks = balancedHashRouting.getNumberOfRoutes();
+            // collect the necessary metrics first.
+            Histograms histograms = balancedHashRouting.getBucketsDistribution();
+            Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
+
+            ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
+            for(int i = 0; i < numberOfSubtasks; i++) {
+                subTaskWorkloads.add(new SubTaskWorkload(i));
+            }
+            for(int shardId: histograms.histograms.keySet()) {
+                subTaskWorkloads.get(shardToRoutingMapping.get(shardId)).increaseOrDecraeseWorkload(histograms.histograms.get(shardId));
+            }
+
+            Map<Integer, Set<ShardWorkload>> subtaskToShards = new HashMap<>();
+            for(int i = 0; i < numberOfSubtasks; i++) {
+                subtaskToShards.put(i, new HashSet<ShardWorkload>());
+            }
+            for(int shardId: shardToRoutingMapping.keySet()) {
+                int subtask = shardToRoutingMapping.get(shardId);
+                final Set<ShardWorkload> shardWorkloads = subtaskToShards.get(subtask);
+                final long workload = histograms.histograms.get(shardId);
+                shardWorkloads.add(new ShardWorkload(shardId, workload));
+            }
+            SmartTimer.getInstance().stop("Scaling In Subtask", "prepare");
+            SmartTimer.getInstance().start("Scaling In Subtask", "algorithm");
+            Set<ShardWorkload> shardsForTargetSubtask = subtaskToShards.get(targetSubtaskId);
+            List<ShardWorkload> sortedShards = new ArrayList<>(shardsForTargetSubtask);
+            Collections.sort(sortedShards, ShardWorkload.createReverseComparator());
+
+            ShardReassignmentPlan plan = new ShardReassignmentPlan();
+
+            Comparator<SubTaskWorkload> subTaskComparator = SubTaskWorkload.createReverseComparator();
+            for(ShardWorkload shardWorkload: sortedShards) {
+                Collections.sort(subTaskWorkloads, subTaskComparator);
+                SubTaskWorkload subtaskWorkloadToMoveIn = subTaskWorkloads.get(0);
+                plan.addReassignment(taskId, shardWorkload.shardId, targetSubtaskId, subtaskWorkloadToMoveIn.subtaskId);
+                subtaskWorkloadToMoveIn.increaseOrDecraeseWorkload(shardWorkload.workload);
+            }
+            SmartTimer.getInstance().stop("Scaling In Subtask", "algorithm");
+            System.out.println(plan.toString());
+            SmartTimer.getInstance().start("Scaling In Subtask", "deploy");
+            for(ShardReassignment reassignment: plan.getReassignmentList()) {
+                sendMessageToMaster("=============== START ===============");
+                reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
+                sendMessageToMaster("=============== END ===============");
+            }
+            SmartTimer.getInstance().stop("Scaling In Subtask", "deploy");
+            SmartTimer.getInstance().start("Scaling In Subtask", "update routing table");
+            balancedHashRouting.scalingIn();
+            SmartTimer.getInstance().stop("Scaling In Subtask", "update routing table");
+
+            sendMessageToMaster(SmartTimer.getInstance().getTimerString("Scaling In Subtask"));
+
+            sendMessageToMaster("Scaling in completes with " + plan.getReassignmentList().size() + " movements.");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return e.getMessage();
+        }
+        return "Succeed!";
+    } 
     public String handleScalingOutSubtaskCommand(int taskId){
         try {
             SmartTimer.getInstance().start("ScalingOut", "Create Empty subtask");

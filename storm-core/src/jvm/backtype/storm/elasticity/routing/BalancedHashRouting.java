@@ -172,7 +172,15 @@ public class BalancedHashRouting implements RoutingTable, ScalableRouting {
     }
 
     @Override
-    public void scalingIn() {
+    public synchronized void scalingIn() {
+        int largestSubtaskIndex = numberOfRoutes - 1;
+        for(int shard: hashValueToRoute.keySet()) {
+            if(hashValueToRoute.get(shard) == largestSubtaskIndex)
+                throw new RuntimeException("There is at least one shard assigned to the Subtask with the largest index. Scaling in fails!");
+        }
+        numberOfRoutes--;
+        routeDistributionSampler = new SlidingWindowRouteSampler(numberOfRoutes);
+        routeDistributionSampler.enable();
 
     }
 }
