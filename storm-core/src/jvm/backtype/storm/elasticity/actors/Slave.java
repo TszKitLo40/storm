@@ -217,7 +217,7 @@ public class Slave extends UntypedActor {
                 getSender().tell(ElasticTaskHolder.instance().handleScalingInSubtaskCommand(((ScalingInSubtaskCommand) message).taskId), getSelf());
             } else if (message instanceof SubtaskLevelLoadBalancingCommand) {
 
-                getSender().tell(ElasticTaskHolder.instance().handleSubtaskLevelLoadBalancingCommand(((SubtaskLevelLoadBalancingCommand) message).taskId), getSelf());
+                getSender().tell(ElasticTaskHolder.instance().handleSubtaskLevelLoadBalancingCommand(((SubtaskLevelLoadBalancingCommand) message).taskid), getSelf());
             }
             else  {
                 System.out.println("[Elastic]: Unknown message.");

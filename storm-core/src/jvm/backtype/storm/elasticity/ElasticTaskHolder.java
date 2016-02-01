@@ -680,6 +680,8 @@ public class ElasticTaskHolder {
     private void handleBucketToRouteReassignment(BucketToRouteReassignment reassignment) {
         if(_bolts.containsKey(reassignment.taskid)) {
             BalancedHashRouting balancedHashRouting = getBalancedHashRoutingFromOriginalBolt(reassignment.taskid);
+            if(balancedHashRouting == null)
+                throw new RuntimeException("Balanced Hash Routing is null!");
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
                 sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
@@ -1127,6 +1129,8 @@ public class ElasticTaskHolder {
                 throw new TaskNotExistingException(taskId);
             }
 
+            SmartTimer.getInstance().start("Subtask Level Load Balancing", "Prepare");
+
             RoutingTable routingTable = _bolts.get(taskId).get_elasticTasks().get_routingTable();
 
             BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
@@ -1161,7 +1165,8 @@ public class ElasticTaskHolder {
                 shardWorkloads.add(new ShardWorkload(shardId, workload));
             }
 
-            long targetSubtaskWorkload = 0;
+            SmartTimer.getInstance().stop("Subtask Level Load Balancing", "Prepare");
+            SmartTimer.getInstance().start("Subtask Level Load Balancing", "Algorithm");
             Comparator<ShardWorkload> shardComparator = ShardWorkload.createReverseComparator();
             Comparator<SubTaskWorkload> subTaskComparator = SubTaskWorkload.createReverseComparator();
             ShardReassignmentPlan plan = new ShardReassignmentPlan();
@@ -1171,10 +1176,10 @@ public class ElasticTaskHolder {
             while(moved) {
                 moved = false;
                 Collections.sort(subTaskWorkloads, subTaskComparator);
-                for(int i = subTaskWorkloads.size() - 1 ; i > 0; i ++) {
+                for(int i = subTaskWorkloads.size() - 1 ; i > 0; i --) {
                     SubTaskWorkload subtaskWorloadToMoveIn = subTaskWorkloads.get(i);
-                    SubTaskWorkload subtaskWorloadToMoveFrom = subTaskWorkloads.get(i);
-                    Set<ShardWorkload> shardWorkloadsInTheSubtaskWithLargestWorkload = subtaskToShards.get(subTaskWorkloads.get(0).subtaskId);
+                    SubTaskWorkload subtaskWorloadToMoveFrom = subTaskWorkloads.get(0);
+                    Set<ShardWorkload> shardWorkloadsInTheSubtaskWithLargestWorkload = subtaskToShards.get(subtaskWorloadToMoveFrom.subtaskId);
                     List<ShardWorkload> sortedShardWorkloadsInTheSubtaskWithLargestWorkload = new ArrayList<>(shardWorkloadsInTheSubtaskWithLargestWorkload);
                     Collections.sort(sortedShardWorkloadsInTheSubtaskWithLargestWorkload, shardComparator);
                     boolean localMoved = false;
@@ -1182,13 +1187,29 @@ public class ElasticTaskHolder {
                         if(shardWorkload.workload + subtaskWorloadToMoveIn.workload < subtaskWorloadToMoveFrom.workload) {
                             plan.addReassignment(taskId, shardWorkload.shardId, subtaskWorloadToMoveFrom.subtaskId, subtaskWorloadToMoveIn.subtaskId);
                             localMoved = true;
-                            shardWorkloadsInTheSubtaskWithLargestWorkload.remove(new ShardWorkload(shardWorkload.shardId));
-                            
+                            moved = true;
+                            shardWorkloadsInTheSubtaskWithLargestWorkload.remove(shardWorkload);
+                            subtaskWorloadToMoveFrom.increaseOrDecraeseWorkload(-shardWorkload.workload);
+                            subtaskToShards.get(subtaskWorloadToMoveIn.subtaskId).add(shardWorkload);
+                            subtaskWorloadToMoveIn.increaseOrDecraeseWorkload(shardWorkload.workload);
                         }
                     }
+                    if(localMoved)
+                        break;
 
                 }
             }
+            SmartTimer.getInstance().stop("Subtask Level Load Balancing", "Algorithm");
+            sendMessageToMaster(plan.toString());
+            SmartTimer.getInstance().start("Subtask Level Load Balancing", "Deploy");
+            for(ShardReassignment reassignment: plan.getReassignmentList()) {
+                sendMessageToMaster("=============== START ===============");
+                reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
+                sendMessageToMaster("=============== END ===============");
+            }
+            SmartTimer.getInstance().stop("Subtask Level Load Balancing", "Deploy");
+            sendMessageToMaster(SmartTimer.getInstance().getTimerString("Subtask Level Load Balancing"));
+            sendMessageToMaster("Subtask Level Load Balancing finishes with " + plan.getReassignmentList().size() + " movements!");
 
 
         } catch (Exception e) {
