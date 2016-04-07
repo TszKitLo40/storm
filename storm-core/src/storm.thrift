@@ -585,6 +585,7 @@ service MasterService {
   string queryRoutingTable(1: i32 taskid) throws (1: TaskNotExistException tnee);
   void reassignBucketToRoute(1: i32 taskid, 2: i32 bucket, 3: i32 originalRoute, 4: i32 newRoute) throws (1: TaskNotExistException tnee);
   string optimizeBucketToRoute(1: i32 taskid) throws (1: TaskNotExistException tnee);
+  string optimizeBucketToRouteWithThreshold(1: i32 taskid, 2: double threshold) throws (1: TaskNotExistException tnee);
   string subtaskLevelLoadBalancing(1: i32 taskid) throws (1: TaskNotExistException tnee);
   string workerLevelLoadBalancing(1: i32 taskid) throws (1: TaskNotExistException tnee);
   string queryWorkerLoad();

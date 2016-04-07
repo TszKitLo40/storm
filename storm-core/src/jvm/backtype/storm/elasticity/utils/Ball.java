@@ -30,4 +30,9 @@ public class Ball {
             return Long.compare(ball2.size, ball.size);
         }
     }
+
+    @Override
+    public int hashCode() {
+        return new Integer(index).hashCode();
+    }
 }

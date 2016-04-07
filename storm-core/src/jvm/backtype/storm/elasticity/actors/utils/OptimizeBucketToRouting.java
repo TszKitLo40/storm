@@ -12,8 +12,8 @@ import org.apache.thrift.transport.TTransport;
 public class OptimizeBucketToRouting {
     public static void main(String[] args) {
 
-        if(args.length!=1) {
-            System.out.println("args: taskid");
+        if(args.length < 1) {
+            System.out.println("args: taskid [threshold]");
             return;
         }
 
@@ -24,7 +24,12 @@ public class OptimizeBucketToRouting {
 
             TProtocol protocol = new TBinaryProtocol(transport);
             MasterService.Client thriftClient = new MasterService.Client(protocol);
-            String result = thriftClient.optimizeBucketToRoute(taskid);
+            String result;
+            if(args.length >=2) {
+                result = thriftClient.optimizeBucketToRouteWithThreshold(taskid, Double.parseDouble(args[1]));
+            } else {
+                result = thriftClient.optimizeBucketToRoute(taskid);
+            }
             System.out.println(result);
 
             transport.close();

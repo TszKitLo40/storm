@@ -90,6 +90,16 @@ public class WordCountTopologyElastic {
 //      System.out.println(input.getString(0)+"--->"+input.getInteger(1));
         }
 
+//        @Override
+//        public Object getKey(Tuple tuple) {
+//            return tuple.getString(0);
+//        }
+//
+//        @Override
+//        public void execute(Tuple input, ElasticOutputCollector collector) {
+//            System.out.println(input.getString(0)+"--->"+input.getInteger(1));
+//        }
+
         @Override
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
 
@@ -104,10 +114,10 @@ public class WordCountTopologyElastic {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 16);
+        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(), 1);
 
-        builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
-        builder.setBolt("print", new Printer(),16).globalGrouping("count");
+        builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 2).fieldsGrouping("spout", new Fields("word"));
+        builder.setBolt("print", new Printer(),2).globalGrouping("count");
 
         Config conf = new Config();
         if(args.length>2&&args[2].equals("debug"))

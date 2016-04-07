@@ -52,6 +52,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  string queryRoutingTable(i32 taskid)')
   print('  void reassignBucketToRoute(i32 taskid, i32 bucket, i32 originalRoute, i32 newRoute)')
   print('  string optimizeBucketToRoute(i32 taskid)')
+  print('  string optimizeBucketToRouteWithThreshold(i32 taskid, double threshold)')
   print('  string subtaskLevelLoadBalancing(i32 taskid)')
   print('  string workerLevelLoadBalancing(i32 taskid)')
   print('  string queryWorkerLoad()')
@@ -174,6 +175,12 @@ elif cmd == 'optimizeBucketToRoute':
     print('optimizeBucketToRoute requires 1 args')
     sys.exit(1)
   pp.pprint(client.optimizeBucketToRoute(eval(args[0]),))
+
+elif cmd == 'optimizeBucketToRouteWithThreshold':
+  if len(args) != 2:
+    print('optimizeBucketToRouteWithThreshold requires 2 args')
+    sys.exit(1)
+  pp.pprint(client.optimizeBucketToRouteWithThreshold(eval(args[0]),eval(args[1]),))
 
 elif cmd == 'subtaskLevelLoadBalancing':
   if len(args) != 1:

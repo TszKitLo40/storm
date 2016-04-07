@@ -108,6 +108,14 @@ class Iface:
     """
     pass
 
+  def optimizeBucketToRouteWithThreshold(self, taskid, threshold):
+    """
+    Parameters:
+     - taskid
+     - threshold
+    """
+    pass
+
   def subtaskLevelLoadBalancing(self, taskid):
     """
     Parameters:
@@ -492,6 +500,41 @@ class Client(Iface):
       raise result.tnee
     raise TApplicationException(TApplicationException.MISSING_RESULT, "optimizeBucketToRoute failed: unknown result");
 
+  def optimizeBucketToRouteWithThreshold(self, taskid, threshold):
+    """
+    Parameters:
+     - taskid
+     - threshold
+    """
+    self.send_optimizeBucketToRouteWithThreshold(taskid, threshold)
+    return self.recv_optimizeBucketToRouteWithThreshold()
+
+  def send_optimizeBucketToRouteWithThreshold(self, taskid, threshold):
+    self._oprot.writeMessageBegin('optimizeBucketToRouteWithThreshold', TMessageType.CALL, self._seqid)
+    args = optimizeBucketToRouteWithThreshold_args()
+    args.taskid = taskid
+    args.threshold = threshold
+    args.write(self._oprot)
+    self._oprot.writeMessageEnd()
+    self._oprot.trans.flush()
+
+  def recv_optimizeBucketToRouteWithThreshold(self):
+    iprot = self._iprot
+    (fname, mtype, rseqid) = iprot.readMessageBegin()
+    if mtype == TMessageType.EXCEPTION:
+      x = TApplicationException()
+      x.read(iprot)
+      iprot.readMessageEnd()
+      raise x
+    result = optimizeBucketToRouteWithThreshold_result()
+    result.read(iprot)
+    iprot.readMessageEnd()
+    if result.success is not None:
+      return result.success
+    if result.tnee is not None:
+      raise result.tnee
+    raise TApplicationException(TApplicationException.MISSING_RESULT, "optimizeBucketToRouteWithThreshold failed: unknown result");
+
   def subtaskLevelLoadBalancing(self, taskid):
     """
     Parameters:
@@ -725,6 +768,7 @@ class Processor(Iface, TProcessor):
     self._processMap["queryRoutingTable"] = Processor.process_queryRoutingTable
     self._processMap["reassignBucketToRoute"] = Processor.process_reassignBucketToRoute
     self._processMap["optimizeBucketToRoute"] = Processor.process_optimizeBucketToRoute
+    self._processMap["optimizeBucketToRouteWithThreshold"] = Processor.process_optimizeBucketToRouteWithThreshold
     self._processMap["subtaskLevelLoadBalancing"] = Processor.process_subtaskLevelLoadBalancing
     self._processMap["workerLevelLoadBalancing"] = Processor.process_workerLevelLoadBalancing
     self._processMap["queryWorkerLoad"] = Processor.process_queryWorkerLoad
@@ -880,6 +924,20 @@ class Processor(Iface, TProcessor):
     except TaskNotExistException, tnee:
       result.tnee = tnee
     oprot.writeMessageBegin("optimizeBucketToRoute", TMessageType.REPLY, seqid)
+    result.write(oprot)
+    oprot.writeMessageEnd()
+    oprot.trans.flush()
+
+  def process_optimizeBucketToRouteWithThreshold(self, seqid, iprot, oprot):
+    args = optimizeBucketToRouteWithThreshold_args()
+    args.read(iprot)
+    iprot.readMessageEnd()
+    result = optimizeBucketToRouteWithThreshold_result()
+    try:
+      result.success = self._handler.optimizeBucketToRouteWithThreshold(args.taskid, args.threshold)
+    except TaskNotExistException, tnee:
+      result.tnee = tnee
+    oprot.writeMessageBegin("optimizeBucketToRouteWithThreshold", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
     oprot.trans.flush()
@@ -2415,6 +2473,162 @@ class optimizeBucketToRoute_result:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
     oprot.writeStructBegin('optimizeBucketToRoute_result')
+    if self.success is not None:
+      oprot.writeFieldBegin('success', TType.STRING, 0)
+      oprot.writeString(self.success.encode('utf-8'))
+      oprot.writeFieldEnd()
+    if self.tnee is not None:
+      oprot.writeFieldBegin('tnee', TType.STRUCT, 1)
+      self.tnee.write(oprot)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.success)
+    value = (value * 31) ^ hash(self.tnee)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class optimizeBucketToRouteWithThreshold_args:
+  """
+  Attributes:
+   - taskid
+   - threshold
+  """
+
+  thrift_spec = (
+    None, # 0
+    (1, TType.I32, 'taskid', None, None, ), # 1
+    (2, TType.DOUBLE, 'threshold', None, None, ), # 2
+  )
+
+  def __init__(self, taskid=None, threshold=None,):
+    self.taskid = taskid
+    self.threshold = threshold
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 1:
+        if ftype == TType.I32:
+          self.taskid = iprot.readI32();
+        else:
+          iprot.skip(ftype)
+      elif fid == 2:
+        if ftype == TType.DOUBLE:
+          self.threshold = iprot.readDouble();
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('optimizeBucketToRouteWithThreshold_args')
+    if self.taskid is not None:
+      oprot.writeFieldBegin('taskid', TType.I32, 1)
+      oprot.writeI32(self.taskid)
+      oprot.writeFieldEnd()
+    if self.threshold is not None:
+      oprot.writeFieldBegin('threshold', TType.DOUBLE, 2)
+      oprot.writeDouble(self.threshold)
+      oprot.writeFieldEnd()
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def validate(self):
+    return
+
+
+  def __hash__(self):
+    value = 17
+    value = (value * 31) ^ hash(self.taskid)
+    value = (value * 31) ^ hash(self.threshold)
+    return value
+
+  def __repr__(self):
+    L = ['%s=%r' % (key, value)
+      for key, value in self.__dict__.iteritems()]
+    return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+
+  def __eq__(self, other):
+    return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
+
+  def __ne__(self, other):
+    return not (self == other)
+
+class optimizeBucketToRouteWithThreshold_result:
+  """
+  Attributes:
+   - success
+   - tnee
+  """
+
+  thrift_spec = (
+    (0, TType.STRING, 'success', None, None, ), # 0
+    (1, TType.STRUCT, 'tnee', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
+  )
+
+  def __init__(self, success=None, tnee=None,):
+    self.success = success
+    self.tnee = tnee
+
+  def read(self, iprot):
+    if iprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastbinary is not None:
+      fastbinary.decode_binary(self, iprot.trans, (self.__class__, self.thrift_spec))
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      if fid == 0:
+        if ftype == TType.STRING:
+          self.success = iprot.readString().decode('utf-8')
+        else:
+          iprot.skip(ftype)
+      elif fid == 1:
+        if ftype == TType.STRUCT:
+          self.tnee = TaskNotExistException()
+          self.tnee.read(iprot)
+        else:
+          iprot.skip(ftype)
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if oprot.__class__ == TBinaryProtocol.TBinaryProtocolAccelerated and self.thrift_spec is not None and fastbinary is not None:
+      oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
+      return
+    oprot.writeStructBegin('optimizeBucketToRouteWithThreshold_result')
     if self.success is not None:
       oprot.writeFieldBegin('success', TType.STRING, 0)
       oprot.writeString(self.success.encode('utf-8'))

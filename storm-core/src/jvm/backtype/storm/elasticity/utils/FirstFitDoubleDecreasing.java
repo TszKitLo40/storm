@@ -33,7 +33,7 @@ public class FirstFitDoubleDecreasing extends AbstractBinPacking {
         bins.clear();
         ballToBinMapping.clear();
         for(int i=0; i<nbins; i++) {
-            bins.add(new Bin(Integer.MAX_VALUE));
+            bins.add(new Bin(Long.MAX_VALUE));
             bins.get(i).index = i;
         }
 

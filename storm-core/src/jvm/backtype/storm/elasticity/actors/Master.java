@@ -370,7 +370,20 @@ public class Master extends UntypedActor implements MasterService.Iface {
     @Override
     public String optimizeBucketToRoute(int taskid) throws TaskNotExistException, TException {
         try {
-           return ElasticScheduler.getInstance().optimizeBucketToRoutingMapping(taskid);
+            return ElasticScheduler.getInstance().optimizeBucketToRoutingMapping(taskid);
+        } catch (RoutingTypeNotSupportedException e) {
+            e.printStackTrace();
+            return e.getMessage();
+        } catch (Exception ee) {
+            ee.printStackTrace();
+            return ee.getMessage();
+        }
+    }
+
+    @Override
+    public String optimizeBucketToRouteWithThreshold(int taskid, double theshold) throws TaskNotExistException, TException {
+        try {
+           return ElasticScheduler.getInstance().optimizeBucketToRoutingMapping(taskid, theshold);
         } catch (RoutingTypeNotSupportedException e) {
             e.printStackTrace();
             return e.getMessage();

@@ -10,6 +10,7 @@ import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.PartitioningMinimizedMovement;
 import backtype.storm.generated.TaskNotExistException;
 import backtype.storm.utils.Utils;
 import org.apache.thrift.TException;
@@ -84,7 +85,7 @@ public class ElasticScheduler {
                             Set<Integer> taskIds = master._elasticTaskIdToWorker.keySet();
                             for(Integer task: taskIds) {
                                 try {
-//                                    optimizeBucketToRoutingMapping(task);
+                                    optimizeBucketToRoutingMapping(task);
                                 } catch (Exception e ) {
                                     e.printStackTrace();
                                 }
@@ -99,6 +100,10 @@ public class ElasticScheduler {
     }
 
     public String optimizeBucketToRoutingMapping(int taskId) throws TaskNotExistException, RoutingTypeNotSupportedException, TException {
+        return optimizeBucketToRoutingMapping(taskId, 0.2);
+    }
+
+    public String optimizeBucketToRoutingMapping(int taskId, double threshold) throws TaskNotExistException, RoutingTypeNotSupportedException, TException {
 
         synchronized (lock) {
 
@@ -148,37 +153,23 @@ public class ElasticScheduler {
             }
 
             double averageLoad = loadSum / (double)numberOfRoutes;
-            boolean skewness = (loadMax - averageLoad)/averageLoad > 0.8;
+//            boolean skewness = (loadMax - averageLoad)/averageLoad > 0.8;
+
+            double workloadFactor = (loadMax - loadMin) / (double)loadMax;
+
+            boolean skewness = workloadFactor >= threshold;
 
             System.out.println("Workload distribution:\n");
             for(int i = 0; i < routeLoads.length; i++ ){
                 System.out.println(i + ": " + routeLoads[i]);
             }
-            System.out.println("Workload Skewness: " + skewness);
+            System.out.println("Workload factor: " + workloadFactor);
+            System.out.println("threshold: " + threshold);
 
             if(skewness) {
 
-                FirstFitDoubleDecreasing binPackingSolver = new FirstFitDoubleDecreasing(histograms.histogramsToArrayList(), numberOfRoutes);
-                if(binPackingSolver.getResult() != numberOfRoutes) {
-                    System.out.println("Fail to solve the bin packing problem!");
-                    return null;
-                }
-                System.out.println(binPackingSolver.toString());
-
-
-                Map<Integer, Integer> oldMapping = balancedHashRouting.getBucketToRouteMapping();
-                Map<Integer, Integer> newMapping = binPackingSolver.getBucketToPartitionMap();
-                ShardReassignmentPlan plan = new ShardReassignmentPlan();
-
-                for(Integer bucket: oldMapping.keySet()) {
-                    if(!oldMapping.get(bucket).equals(newMapping.get(bucket)) ) {
-                        int oldRoute = oldMapping.get(bucket);
-                        int newRoute = newMapping.get(bucket);
-                        plan.addReassignment(taskId, bucket, oldRoute, newRoute);
-                        System.out.println("Move " + bucket + " from " + oldRoute + " to " + newRoute + "\n");
-                    }
-                }
-
+//                ShardReassignmentPlan plan = getCompleteShardToTaskMapping(taskId, histograms, numberOfRoutes, balancedHashRouting.getBucketToRouteMapping());
+                ShardReassignmentPlan plan = getMinimizedShardToTaskReassignment(taskId, numberOfRoutes, balancedHashRouting.getBucketToRouteMapping(), histograms);
                 if(!plan.getReassignmentList().isEmpty()) {
                     applyShardToRouteReassignment(plan);
                 } else {
@@ -190,6 +181,52 @@ public class ElasticScheduler {
             }
         }
 
+    }
+
+    ShardReassignmentPlan getMinimizedShardToTaskReassignment(int taskId, int numberOfRoutes, Map<Integer, Integer> oldMapping,  Histograms histograms) {
+        ShardReassignmentPlan plan = new ShardReassignmentPlan();
+
+        PartitioningMinimizedMovement solver = new PartitioningMinimizedMovement(numberOfRoutes, oldMapping, histograms.histograms );
+
+        Map<Integer, Integer> optimziedShardToTaskMapping = solver.getSolution();
+
+        for(int shardID: optimziedShardToTaskMapping.keySet()){
+            final int newTask = optimziedShardToTaskMapping.get(shardID);
+            final int oldTask = oldMapping.get(shardID);
+            if(newTask!=oldTask) {
+                plan.addReassignment(taskId,shardID,oldTask,newTask);
+                System.out.println("Move " + shardID + " from " + oldTask + " to " + newTask + "\n");
+            }
+        }
+
+        return plan;
+    }
+
+    ShardReassignmentPlan getCompleteShardToTaskMapping(int taskId, Histograms histograms, int numberOfRoutes, Map<Integer, Integer> oldMapping ){
+
+
+        FirstFitDoubleDecreasing binPackingSolver = new FirstFitDoubleDecreasing(histograms.histogramsToArrayList(), numberOfRoutes);
+        if(binPackingSolver.getResult() != numberOfRoutes) {
+            System.out.println("Fail to solve the bin packing problem!");
+            return null;
+        }
+        System.out.println(binPackingSolver.toString());
+
+
+        Map<Integer, Integer> newMapping = binPackingSolver.getBucketToPartitionMap();
+        ShardReassignmentPlan plan = new ShardReassignmentPlan();
+
+        for(Integer bucket: oldMapping.keySet()) {
+            if(!oldMapping.get(bucket).equals(newMapping.get(bucket)) ) {
+                int oldRoute = oldMapping.get(bucket);
+                int newRoute = newMapping.get(bucket);
+                plan.addReassignment(taskId, bucket, oldRoute, newRoute);
+                System.out.println("Move " + bucket + " from " + oldRoute + " to " + newRoute + "\n");
+            }
+        }
+
+
+        return plan;
     }
 
     void applyShardToRouteReassignment(ShardReassignmentPlan plan) throws TException{

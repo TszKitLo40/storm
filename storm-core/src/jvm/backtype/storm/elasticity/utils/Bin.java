@@ -15,11 +15,11 @@ public class Bin implements Comparator<Bin> {
     /**
      * maximal allowed added value of items.
      */
-    protected int maxSize;
+    protected long maxSize;
     /**
      * current added value of items.
      */
-    protected int currentSize;
+    protected long currentSize;
     /**
      * list of items balls bin.
      */
@@ -32,10 +32,15 @@ public class Bin implements Comparator<Bin> {
      *
      * @param maxSize
      */
-    public Bin(int maxSize) {
+    public Bin(long maxSize) {
         this.maxSize = maxSize;
         this.currentSize = 0;
         this.items = new ArrayList<Long>();
+    }
+
+    public Bin(long maxSize, int index) {
+        this(maxSize);
+        this.index = index;
     }
 
     /**
@@ -62,7 +67,7 @@ public class Bin implements Comparator<Bin> {
      *
      * @param item item to remove from bin
      */
-    public void remove(Integer item) {
+    public void remove(Long item) {
         items.remove(item);
         currentSize -= item;
     }
@@ -83,7 +88,7 @@ public class Bin implements Comparator<Bin> {
      * @return deep copy of this bin
      */
     public Bin deepCopy() {
-        Bin copy = new Bin(0);
+        Bin copy = new Bin(0L);
         copy.items = new ArrayList<Long>(items); // Integers are not copied by reference
         copy.currentSize = currentSize;
         copy.maxSize = maxSize;
@@ -102,7 +107,7 @@ public class Bin implements Comparator<Bin> {
 
     @Override
     public int compare(Bin bin, Bin bin2) {
-        return Integer.compare(bin.currentSize,bin2.currentSize);
+        return Long.compare(bin.currentSize,bin2.currentSize);
     }
 
 
@@ -110,7 +115,7 @@ public class Bin implements Comparator<Bin> {
 
         @Override
         public int compare(Bin bin, Bin bin2) {
-            return Integer.compare(bin.currentSize,bin2.currentSize);
+            return Long.compare(bin.currentSize,bin2.currentSize);
         }
     }
 
@@ -123,9 +128,9 @@ public class Bin implements Comparator<Bin> {
     }
 
     public static void main(String [] args) {
-        Bin b1 = new Bin(100);
-        Bin b2 = new Bin(100);
-        Bin b3 = new Bin(100);
+        Bin b1 = new Bin(100L);
+        Bin b2 = new Bin(100L);
+        Bin b3 = new Bin(100L);
 
         b1.put(50L);
         b2.put(30L);
