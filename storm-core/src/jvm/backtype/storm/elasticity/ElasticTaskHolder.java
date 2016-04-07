@@ -141,6 +141,8 @@ public class ElasticTaskHolder {
         Utils.sleep(2000);
         _slaveActor.sendMessageToMaster("My pid is: " + ManagementFactory.getRuntimeMXBean().getName());
         resourceMonitor = new ResourceMonitor();
+        createMetricsReportThread();
+        createParallelismPredicationThread();
     }
 
     public void registerElasticBolt(BaseElasticBoltExecutor bolt, int taskId) {
@@ -368,8 +370,14 @@ public class ElasticTaskHolder {
                                 ExecutionLatencyForRoutesMessage latencyForRoutes = (ExecutionLatencyForRoutesMessage)message;
                                 byte[] bytes = SerializationUtils.serialize(latencyForRoutes);
                                 IConnection connection = _originalTaskIdToConnection.get(latencyForRoutes.taskId);
+                                if(connection != null) {
+                                    TaskMessage taskMessage = new TaskMessage(latencyForRoutes.taskId, bytes);
+                                    insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, connection, taskMessage);
+                                    System.out.println("ExecutionLatencyForRoutesMessage is sent!");
+                                } else {
+                                    System.err.println("Cannot find the connection for task " + latencyForRoutes.toString());
+                                }
 
-                                ToDO: to be contined...
 
                             } else {
                                 System.err.print("Unknown element from the sending queue");
@@ -577,6 +585,11 @@ public class ElasticTaskHolder {
 
                             handleStateFlushToken(token);
 
+                        } else if (object instanceof ExecutionLatencyForRoutesMessage) {
+
+                            ExecutionLatencyForRoutesMessage latencyForRoutesMessage = (ExecutionLatencyForRoutesMessage)object;
+                            int taskId = latencyForRoutesMessage.taskId;
+                            _bolts.get(taskId).getMetrics().updateLatency(latencyForRoutesMessage.latencyForRoutes);
 
                         } else if (object instanceof String) {
                             System.out.println(object);
@@ -1416,29 +1429,57 @@ public class ElasticTaskHolder {
 
     }
 
-    void createMetricsReportThread() {
+    private void createMetricsReportThread() {
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                while(true) {
-                    Thread.sleep(1000);
+                    while(true) {
+                        Thread.sleep(1000);
 
-                    for(int remoteTaskId: _originalTaskIdToRemoteTaskExecutor.keySet()) {
-                        ExecutionLatencyForRoutes latencyForRoutes = _originalTaskIdToRemoteTaskExecutor.get(remoteTaskId)._elasticTasks.getExecutionLatencyForRoutes();
-                        ExecutionLatencyForRoutesMessage message = new ExecutionLatencyForRoutesMessage(remoteTaskId, latencyForRoutes);
-                        _sendingQueue.put(message);
+                        for(int remoteTaskId: _originalTaskIdToRemoteTaskExecutor.keySet()) {
+                            ExecutionLatencyForRoutes latencyForRoutes = _originalTaskIdToRemoteTaskExecutor.get(remoteTaskId)._elasticTasks.getExecutionLatencyForRoutes();
+                            ExecutionLatencyForRoutesMessage message = new ExecutionLatencyForRoutesMessage(remoteTaskId, latencyForRoutes);
+                            _sendingQueue.put(message);
+                        }
+
+                        for(int taskId: _bolts.keySet()) {
+                            ExecutionLatencyForRoutes latencyForRoutes = _bolts.get(taskId).get_elasticTasks().getExecutionLatencyForRoutes();
+                            _bolts.get(taskId).getMetrics().updateLatency(latencyForRoutes);
+                        }
+
                     }
-
-                    _originalTaskIdToRemoteTaskExecutor.get(1)._elasticTasks.getExecutionLatencyForRoutes();
-
-
+                } catch (InterruptedException e) {
+                    System.out.println("Metrics report thread is terminated!");
                 }
+            }
+        }).start();
+
+        sendMessageToMaster("Metrics report thread is created!");
+    }
+
+    private void createParallelismPredicationThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(1000);
+                        for(int taskId: _bolts.keySet()) {
+
+                            int currentParallelism = _bolts.get(taskId).getCurrentParallelism();
+                            int desirableParallelism = _bolts.get(taskId).getDesirableParallelism();
+
+                            sendMessageToMaster("Task " + taskId + " current DoP: " + currentParallelism + " desirable DoP: " + desirableParallelism);
+                        }
+                    }
                 } catch (InterruptedException e) {
 
                 }
             }
         }).start();
+
+        sendMessageToMaster("Parallelism Predication thread is created!");
     }
 
 }

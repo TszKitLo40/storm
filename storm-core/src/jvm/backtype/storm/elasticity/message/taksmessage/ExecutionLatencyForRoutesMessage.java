@@ -8,7 +8,7 @@ import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
  */
 public class ExecutionLatencyForRoutesMessage implements ITaskMessage {
     public int taskId;
-    ExecutionLatencyForRoutes latencyForRoutes;
+    public ExecutionLatencyForRoutes latencyForRoutes;
     public ExecutionLatencyForRoutesMessage(int taskId, ExecutionLatencyForRoutes latencyForRoutes) {
         this.taskId = taskId;
         this.latencyForRoutes = latencyForRoutes;

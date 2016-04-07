@@ -191,4 +191,16 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     public ElasticExecutorMetrics getMetrics() {
         return metrics;
     }
+
+    public int getCurrentParallelism() {
+        return get_elasticTasks().get_routingTable().getNumberOfRoutes();
+    }
+
+    public int getDesirableParallelism() {
+        double inputRate = getRate();
+        double processingRatePerProcessor = 1 * 100000000000.0 / getMetrics().getAverageLatency();
+        int desirableParallelism = (int)Math.ceil(inputRate / processingRatePerProcessor);
+        return desirableParallelism;
+    }
+
 }
