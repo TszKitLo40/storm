@@ -1,8 +1,11 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.tuple.Tuple;
 import org.joda.time.Seconds;
 
+import java.util.LinkedList;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -23,11 +26,31 @@ public class QueryRunnable implements Runnable {
 
     private int id;
 
+    private ConcurrentLinkedQueue<Long> latencyHistory = new ConcurrentLinkedQueue<>();
+
+    private boolean forceSample = true;
+
+    private Thread forceSampleThread;
+
     public QueryRunnable(BaseElasticBolt bolt, LinkedBlockingQueue<Tuple> pendingTuples, ElasticOutputCollector outputCollector, int id) {
         _bolt = bolt;
         _pendingTuples = pendingTuples;
         _outputCollector = outputCollector;
         this.id = id;
+        forceSampleThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    while(true) {
+                        Thread.sleep(1000 * Config.latencyMaximalTimeIntervalInSecond);
+                        forceSample = true;
+                    }
+                } catch (InterruptedException e) {
+
+                }
+            }
+        });
+        forceSampleThread.start();
     }
 
     /**
@@ -38,6 +61,8 @@ public class QueryRunnable implements Runnable {
      * will no longer be inserted new tuples.
      */
     public void terminate() {
+        forceSampleThread.interrupt();
+
         _terminationRequest = true;
         try {
             while (!interrupted) {
@@ -52,12 +77,24 @@ public class QueryRunnable implements Runnable {
     }
 
     @Override
-    public void run() {
+    public void  run() {
         try {
+            int sample = 0;
             while (!_terminationRequest || !_pendingTuples.isEmpty()) {
                 Tuple input = _pendingTuples.poll(5, TimeUnit.MILLISECONDS);
+                int sampeEveryNTuples = (int)(1 / Config.latencySampleRate);
                 if(input!=null) {
-                    _bolt.execute(input, _outputCollector);
+                    if(sample % sampeEveryNTuples ==0 || forceSample) {
+                        final long currentTime = System.nanoTime();
+                        _bolt.execute(input, _outputCollector);
+                        final long executionLatency = System.nanoTime() - currentTime;
+                        latencyHistory.offer(executionLatency);
+                        if(latencyHistory.size()>100) {
+                            latencyHistory.poll();
+                        }
+                    } else {
+                        _bolt.execute(input, _outputCollector);
+                    }
                 }
             }
             interrupted = true;
@@ -71,5 +108,18 @@ public class QueryRunnable implements Runnable {
         System.out.println("A query thread is terminated!");
         ElasticTaskHolder.instance().sendMessageToMaster("**********Query Runnable (" + id + ") is terminated!");
 
+    }
+
+    public Long getAverageExecutionLatency() {
+        int size = latencyHistory.size();
+        long sum = 0;
+        for(long latency: latencyHistory) {
+            sum += latency;
+        }
+        if(size == 0 ) {
+            return null;
+        } else {
+            return sum/size;
+        }
     }
 }

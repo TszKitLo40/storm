@@ -4,11 +4,11 @@ import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.InvalidRouteException;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
+import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
 import backtype.storm.elasticity.routing.*;
 import backtype.storm.elasticity.utils.KeyFrequencySampler;
-import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.tuple.Tuple;
 
 import java.io.Serializable;
@@ -464,6 +464,14 @@ public class ElasticTasks implements Serializable {
         if(_sample!=null) {
             _sample.clear();
         }
+    }
+
+    public ExecutionLatencyForRoutes getExecutionLatencyForRoutes() {
+        ExecutionLatencyForRoutes latencyForRoutes = new ExecutionLatencyForRoutes();
+        for(Integer routeId: _queryRunnables.keySet()) {
+            latencyForRoutes.add(routeId, _queryRunnables.get(routeId).getAverageExecutionLatency());
+        }
+        return latencyForRoutes;
     }
 
 

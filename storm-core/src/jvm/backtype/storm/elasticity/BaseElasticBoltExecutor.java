@@ -1,6 +1,7 @@
 package backtype.storm.elasticity;
 
 import backtype.storm.elasticity.config.Config;
+import backtype.storm.elasticity.metrics.ElasticExecutorMetrics;
 import backtype.storm.elasticity.utils.KeyBucketSampler;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -42,7 +43,10 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     private transient RateTracker _rateTracker;
 
+    private transient ElasticExecutorMetrics metrics;
+
     public transient KeyBucketSampler _keyBucketSampler;
+
 
     public BaseElasticBoltExecutor(BaseElasticBolt bolt) {
         _bolt = bolt;
@@ -83,6 +87,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+        metrics = new ElasticExecutorMetrics();
         _keyBucketSampler = new KeyBucketSampler(Config.NumberOfShard);
         _resultQueue = new LinkedBlockingQueue<>(Config.ResultQueueCapacity);
         _outputCollector = new ElasticOutputCollector(_resultQueue);
@@ -181,5 +186,9 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     public double getRate() {
         return _rateTracker.reportRate();
+    }
+
+    public ElasticExecutorMetrics getMetrics() {
+        return metrics;
     }
 }

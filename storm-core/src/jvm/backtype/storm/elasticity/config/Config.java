@@ -37,4 +37,8 @@ public class Config {
 
     public static int LoggingServerPort = 10000;
 
+    public static double latencySampleRate = 0.01;
+
+    public static int latencyMaximalTimeIntervalInSecond = 1;
+
 }

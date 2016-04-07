@@ -14,6 +14,7 @@ import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.exceptions.TaskNotExistingException;
 import backtype.storm.elasticity.message.actormessage.TestAliveMessage;
 import backtype.storm.elasticity.message.taksmessage.*;
+import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
 import backtype.storm.elasticity.networking.MyContext;
 import backtype.storm.elasticity.resource.ResourceMonitor;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
@@ -363,6 +364,13 @@ public class ElasticTaskHolder {
                                     System.out.println("TaskId: " + remoteState._taskId);
                                     System.out.println("Connections: " + _originalTaskIdToConnection );
                                 }
+                            } else if (message instanceof ExecutionLatencyForRoutesMessage) {
+                                ExecutionLatencyForRoutesMessage latencyForRoutes = (ExecutionLatencyForRoutesMessage)message;
+                                byte[] bytes = SerializationUtils.serialize(latencyForRoutes);
+                                IConnection connection = _originalTaskIdToConnection.get(latencyForRoutes.taskId);
+
+                                ToDO: to be contined...
+
                             } else {
                                 System.err.print("Unknown element from the sending queue");
                             }
@@ -1406,6 +1414,31 @@ public class ElasticTaskHolder {
             return e.getMessage();
         }
 
+    }
+
+    void createMetricsReportThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                while(true) {
+                    Thread.sleep(1000);
+
+                    for(int remoteTaskId: _originalTaskIdToRemoteTaskExecutor.keySet()) {
+                        ExecutionLatencyForRoutes latencyForRoutes = _originalTaskIdToRemoteTaskExecutor.get(remoteTaskId)._elasticTasks.getExecutionLatencyForRoutes();
+                        ExecutionLatencyForRoutesMessage message = new ExecutionLatencyForRoutesMessage(remoteTaskId, latencyForRoutes);
+                        _sendingQueue.put(message);
+                    }
+
+                    _originalTaskIdToRemoteTaskExecutor.get(1)._elasticTasks.getExecutionLatencyForRoutes();
+
+
+                }
+                } catch (InterruptedException e) {
+
+                }
+            }
+        }).start();
     }
 
 }
