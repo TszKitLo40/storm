@@ -137,7 +137,7 @@ public class ElasticTaskHolder {
         createPriorityReceivingThread();
         createRemoteExecutorResultReceivingThread();
         LOG.info("ElasticTaskHolder is launched.");
-        LOG.info("storm id:"+workerId+" port:" + port);
+        LOG.info("storm id:" + workerId + " port:" + port);
         Utils.sleep(2000);
         _slaveActor.sendMessageToMaster("My pid is: " + ManagementFactory.getRuntimeMXBean().getName());
         resourceMonitor = new ResourceMonitor();
@@ -1469,7 +1469,8 @@ public class ElasticTaskHolder {
 
                             int currentParallelism = _bolts.get(taskId).getCurrentParallelism();
                             int desirableParallelism = _bolts.get(taskId).getDesirableParallelism();
-
+                            sendMessageToMaster("Task: " + taskId + "average latency: " + _bolts.get(taskId).getMetrics().getAverageLatency());
+                            sendMessageToMaster("Task: " + taskId + "rate: " + _bolts.get(taskId).getRate());
                             sendMessageToMaster("Task " + taskId + " current DoP: " + currentParallelism + " desirable DoP: " + desirableParallelism);
                         }
                     }

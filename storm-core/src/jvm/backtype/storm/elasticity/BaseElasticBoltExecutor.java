@@ -197,9 +197,12 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     }
 
     public int getDesirableParallelism() {
+
+        final double overProvisioningFactor = 0.2;
+
         double inputRate = getRate();
-        double processingRatePerProcessor = 1 * 100000000000.0 / getMetrics().getAverageLatency();
-        int desirableParallelism = (int)Math.ceil(inputRate / processingRatePerProcessor);
+        double processingRatePerProcessor = 1 * 1000000000.0 / getMetrics().getAverageLatency();
+        int desirableParallelism = (int)Math.ceil(inputRate / processingRatePerProcessor + overProvisioningFactor);
         return desirableParallelism;
     }
 
