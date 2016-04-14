@@ -9,13 +9,16 @@ public class WorkerRegistrationMessage implements IMessage {
 
     int _port;
 
-    public WorkerRegistrationMessage(String name) {
-        _name = name;
-    }
+    int _numberOfProcossors;
 
     public WorkerRegistrationMessage(String name, int port) {
+        this(name, port, -1);
+    }
+
+    public WorkerRegistrationMessage(String name, int port, int numberOfProcessors) {
         _name = name;
         _port = port;
+        _numberOfProcossors = numberOfProcessors;
     }
 
     public String getName() {
@@ -24,5 +27,9 @@ public class WorkerRegistrationMessage implements IMessage {
 
     public int getPort() {
         return _port;
+    }
+
+    public int getNumberOfProcessors() {
+        return _numberOfProcossors;
     }
 }

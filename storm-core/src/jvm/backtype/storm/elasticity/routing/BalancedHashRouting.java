@@ -1,5 +1,6 @@
 package backtype.storm.elasticity.routing;
 
+import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlideWindowKeyBucketSample;
@@ -86,6 +87,7 @@ public class BalancedHashRouting implements RoutingTable, ScalableRouting {
 
     public synchronized void reassignBucketToRoute(int bucketid, int targetRoute) {
         hashValueToRoute.put(bucketid, targetRoute);
+//        ElasticTaskHolder.instance()._slaveActor.sendMessageToMaster(bucketid + ", " + targetRoute + " is put!");
     }
 
     public synchronized String toString() {
@@ -176,7 +178,7 @@ public class BalancedHashRouting implements RoutingTable, ScalableRouting {
         int largestSubtaskIndex = numberOfRoutes - 1;
         for(int shard: hashValueToRoute.keySet()) {
             if(hashValueToRoute.get(shard) == largestSubtaskIndex)
-                throw new RuntimeException("There is at least one shard assigned to the Subtask with the largest index. Scaling in fails!");
+                throw new RuntimeException("There is at least one shard ("+ shard +") assigned to the Subtask with the largest index ("+ largestSubtaskIndex + "). Scaling in fails!");
         }
         numberOfRoutes--;
         routeDistributionSampler = new SlidingWindowRouteSampler(numberOfRoutes);

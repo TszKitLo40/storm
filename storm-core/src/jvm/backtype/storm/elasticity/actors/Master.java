@@ -3,10 +3,13 @@ package backtype.storm.elasticity.actors;
 import akka.actor.*;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
+import backtype.storm.elasticity.actors.utils.ScalingInSubtask;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.actormessage.*;
+import backtype.storm.elasticity.message.actormessage.Status;
 import backtype.storm.elasticity.resource.ResourceManager;
 import backtype.storm.elasticity.routing.RoutingTable;
+import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.scheduler.ElasticScheduler;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.generated.HostNotExistException;
@@ -22,6 +25,7 @@ import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
 import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
+import scala.Array;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
@@ -47,11 +51,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<Integer, String> _taskidToActorName = new HashMap<>();
 
-    public Map<Integer, String> _elasticTaskIdToWorker = new HashMap<>();
+    public Map<Integer, String> _elasticTaskIdToWorkerLogicalName = new HashMap<>();
 
     public Map<String, String> _taskidRouteToWorker = new HashMap<>();
 
     private Map<String, String> _hostNameToWorkerLogicalName = new HashMap<>();
+
+    private Map<String, Set<String>> _ipToWorkerLogicalName = new HashMap<>();
 
 //    IConnection _loggingInput;
 
@@ -148,9 +154,23 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
             for(String name: _nameToPath.keySet()) {
                 if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
+                    final String ip = extractIpFromActorAddress(getSender().path().toString());
+                    if(ip == null) {
+                        continue;
+                    }
+                    final String logicalName = _hostNameToWorkerLogicalName.get(name);
+
+                    _ipToWorkerLogicalName.get(ip).remove(logicalName);
+                    if(_ipToWorkerLogicalName.get(ip).isEmpty()) {
+                        _ipToWorkerLogicalName.remove(ip);
+                        ResourceManager.instance().computationResource.unregisterNode(ip);
+                    }
+
                     _nameToPath.remove(name);
                     log(_hostNameToWorkerLogicalName.get(name)+" is removed from the system.");
                     _hostNameToWorkerLogicalName.remove(name);
+
+
                 } else {
 //                    System.out.println(_nameToPath.get(name) + " != " + unreachableMember.member().address().toString());
                 }
@@ -167,14 +187,25 @@ public class Master extends UntypedActor implements MasterService.Iface {
 //            _nameToActors.put(workerRegistrationMessage.getName(), getSender());
             _nameToPath.put(workerRegistrationMessage.getName(), getSender().path());
             final String ip = extractIpFromActorAddress(getSender().path().toString());
+            if(ip == null) {
+                System.err.println("WorkerRegistrationMessage is ignored, as we cannot extract a valid ip!");
+                return;
+            }
             final String logicalName = ip +":"+ workerRegistrationMessage.getPort();
             _hostNameToWorkerLogicalName.put(workerRegistrationMessage.getName(), logicalName);
-            log("[" +  workerRegistrationMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(workerRegistrationMessage.getName()));
+
+            if(!_ipToWorkerLogicalName.containsKey(ip))
+                _ipToWorkerLogicalName.put(ip, new HashSet<String>());
+            _ipToWorkerLogicalName.get(ip).add(logicalName);
+            ResourceManager.instance().computationResource.registerNode(ip, workerRegistrationMessage.getNumberOfProcessors());
+            System.out.println(ResourceManager.instance().computationResource);
+
+            log("[" + workerRegistrationMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(workerRegistrationMessage.getName()));
             getSender().tell(new WorkerRegistrationResponseMessage(InetAddress.getLocalHost().getHostAddress(), ip, workerRegistrationMessage.getPort()), getSelf());
         } else if (message instanceof ElasticTaskRegistrationMessage) {
             ElasticTaskRegistrationMessage registrationMessage = (ElasticTaskRegistrationMessage) message;
             _taskidToActorName.put(registrationMessage.taskId, registrationMessage.hostName);
-            _elasticTaskIdToWorker.put(registrationMessage.taskId, getWorkerLogicalName(registrationMessage.hostName));
+            _elasticTaskIdToWorkerLogicalName.put(registrationMessage.taskId, getWorkerLogicalName(registrationMessage.hostName));
             log("Task " + registrationMessage.taskId + " is launched on " + getWorkerLogicalName(registrationMessage.hostName) + ".");
 
         } else if (message instanceof RouteRegistrationMessage) {
@@ -199,7 +230,86 @@ public class Master extends UntypedActor implements MasterService.Iface {
         } else if (message instanceof WorkerCPULoad) {
             WorkerCPULoad load = (WorkerCPULoad) message;
             ResourceManager.instance().updateWorkerCPULoad(getWorkerLogicalName(load.hostName), load);
+        } else if (message instanceof ExecutorScalingInRequestMessage) {
+            ExecutorScalingInRequestMessage requestMessage = (ExecutorScalingInRequestMessage)message;
+            ElasticScheduler.getInstance().addScalingRequest(requestMessage);
+//            handleExecutorScalingInRequest(requestMessage.taskID);
+        } else if (message instanceof ExecutorScalingOutRequestMessage) {
+            ExecutorScalingOutRequestMessage requestMessage = (ExecutorScalingOutRequestMessage) message;
+//            handleExecutorScalingOutRequest(requestMessage.taskId);
+            ElasticScheduler.getInstance().addScalingRequest(requestMessage);
         }
+    }
+
+    public void handleExecutorScalingInRequest(int taskId) {
+        try {
+            RoutingTable routingTable = getRoutingTable(taskId);
+            int targetRouteId = routingTable.getNumberOfRoutes() - 1;
+            String hostWorkerLogicalName = _taskidRouteToWorker.get(taskId+"."+targetRouteId);
+            String hostIp = getIpForWorkerLogicalName(hostWorkerLogicalName);
+
+            if(scalingInSubtask(taskId)) {
+                System.out.println("Task" + taskId + " successfully scales in!");
+                ResourceManager.instance().computationResource.returnProcessor(hostIp);
+            } else {
+                System.out.println("Task " + taskId + " scaling in fails!");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    String getIpForWorkerLogicalName(String workerLogicalName) {
+        String hostIp = null;
+        for(String ip : _ipToWorkerLogicalName.keySet()) {
+            if(_ipToWorkerLogicalName.get(ip).contains(workerLogicalName)) {
+                hostIp = ip;
+                break;
+            }
+        }
+        return hostIp;
+    }
+
+    public void handleExecutorScalingOutRequest(int taskid) {
+
+        try {
+            String workerHostName = _elasticTaskIdToWorkerLogicalName.get(taskid);
+            String preferredIp = getIpForWorkerLogicalName(workerHostName);
+
+            String hostIp = ResourceManager.instance().computationResource.allocateProcessOnPreferredNode(preferredIp);
+
+            if(hostIp == null) {
+                System.err.println("There is not enough computation resources for scaling out!");
+                return;
+            }
+
+            RoutingTable balancecHashRouting = RoutingTableUtils.getBalancecHashRouting(getRoutingTable(taskid));
+            if(balancecHashRouting == null) {
+                createRouting(workerHostName,taskid,1,"balanced_hash");
+            }
+
+            scalingOutSubtask(taskid);
+            System.out.println("A local new task is created!");
+
+            if(!hostIp.equals(preferredIp)) {
+                Set<String> candidateHosterWorkers = _ipToWorkerLogicalName.get(hostIp);
+
+                List<String> candidates = new ArrayList<>();
+                candidates.addAll(candidateHosterWorkers);
+                String hosterWorker = candidates.get(new Random().nextInt(candidateHosterWorkers.size()));
+
+                int targetRoute = getRoutingTable(taskid).getNumberOfRoutes() - 1 ;
+
+                System.out.println("a local task will be migrated from " + workerHostName + " to " + hosterWorker);
+                migrateTasks(workerHostName, hosterWorker, taskid, targetRoute);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     void log(String logger, String content) {
@@ -284,8 +394,11 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new HostNotExistException("Host " + workerName + " does not exist!");
         }
         try {
-            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
+            final Inbox inbox = Inbox.create(getContext().system());
+            inbox.send(getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))), new RoutingCreatingCommand(taskid, routeNo, type));
+//            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
 //          _nameToActors.get(getHostByWorkerLogicalName(workerName)).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
+            inbox.receive(new FiniteDuration(10000, TimeUnit.SECONDS));
             log("RoutingCreatingCommand has been sent!");
         }catch (Exception ex) {
             ex.printStackTrace();
@@ -358,12 +471,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
         ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
         final Inbox inbox = Inbox.create(getContext().system());
 
-        System.out.println("\n======================= BEGIN SHARD REASSIGNMENT =======================");
+//        System.out.println("\n======================= BEGIN SHARD REASSIGNMENT =======================");
 
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
         inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
 
-        System.out.println("======================= End SHARD REASSIGNMENT =======================\n");
+//        System.out.println("======================= End SHARD REASSIGNMENT =======================\n");
 //        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());
     }
 
@@ -395,7 +508,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     @Override
     public String subtaskLevelLoadBalancing(int taskid) throws TaskNotExistException, TException {
-        if(!_elasticTaskIdToWorker.containsKey(taskid)) {
+        if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid)) {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
@@ -420,14 +533,14 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     @Override
     public String naiveWorkerLevelLoadBalancing(int taskid) throws TaskNotExistException, TException {
-        if(!_elasticTaskIdToWorker.containsKey(taskid))
+        if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid))
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         return ElasticScheduler.getInstance().naiveWorkerLevelLoadBalancing(taskid);
     }
 
     @Override
     public void scalingOutSubtask(int taskid) throws TaskNotExistException, TException {
-        if(!_elasticTaskIdToWorker.containsKey(taskid)) {
+        if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid)) {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
@@ -436,13 +549,15 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     @Override
-    public void scalingInSubtask(int taskid) throws TaskNotExistException, TException {
-        if(!_elasticTaskIdToWorker.containsKey(taskid)) {
+    public boolean scalingInSubtask(int taskid) throws TaskNotExistException, TException {
+        if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid)) {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingInSubtaskCommand(taskid));
-        inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        Status returnStatus = (Status)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+//        System.out.println(returnStatus);
+        return returnStatus.code == Status.OK;
     }
 
     @Override

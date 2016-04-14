@@ -38,7 +38,7 @@ public class ShardWorkload {
 
     @Override
     public int hashCode() {
-        return new Integer(1).hashCode();
+        return new Integer(shardId).hashCode();
     }
 
     @Override

@@ -5,7 +5,7 @@ package backtype.storm.elasticity.config;
  */
 public class Config {
 
-    public static int NumberOfShard = 256;
+    public static int NumberOfShard = 65;
 
     public static double RoutingSamplingRate = 1.0;
 
@@ -31,14 +31,18 @@ public class Config {
 
     public static int SubtaskLevelLoadBalancingCycleInSecs = 15;
 
-    public static boolean EnableWorkerLevelLoadBalancing = true;
+    public static boolean EnableWorkerLevelLoadBalancing = false;
 
-    public static boolean EnableSubtaskLevelLoadBalancing = false;
+    public static boolean EnableSubtaskLevelLoadBalancing = true;
+
+    public static boolean EnableAutomaticScaling = true;
 
     public static int LoggingServerPort = 10000;
 
-    public static double latencySampleRate = 0.01;
+    public static double latencySampleRate = 0.1;
 
     public static int latencyMaximalTimeIntervalInSecond = 1;
+
+    public static double taskLevelLoadBalancingThreshold = 0.2;
 
 }

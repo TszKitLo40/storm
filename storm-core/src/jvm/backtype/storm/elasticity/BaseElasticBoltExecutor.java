@@ -1,7 +1,10 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.metrics.ElasticExecutorMetrics;
+import backtype.storm.elasticity.routing.PartialHashingRouting;
+import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.utils.KeyBucketSampler;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -193,16 +196,31 @@ public class BaseElasticBoltExecutor implements IRichBolt {
     }
 
     public int getCurrentParallelism() {
-        return get_elasticTasks().get_routingTable().getNumberOfRoutes();
+        return getCompleteRoutingTable().getNumberOfRoutes();
+    }
+
+    public RoutingTable getCompleteRoutingTable() {
+        RoutingTable routingTable = get_elasticTasks().get_routingTable();
+        if(routingTable instanceof PartialHashingRouting) {
+            routingTable = ((PartialHashingRouting) routingTable).getOriginalRoutingTable();
+        }
+        return routingTable;
     }
 
     public int getDesirableParallelism() {
 
-        final double overProvisioningFactor = 0.2;
+        final double overProvisioningFactor = 0.5;
 
         double inputRate = getRate();
-        double processingRatePerProcessor = 1 * 1000000000.0 / getMetrics().getAverageLatency();
+        Long averageLatency = getMetrics().getAverageLatency();
+        if(averageLatency == null) {
+            System.out.println("averageLatency is null!");
+            return 1;
+        }
+
+        double processingRatePerProcessor = 1 * 1000000000.0 / averageLatency;
         int desirableParallelism = (int)Math.ceil(inputRate / processingRatePerProcessor + overProvisioningFactor);
+        Slave.getInstance().sendMessageToMaster("rate=" + inputRate + " latency: "+ processingRatePerProcessor);
         return desirableParallelism;
     }
 

@@ -697,7 +697,7 @@ class Client(Iface):
      - taskid
     """
     self.send_scalingInSubtask(taskid)
-    self.recv_scalingInSubtask()
+    return self.recv_scalingInSubtask()
 
   def send_scalingInSubtask(self, taskid):
     self._oprot.writeMessageBegin('scalingInSubtask', TMessageType.CALL, self._seqid)
@@ -718,9 +718,11 @@ class Client(Iface):
     result = scalingInSubtask_result()
     result.read(iprot)
     iprot.readMessageEnd()
+    if result.success is not None:
+      return result.success
     if result.tnee is not None:
       raise result.tnee
-    return
+    raise TApplicationException(TApplicationException.MISSING_RESULT, "scalingInSubtask failed: unknown result");
 
   def logOnMaster(self, from, msg):
     """
@@ -1015,7 +1017,7 @@ class Processor(Iface, TProcessor):
     iprot.readMessageEnd()
     result = scalingInSubtask_result()
     try:
-      self._handler.scalingInSubtask(args.taskid)
+      result.success = self._handler.scalingInSubtask(args.taskid)
     except TaskNotExistException, tnee:
       result.tnee = tnee
     oprot.writeMessageBegin("scalingInSubtask", TMessageType.REPLY, seqid)
@@ -3399,15 +3401,17 @@ class scalingInSubtask_args:
 class scalingInSubtask_result:
   """
   Attributes:
+   - success
    - tnee
   """
 
   thrift_spec = (
-    None, # 0
+    (0, TType.BOOL, 'success', None, None, ), # 0
     (1, TType.STRUCT, 'tnee', (TaskNotExistException, TaskNotExistException.thrift_spec), None, ), # 1
   )
 
-  def __init__(self, tnee=None,):
+  def __init__(self, success=None, tnee=None,):
+    self.success = success
     self.tnee = tnee
 
   def read(self, iprot):
@@ -3419,7 +3423,12 @@ class scalingInSubtask_result:
       (fname, ftype, fid) = iprot.readFieldBegin()
       if ftype == TType.STOP:
         break
-      if fid == 1:
+      if fid == 0:
+        if ftype == TType.BOOL:
+          self.success = iprot.readBool();
+        else:
+          iprot.skip(ftype)
+      elif fid == 1:
         if ftype == TType.STRUCT:
           self.tnee = TaskNotExistException()
           self.tnee.read(iprot)
@@ -3435,6 +3444,10 @@ class scalingInSubtask_result:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
     oprot.writeStructBegin('scalingInSubtask_result')
+    if self.success is not None:
+      oprot.writeFieldBegin('success', TType.BOOL, 0)
+      oprot.writeBool(self.success)
+      oprot.writeFieldEnd()
     if self.tnee is not None:
       oprot.writeFieldBegin('tnee', TType.STRUCT, 1)
       self.tnee.write(oprot)
@@ -3448,6 +3461,7 @@ class scalingInSubtask_result:
 
   def __hash__(self):
     value = 17
+    value = (value * 31) ^ hash(self.success)
     value = (value * 31) ^ hash(self.tnee)
     return value
 

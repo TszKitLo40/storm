@@ -32,4 +32,12 @@ public class ExecutionLatencyForRoutes  implements Serializable {
         }
         return sum/routeToLatency.size();
     }
+
+    public String toString() {
+        String str = "ExecutionLatencyForRoutes:\n";
+        for(Integer route: routeToLatency.keySet()) {
+            str += route+": " + routeToLatency.get(route) +"\n";
+        }
+        return str;
+    }
 }

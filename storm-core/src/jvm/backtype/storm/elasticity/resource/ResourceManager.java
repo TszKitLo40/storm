@@ -15,6 +15,8 @@ public class ResourceManager {
     public Map<String, Double> workerCPULoad = new HashMap<>();
     public Map<String, Double> systemCPULoad = new HashMap<>();
 
+    public ComputationResourceManager computationResource = new ComputationResourceManager();
+
     static ResourceManager instance;
 
     public static ResourceManager instance() {

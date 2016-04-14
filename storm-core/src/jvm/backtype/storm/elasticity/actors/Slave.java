@@ -7,6 +7,7 @@ import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.message.actormessage.*;
+import backtype.storm.elasticity.resource.ResourceMonitor;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.timer.SmartTimer;
@@ -171,6 +172,7 @@ public class Slave extends UntypedActor {
             } else if (message instanceof RoutingCreatingCommand) {
                 RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
                 handleRoutingCreatingCommand(creatingCommand);
+                getSender().tell("Routing Creation Finished!", getSender());
 
             } else if (message instanceof RemoteRouteWithdrawCommand) {
                 RemoteRouteWithdrawCommand withdrawCommand = (RemoteRouteWithdrawCommand) message;
@@ -266,7 +268,8 @@ public class Slave extends UntypedActor {
     void register(Member member) {
         if(member.hasRole("master")) {
             _master = getContext().actorSelection(member.address()+"/user/master");
-            _master.tell(new WorkerRegistrationMessage(_name, _port),getSelf());
+            _master.tell(new WorkerRegistrationMessage(_name, _port, ResourceMonitor.getNumberOfProcessors()),getSelf());
+
             System.out.println("I have sent registration message to master.");
         } else if (member.hasRole("slave")) {
             getContext().actorSelection(member.address()+"/user/slave")
@@ -345,6 +348,7 @@ public class Slave extends UntypedActor {
         try {
             sendMessageToMaster("begin to handle crate routing command!");
             ElasticTaskHolder.instance().createRouting(creatingCommand._task, creatingCommand._numberOfRoutes, creatingCommand._routingType);
+
         } catch (Exception e) {
             sendMessageToMaster(e.getMessage());
         }
@@ -431,5 +435,9 @@ public class Slave extends UntypedActor {
     }
 
     public String getIp() { return _ip;}
+
+    public void sendMessageObjectToMaster(Object message) {
+        _master.tell(message, getSelf());
+    }
 
 }
