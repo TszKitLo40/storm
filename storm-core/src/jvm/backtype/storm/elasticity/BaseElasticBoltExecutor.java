@@ -82,6 +82,14 @@ public class BaseElasticBoltExecutor implements IRichBolt {
                     else
                         _originalCollector.emit(result._streamId, result._outputTuple);
                     break;
+                case TupleExecuteResult.EmitDirect:
+                    if(result._inputTuple!=null)
+                        _originalCollector.emitDirect(result._taskId,result._streamId, result._inputTuple, result._outputTuple);
+                    else
+                        _originalCollector.emitDirect(result._taskId, result._streamId, result._outputTuple);
+                    break;
+                case TupleExecuteResult.Ack:
+                    _originalCollector.ack(result._inputTuple);
                 default:
                     assert(false);
             }
