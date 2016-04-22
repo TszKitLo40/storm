@@ -44,4 +44,8 @@ public class ResourceMonitor {
     private double getSystemCPULoad() {
         return operatingSystemMXBean.getSystemCpuLoad() * operatingSystemMXBean.getAvailableProcessors();
     }
+
+    static public int getNumberOfProcessors() {
+        return ((com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getAvailableProcessors();
+    }
 }

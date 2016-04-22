@@ -13,6 +13,7 @@ public class TupleExecuteResult implements Serializable{
 
     public static final int Emit = 0;
     public static final int EmitDirect = 1;
+    public static final int Ack = 2;
 
     protected int _taskId;
 
@@ -36,6 +37,14 @@ public class TupleExecuteResult implements Serializable{
 
     public static TupleExecuteResult createEmit(String streamId, Tuple inputTuple, List<Object> outputTuple) {
         return new TupleExecuteResult(0, streamId, inputTuple, outputTuple, Emit);
+    }
+
+    public static TupleExecuteResult createEmitDirect(int taskId, String streamId, Tuple inputTuple, List<Object> outputTuple) {
+        return new TupleExecuteResult(taskId, streamId, inputTuple, outputTuple, EmitDirect);
+    }
+
+    public static TupleExecuteResult createAck(Tuple tuple) {
+        return new TupleExecuteResult(-1, null, tuple, null, Ack);
     }
 
 

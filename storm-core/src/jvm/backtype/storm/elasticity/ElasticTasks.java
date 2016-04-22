@@ -469,7 +469,8 @@ public class ElasticTasks implements Serializable {
     public ExecutionLatencyForRoutes getExecutionLatencyForRoutes() {
         ExecutionLatencyForRoutes latencyForRoutes = new ExecutionLatencyForRoutes();
         for(Integer routeId: _queryRunnables.keySet()) {
-            latencyForRoutes.add(routeId, _queryRunnables.get(routeId).getAverageExecutionLatency());
+            Long averageExecutionLatency = _queryRunnables.get(routeId).getAverageExecutionLatency();
+            latencyForRoutes.add(routeId, averageExecutionLatency);
         }
         return latencyForRoutes;
     }

@@ -47,11 +47,31 @@ public class ElasticOutputCollector {
         return null;
     }
 
+    public void emitDirect(int taskId, List<Object> tuple) {
+        emitDirect(taskId, Utils.DEFAULT_STREAM_ID, null, tuple);
+    }
+
     public void emitDirect(int taskId, String streamId, List<Object> tuple) {
-        assert(false);
+        emitDirect(taskId, streamId, null, tuple);
+    }
+
+    public void emitDirect(int taskId, String streamId, Tuple inputTuple, List<Object> tuple) {
+        try {
+            _outputQueue.put(TupleExecuteResult.createEmitDirect(taskId, streamId, inputTuple, tuple));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public void reportError(Throwable error) {
 
+    }
+
+    public void ack(Tuple tuple) {
+        try {
+            _outputQueue.put(TupleExecuteResult.createAck(tuple));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
