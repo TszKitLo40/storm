@@ -228,7 +228,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
         double processingRatePerProcessor = 1 * 1000000000.0 / averageLatency;
         int desirableParallelism = (int)Math.ceil(inputRate / processingRatePerProcessor + overProvisioningFactor);
-        Slave.getInstance().sendMessageToMaster("rate=" + inputRate + " latency: "+ processingRatePerProcessor);
+//        Slave.getInstance().sendMessageToMaster("rate=" + inputRate + " latency: "+ processingRatePerProcessor);
         return desirableParallelism;
     }
 

@@ -145,7 +145,7 @@ public class ElasticRemoteTaskExecutor {
         HashSet<Integer> routeSet = new HashSet<>(routes);
         for (Object key: state.getState().keySet()) {
             if(routeSet.contains(_elasticTasks.get_routingTable().route(key))) {
-                stateForRoutes.setValueBySey(key, state.getValueByKey(key));
+                stateForRoutes.setValueByKey(key, state.getValueByKey(key));
             }
         }
         RemoteState remoteState = new RemoteState(_elasticTasks.get_taskID(),stateForRoutes.getState(),routes);
