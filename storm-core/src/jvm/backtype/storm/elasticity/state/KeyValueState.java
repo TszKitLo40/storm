@@ -1,7 +1,6 @@
 package backtype.storm.elasticity.state;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,7 +18,7 @@ public class KeyValueState implements Serializable {
             return null;
     }
 
-    public synchronized void setValueBySey(Object key, Object value) {
+    public synchronized void setValueByKey(Object key, Object value) {
         state.put(key,value);
     }
 
@@ -39,9 +38,13 @@ public class KeyValueState implements Serializable {
         KeyValueState ret = new KeyValueState();
         for(Object key: state.keySet()) {
             if(filter.isValid(key)) {
-                ret.setValueBySey(key, state.get(key));
+                ret.setValueByKey(key, state.get(key));
             }
         }
         return ret;
+    }
+
+    public void removeValueByKey(Object key) {
+        state.remove(key);
     }
 }

@@ -595,3 +595,7 @@ service MasterService {
   void logOnMaster(1: string from, 2: string msg);
 
 }
+
+service SurveillanceService {
+  void reportExecutorThroughput(1: string executorId, 2: double value);
+}

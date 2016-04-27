@@ -20,8 +20,12 @@ public abstract class BaseElasticBolt implements Serializable {
         return state.getValueByKey(key);
     }
 
+    public void removeValueByKey(Object key) {
+        state.removeValueByKey(key);
+    }
+
     public void setValueByKey(Object key, Object value) {
-        state.setValueBySey(key, value);
+        state.setValueByKey(key, value);
     }
 
     public abstract void execute(Tuple input, ElasticOutputCollector collector);

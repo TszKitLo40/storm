@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 import backtype.storm.elasticity.state.*;
+import backtype.storm.utils.Utils;
 
 /**
  * Created by Robert on 11/3/15.
@@ -475,5 +476,18 @@ public class ElasticTasks implements Serializable {
         return latencyForRoutes;
     }
 
+    public void makesSureNoPendingTuples(int routeId) {
+        if(!_queues.containsKey(routeId)) {
+            System.err.println("RouteId cannot be found in makesSureNoPendingTuples!");
+            return;
+        }
+        Slave.getInstance().sendMessageToMaster("Cleaning....");
+        while(!_queues.get(routeId).isEmpty()) {
+            Utils.sleep(10);
+
+            Slave.getInstance().sendMessageToMaster(_queues.get(routeId).size() + " tuples remaining...");
+        }
+
+    }
 
 }
