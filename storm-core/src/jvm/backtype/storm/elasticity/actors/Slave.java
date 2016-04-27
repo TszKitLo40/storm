@@ -363,9 +363,8 @@ public class Slave extends UntypedActor {
     }
 
     static public Slave createActor(String name, String port) {
-        try{
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
-                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + InetAddress.getLocalHost().getHostAddress()))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + "192.168.0.120"))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                     .withFallback(ConfigFactory.load());
@@ -378,10 +377,7 @@ public class Slave extends UntypedActor {
 
 
             return Slave.waitAndGetInstance();
-        } catch (UnknownHostException e ) {
-            e.printStackTrace();
-            return null;
-        }
+
     }
 
     public static void main(String[] args) {

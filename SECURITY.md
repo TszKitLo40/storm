@@ -415,7 +415,7 @@ To support the oozie use-case, the following config can be supplied:
 nimbus.impersonation.acl:
     oozie:
         hosts:
-            [oozie-host1, oozie-host2, 127.0.0.1]
+            [oozie-host1, oozie-host2, 192.168.0.120]
         groups:
             [some-group-that-userX-is-part-of]
 ```

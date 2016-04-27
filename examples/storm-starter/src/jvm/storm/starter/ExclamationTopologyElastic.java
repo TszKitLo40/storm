@@ -35,7 +35,7 @@ public class ExclamationTopologyElastic {
 
             StormSubmitter.submitTopologyWithProgressBar(args[0], conf, builder.createTopology());
         }
-        else {
+      /*  else {
             conf.setMaxTaskParallelism(3);
 
             LocalCluster cluster = new LocalCluster();
@@ -44,6 +44,6 @@ public class ExclamationTopologyElastic {
             Thread.sleep(1000000);
 
             cluster.shutdown();
-        }
+        }*/
     }
 }

@@ -29,13 +29,13 @@ public class Config {
 
     public static int WorkerLevelLoadBalancingCycleInSecs = 10;
 
-    public static int SubtaskLevelLoadBalancingCycleInSecs = 15;
+    public static int SubtaskLevelLoadBalancingCycleInSecs = 5;
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
-    public static boolean EnableSubtaskLevelLoadBalancing = true;
+    public static boolean EnableSubtaskLevelLoadBalancing = false;
 
-    public static boolean EnableAutomaticScaling = true;
+    public static boolean EnableAutomaticScaling = false;
 
     public static int LoggingServerPort = 10000;
 

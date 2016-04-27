@@ -262,6 +262,8 @@ public class ElasticScheduler {
             // 2. get Distribution;
             Histograms histograms = master.getBucketDistribution(taskId);
 
+            System.out.println(histograms);
+
             double workloadFactor = getSkewnessFactor(histograms, balancedHashRouting);
             boolean skewness = workloadFactor >= threshold;
 

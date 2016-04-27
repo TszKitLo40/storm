@@ -13,7 +13,7 @@ import org.apache.thrift.transport.TTransport;
 public class GetLiveWorkers {
     public static void main(String[] args) {
 
-        TTransport transport = new TSocket("127.0.0.1",9090);
+        TTransport transport = new TSocket("192.168.0.120",9090);
         try {
             transport.open();
 

@@ -16,7 +16,7 @@ describe in detail the two key components of the Storm Solr integration, the `So
     new SolrUpdateBolt(solrConfig, solrMapper, solrCommitStgy)
     
     // zkHostString for Solr 'gettingstarted' example
-    SolrConfig solrConfig = new SolrConfig("127.0.0.1:9983");
+    SolrConfig solrConfig = new SolrConfig("192.168.0.120:9983");
     
     // JSON Mapper used to generate 'SolrRequest' requests to update the "gettingstarted" Solr collection with JSON content declared the tuple field with name "JSON"
     SolrMapper solrMapper = new SolrJsonMapper.Builder("gettingstarted", "JSON").build(); 
@@ -30,7 +30,7 @@ describe in detail the two key components of the Storm Solr integration, the `So
     new SolrStateFactory(solrConfig, solrMapper);
     
     // zkHostString for Solr 'gettingstarted' example
-    SolrConfig solrConfig = new SolrConfig("127.0.0.1:9983");
+    SolrConfig solrConfig = new SolrConfig("192.168.0.120:9983");
     
     /* Solr Fields Mapper used to generate 'SolrRequest' requests to update the "gettingstarted" Solr collection. The Solr index is updated using the field values of the tuple fields that match static or dynamic fields declared in the schema object build using schemaBuilder */ 
     SolrMapper solrMapper = new SolrFieldsMapper.Builder(schemaBuilder, "gettingstarted").build();

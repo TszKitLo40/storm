@@ -1,7 +1,6 @@
 package storm.starter;
 
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
@@ -39,21 +38,21 @@ public class ZipfTopologyElastic {
         public void execute(Tuple tuple, ElasticOutputCollector collector) {
             System.out.println("execute");
 //        utils.sleep(sleepTimeInMilics);
-            ComputationSimulator.compute(sleepTimeInMilics);
-            /*String word = tuple.getString(0);
-            Integer count = (Integer)getValueByKey(word);
+            ComputationSimulator.compute(sleepTimeInMilics*1000000);
+            String number = tuple.getString(0);
+            Integer count = (Integer)getValueByKey(number);
             if (count == null)
                 count = 0;
             count++;
-            setValueByKey(word,count);
-            collector.emit(tuple,new Values(word, count));*/
+            setValueByKey(number,count);
+            collector.emit(tuple,new Values(number, count));
         }
 
 
 
         @Override
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
-            declarer.declare(new Fields("result"));
+            declarer.declare(new Fields("number", "count"));
         }
 
         @Override
@@ -64,6 +63,30 @@ public class ZipfTopologyElastic {
         @Override
         public Object getKey(Tuple tuple) {
             return tuple.getString(0);
+        }
+    }
+
+    public static class Printer extends BaseBasicBolt {
+
+        @Override
+        public void execute(Tuple input, BasicOutputCollector collector) {
+      System.out.println(input.getString(0)+"--->"+input.getInteger(1));
+            collector.
+        }
+
+//        @Override
+//        public Object getKey(Tuple tuple) {
+//            return tuple.getString(0);
+//        }
+//
+//        @Override
+//        public void execute(Tuple input, ElasticOutputCollector collector) {
+//            System.out.println(input.getString(0)+"--->"+input.getInteger(1));
+//        }
+
+        @Override
+        public void declareOutputFields(OutputFieldsDeclarer declarer) {
+
         }
     }
 
@@ -81,7 +104,7 @@ public class ZipfTopologyElastic {
         builder.setSpout("spout", new ZipfGeneratorSpout(Integer.parseInt(args[1])),1);
 
         builder.setBolt("count", new Computation(Integer.parseInt(args[2])),1).fieldsGrouping("spout", new Fields("worker_nums"));
-       // builder.setBolt("print", new Printer(),1).globalGrouping("count");
+   //     builder.setBolt("print", new Printer(),1).globalGrouping("count");
 
         Config conf = new Config();
      //   if(args.length>2&&args[2].equals("debug"))
@@ -92,7 +115,7 @@ public class ZipfTopologyElastic {
 
             StormSubmitter.submitTopologyWithProgressBar(args[0], conf, builder.createTopology());
         }
-        else {
+      /*  else {
             conf.setMaxTaskParallelism(3);
 
             LocalCluster cluster = new LocalCluster();
@@ -101,6 +124,6 @@ public class ZipfTopologyElastic {
             Thread.sleep(1000000);
 
             cluster.shutdown();
-        }
+        }*/
     }
 }
