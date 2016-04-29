@@ -167,7 +167,7 @@ public class Slave extends UntypedActor {
                 handleTaskMigrationCommandMessage(taskMigrationCommand);
                 getSender().tell("Task Migration finishes!", getSelf());
             } else if (message instanceof ElasticTaskMigrationMessage) {
-//                sendMessageToMaster("Received Migration Message!!!!"+ ((ElasticTaskMigrationMessage) message).id);
+                sendMessageToMaster("Received Migration Message!!!!");
                 handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
             } else if (message instanceof RoutingCreatingCommand) {
                 RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
@@ -243,7 +243,7 @@ public class Slave extends UntypedActor {
             throw new HostNotExistException(targetNode + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
-        sendMessageToMaster("Begin to send " + object + " to targetNode!");
+        sendMessageToMaster("Begin to send " + object + " to " + targetNode);
         inbox.send(getContext().actorFor(_nameToPath.get(targetNode)), object);
         return inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
     }
@@ -282,6 +282,7 @@ public class Slave extends UntypedActor {
     public void sendMessageToMaster(String message) {
 //        _master.tell(new LogMessage(message, _name ), getSelf());
         try {
+            if(message != null)
             synchronized (thriftClientLock) {
                 thriftClient.logOnMaster(_logicalName, message);
             }
@@ -293,7 +294,9 @@ public class Slave extends UntypedActor {
 
     public void logOnMaster(String message) {
         try {
+            if(message != null)
             synchronized (thriftClientLock) {
+
             thriftClient.logOnMaster(_logicalName, message);
             }
         } catch (Exception e) {
