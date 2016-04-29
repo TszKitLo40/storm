@@ -80,16 +80,16 @@ public class QueryRunnable implements Runnable {
     public void  run() {
         try {
             int sample = 0;
+            int sampeEveryNTuples = (int)(1 / Config.latencySampleRate);
             while (!_terminationRequest || !_pendingTuples.isEmpty()) {
                 Tuple input = _pendingTuples.poll(5, TimeUnit.MILLISECONDS);
-                int sampeEveryNTuples = (int)(1 / Config.latencySampleRate);
                 if(input!=null) {
                     if(sample % sampeEveryNTuples ==0 || forceSample) {
                         final long currentTime = System.nanoTime();
                         _bolt.execute(input, _outputCollector);
                         final long executionLatency = System.nanoTime() - currentTime;
                         latencyHistory.offer(executionLatency);
-                        if(latencyHistory.size()>100) {
+                        if(latencyHistory.size()>Config.numberOfLatencyHistoryRecords) {
                             latencyHistory.poll();
                         }
                     } else {

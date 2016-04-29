@@ -109,9 +109,9 @@ public class ElasticTasks implements Serializable {
 //        System.out.println("Routing table: " + _routingTable);
 
 
-        if(new Random().nextFloat()<0.002) {
-            System.out.println("A tuple is route to " + route);
-        }
+//        if(new Random().nextFloat()<0.002) {
+//            System.out.println("A tuple is route to " + route);
+//        }
         _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
         if (route == RoutingTable.remote) {
 //            System.out.println("a tuple is routed to remote!");
@@ -470,8 +470,11 @@ public class ElasticTasks implements Serializable {
     public ExecutionLatencyForRoutes getExecutionLatencyForRoutes() {
         ExecutionLatencyForRoutes latencyForRoutes = new ExecutionLatencyForRoutes();
         for(Integer routeId: _queryRunnables.keySet()) {
-            Long averageExecutionLatency = _queryRunnables.get(routeId).getAverageExecutionLatency();
-            latencyForRoutes.add(routeId, averageExecutionLatency);
+            if(_queryRunnables.containsKey(routeId)) {
+                Long averageExecutionLatency = _queryRunnables.get(routeId).getAverageExecutionLatency();
+                if(averageExecutionLatency != null)
+                    latencyForRoutes.add(routeId, averageExecutionLatency);
+            }
         }
         return latencyForRoutes;
     }
@@ -481,11 +484,18 @@ public class ElasticTasks implements Serializable {
             System.err.println("RouteId cannot be found in makesSureNoPendingTuples!");
             return;
         }
-        Slave.getInstance().sendMessageToMaster("Cleaning....");
+//        Slave.getInstance().sendMessageToMaster("Cleaning...." + this._taskID + "." + routeId);
+        Long startTime = null;
         while(!_queues.get(routeId).isEmpty()) {
-            Utils.sleep(10);
+            Utils.sleep(1);
+            if(startTime == null) {
+                startTime = System.currentTimeMillis();
+            }
 
-            Slave.getInstance().sendMessageToMaster(_queues.get(routeId).size() + " tuples remaining...");
+            if(System.currentTimeMillis() - startTime > 1000) {
+                Slave.getInstance().sendMessageToMaster(_queues.get(routeId).size() + "  tuples remaining in " + this._taskID + "." + routeId);
+                startTime = System.currentTimeMillis();
+            }
         }
 
     }

@@ -16,7 +16,7 @@ public class SlideWindowKeyBucketSample implements Serializable {
 
     private boolean enabled = false;
 
-    static private int sampleLength = 10000;
+    static private int sampleLength = 1000;
 
     static private int numberOfSlides = 5;
 
@@ -65,7 +65,7 @@ public class SlideWindowKeyBucketSample implements Serializable {
     public Histograms getDistribution() {
         HashMap<Integer, Long> distribution = new HashMap<>();
         for(Integer i=0; i < _nBuckets; i++ ) {
-            distribution.put(i, (long)(buckets[i].reportRate() * sampleLength / 1000));
+            distribution.put(i, (long)(buckets[i].reportRate() * sampleLength));
         }
 
         return new Histograms(distribution);

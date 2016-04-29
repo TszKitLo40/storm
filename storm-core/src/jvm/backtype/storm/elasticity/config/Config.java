@@ -5,15 +5,15 @@ package backtype.storm.elasticity.config;
  */
 public class Config {
 
-    public static int NumberOfShard = 65;
+    public static int NumberOfShard = 64;
 
     public static double RoutingSamplingRate = 1.0;
 
-    public static int SubtaskInputQueueCapacity = 64;
+    public static int SubtaskInputQueueCapacity = 8;
 
     public static int ResultQueueCapacity = 1024;
 
-    public static int RemoteExecutorInputQueueCapacity = 1024;
+    public static int RemoteExecutorInputQueueCapacity = 8;
 
     public static int ElasticTaskHolderOutputQueueCapacity = 1024;
 
@@ -33,13 +33,15 @@ public class Config {
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
-    public static boolean EnableSubtaskLevelLoadBalancing = false;
+    public static boolean EnableSubtaskLevelLoadBalancing = true;
 
-    public static boolean EnableAutomaticScaling = false;
+    public static boolean EnableAutomaticScaling = true;
 
     public static int LoggingServerPort = 10000;
 
     public static double latencySampleRate = 0.1;
+
+    public static int numberOfLatencyHistoryRecords = 100;
 
     public static int latencyMaximalTimeIntervalInSecond = 1;
 

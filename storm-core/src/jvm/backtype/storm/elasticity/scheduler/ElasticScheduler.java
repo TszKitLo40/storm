@@ -15,6 +15,7 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.PartitioningMinimizedMovement;
+import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.generated.TaskNotExistException;
 import org.apache.thrift.TException;
 import org.eclipse.jetty.util.ArrayQueue;
@@ -121,7 +122,9 @@ public class ElasticScheduler {
                     try {
                         int taskId = pendingTaskLevelLoadBalancingQueue.take();
                         synchronized (lock) {
+                            long start = System.currentTimeMillis();
                             optimizeBucketToRoutingMapping(taskId);
+                            System.out.println("Load-balancing in " + (System.currentTimeMillis() - start)/1000.0 + " s");
                         }
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -142,7 +145,7 @@ public class ElasticScheduler {
                         Object request = scalingRequestQueue.take();
                         System.out.println("Received one request! " + scalingRequestQueue.size() + " pending");
                         if(request instanceof ExecutorScalingInRequestMessage) {
-                            System.out.println("Scaling in!");
+                            System.out.println("Handling Scaling in request!");
                             ExecutorScalingInRequestMessage requestMessage = (ExecutorScalingInRequestMessage)request;
                             final boolean skewed = isWorkloadSkewed(requestMessage.taskID);
                             if(skewed) {
@@ -150,14 +153,19 @@ public class ElasticScheduler {
                                 pendingTaskLevelLoadBalancingQueue.add(requestMessage.taskID);
                             } else
                                 synchronized (lock) {
+                                    System.out.println("Scaling in command will be called!");
+                                    long start = System.currentTimeMillis();
                                     master.handleExecutorScalingInRequest(requestMessage.taskID);
+                                    System.out.println("Scaling in " + (System.currentTimeMillis() - start)/1000.0 + " s");
                                 }
                         }
                         if(request instanceof ExecutorScalingOutRequestMessage) {
                             System.out.println("Scaling out!");
                             ExecutorScalingOutRequestMessage requestMessage = (ExecutorScalingOutRequestMessage)request;
                             synchronized (lock) {
+                                long start = System.currentTimeMillis();
                                 master.handleExecutorScalingOutRequest(requestMessage.taskId);
+                                System.out.println("Scaling out " + (System.currentTimeMillis() - start)/1000.0 + " s");
                             }
                         }
                     }
@@ -256,7 +264,9 @@ public class ElasticScheduler {
             RoutingTable routingTable = master.getRoutingTable(taskId);
             BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
             if(balancedHashRouting == null) {
-                throw new RoutingTypeNotSupportedException("Only support BalancedHashRouting family routing table!");
+//                throw new RoutingTypeNotSupportedException("Only support BalancedHashRouting family routing table!");
+                System.out.println("Only support BalancedHashRouting family routing table!");
+                return "Only support BalancedHashRouting family routing table!";
             }
 
             // 2. get Distribution;
@@ -271,8 +281,13 @@ public class ElasticScheduler {
 //            for(int i = 0; i < routeLoads.length; i++ ){
 //                System.out.println(i + ": " + routeLoads[i]);
 //            }
-            System.out.println("Workload factor: " + workloadFactor);
-            System.out.println("Threshold: " + threshold);
+            System.out.print("Workload factor: " + workloadFactor);
+            System.out.println("  Threshold: " + threshold);
+
+            if(workloadFactor > 0.99) {
+                System.out.println(histograms);
+                System.out.println(master.queryDistribution(taskId));
+            }
 
             if(skewness) {
 

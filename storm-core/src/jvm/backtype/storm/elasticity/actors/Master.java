@@ -288,10 +288,11 @@ public class Master extends UntypedActor implements MasterService.Iface {
             RoutingTable balancecHashRouting = RoutingTableUtils.getBalancecHashRouting(getRoutingTable(taskid));
             if(balancecHashRouting == null) {
                 createRouting(workerHostName,taskid,1,"balanced_hash");
+                balancecHashRouting = RoutingTableUtils.getBalancecHashRouting(getRoutingTable(taskid));
             }
 
             scalingOutSubtask(taskid);
-            System.out.println("A local new task is created!");
+            System.out.println("A local new task " + taskid + "." + balancecHashRouting.getNumberOfRoutes() +" is created!");
 
             if(!hostIp.equals(preferredIp)) {
                 Set<String> candidateHosterWorkers = _ipToWorkerLogicalName.get(hostIp);
@@ -302,8 +303,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
                 int targetRoute = getRoutingTable(taskid).getNumberOfRoutes() - 1 ;
 
-                System.out.println("a local task will be migrated from " + workerHostName + " to " + hosterWorker);
+                System.out.println("a local task " + taskid + "." + targetRoute+" will be migrated from " + workerHostName + " to " + hosterWorker);
                 migrateTasks(workerHostName, hosterWorker, taskid, targetRoute);
+                System.out.println("Task " + taskid + "." + targetRoute + " has been migrated!");
             }
 
         } catch (Exception e) {
