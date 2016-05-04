@@ -160,9 +160,9 @@ Sample response:
 {
     "nimbuses":[
         {
-            "host":"192.168.202.1",
+            "host":"192.168.0.120",
             "port":6627,
-            "nimbusLogLink":"http:\/\/192.168.202.1:8000\/log?file=nimbus.log",
+            "nimbusLogLink":"http:\/\/192.168.0.120:8000\/log?file=nimbus.log",
             "status":Leader,
             "version":"0.10.0-SNAPSHOT",
             "nimbusUpTime":"3m 33s",

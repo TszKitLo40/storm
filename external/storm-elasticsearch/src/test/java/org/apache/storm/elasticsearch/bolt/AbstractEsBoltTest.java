@@ -48,7 +48,7 @@ public abstract class AbstractEsBoltTest<Bolt extends AbstractEsBolt> {
     protected abstract Bolt createBolt(EsConfig esConfig);
 
     protected EsConfig esConfig() {
-        return new EsConfig("test-cluster", new String[] {"127.0.0.1:9300"});
+        return new EsConfig("test-cluster", new String[] {"192.168.0.120:9300"});
     }
 
     @After

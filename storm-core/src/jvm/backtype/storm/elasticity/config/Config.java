@@ -29,7 +29,7 @@ public class Config {
 
     public static int WorkerLevelLoadBalancingCycleInSecs = 10;
 
-    public static int SubtaskLevelLoadBalancingCycleInSecs = 15;
+    public static int SubtaskLevelLoadBalancingCycleInSecs = 5;
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
