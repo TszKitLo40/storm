@@ -24,13 +24,14 @@ import java.util.Map;
 public class ComputationBolt extends BaseElasticBolt{
     int sleepTimeInMilics;
 
+
     public ComputationBolt(int sleepTimeInSecs) {
         this.sleepTimeInMilics = sleepTimeInSecs;
     }
 
     @Override
     public void execute(Tuple tuple, ElasticOutputCollector collector) {
-        System.out.println("execute");
+//        System.out.println("execute");
 //        utils.sleep(sleepTimeInMilics);
         ComputationSimulator.compute(sleepTimeInMilics*1000000);
         String number = tuple.getString(0);

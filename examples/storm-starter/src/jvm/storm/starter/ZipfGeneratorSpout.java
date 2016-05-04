@@ -33,6 +33,7 @@ public class ZipfGeneratorSpout extends BaseRichSpout{
     SpoutOutputCollector _collector;
     ZipfDistribution _distribution;
     private transient Thread _changeDistributionThread;
+    transient ThroughputMonitor monitor;
     int _prime;
     final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
     public class ChangeDistribution implements Runnable {
@@ -58,7 +59,7 @@ public class ZipfGeneratorSpout extends BaseRichSpout{
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector){
         _collector = collector;
-//            monitor = new ThroughputMonitor(""+context.getThisTaskId());
+        monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _distribution = new ZipfDistribution(100, 1);
         _changeDistributionThread = new Thread(new ChangeDistribution());
         _changeDistributionThread.start();
@@ -70,7 +71,7 @@ public class ZipfGeneratorSpout extends BaseRichSpout{
     }
 
     public void nextTuple(){
-      //  Utils.sleep(_emit_cycles);
+        Utils.sleep(_emit_cycles);
      //   System.out.println("sample");
        // System.out.println(_distribution.sample());
         int key = _distribution.sample();
@@ -78,7 +79,7 @@ public class ZipfGeneratorSpout extends BaseRichSpout{
         _collector.emit(new Values(String.valueOf(key)), new Object());
 
         ++count;
-//            monitor.rateTracker.notify(1);
+        monitor.rateTracker.notify(1);
 //            System.out.format("sent %d %d ms\n",count,System.currentTimeMillis() - start);
     }
 

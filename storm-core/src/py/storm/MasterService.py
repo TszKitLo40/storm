@@ -154,10 +154,10 @@ class Iface:
     """
     pass
 
-  def logOnMaster(self, from, msg):
+  def logOnMaster(self, fro, msg):
     """
     Parameters:
-     - from
+     - fro
      - msg
     """
     pass
@@ -724,19 +724,19 @@ class Client(Iface):
       raise result.tnee
     raise TApplicationException(TApplicationException.MISSING_RESULT, "scalingInSubtask failed: unknown result");
 
-  def logOnMaster(self, from, msg):
+  def logOnMaster(self, fro, msg):
     """
     Parameters:
-     - from
+     - fro
      - msg
     """
-    self.send_logOnMaster(from, msg)
+    self.send_logOnMaster(fro, msg)
     self.recv_logOnMaster()
 
-  def send_logOnMaster(self, from, msg):
+  def send_logOnMaster(self, fro, msg):
     self._oprot.writeMessageBegin('logOnMaster', TMessageType.CALL, self._seqid)
     args = logOnMaster_args()
-    args.from = from
+    args.fro = fro
     args.msg = msg
     args.write(self._oprot)
     self._oprot.writeMessageEnd()
@@ -1030,7 +1030,7 @@ class Processor(Iface, TProcessor):
     args.read(iprot)
     iprot.readMessageEnd()
     result = logOnMaster_result()
-    self._handler.logOnMaster(args.from, args.msg)
+    self._handler.logOnMaster(args.fro, args.msg)
     oprot.writeMessageBegin("logOnMaster", TMessageType.REPLY, seqid)
     result.write(oprot)
     oprot.writeMessageEnd()
@@ -3479,18 +3479,18 @@ class scalingInSubtask_result:
 class logOnMaster_args:
   """
   Attributes:
-   - from
+   - fro
    - msg
   """
 
   thrift_spec = (
     None, # 0
-    (1, TType.STRING, 'from', None, None, ), # 1
+    (1, TType.STRING, 'fro', None, None, ), # 1
     (2, TType.STRING, 'msg', None, None, ), # 2
   )
 
-  def __init__(self, from=None, msg=None,):
-    self.from = from
+  def __init__(self, fro=None, msg=None,):
+    self.fro = fro
     self.msg = msg
 
   def read(self, iprot):
@@ -3504,7 +3504,7 @@ class logOnMaster_args:
         break
       if fid == 1:
         if ftype == TType.STRING:
-          self.from = iprot.readString().decode('utf-8')
+          self.fro = iprot.readString().decode('utf-8')
         else:
           iprot.skip(ftype)
       elif fid == 2:
@@ -3522,9 +3522,9 @@ class logOnMaster_args:
       oprot.trans.write(fastbinary.encode_binary(self, (self.__class__, self.thrift_spec)))
       return
     oprot.writeStructBegin('logOnMaster_args')
-    if self.from is not None:
-      oprot.writeFieldBegin('from', TType.STRING, 1)
-      oprot.writeString(self.from.encode('utf-8'))
+    if self.fro is not None:
+      oprot.writeFieldBegin('fro', TType.STRING, 1)
+      oprot.writeString(self.fro.encode('utf-8'))
       oprot.writeFieldEnd()
     if self.msg is not None:
       oprot.writeFieldBegin('msg', TType.STRING, 2)
@@ -3539,7 +3539,7 @@ class logOnMaster_args:
 
   def __hash__(self):
     value = 17
-    value = (value * 31) ^ hash(self.from)
+    value = (value * 31) ^ hash(self.fro)
     value = (value * 31) ^ hash(self.msg)
     return value
 

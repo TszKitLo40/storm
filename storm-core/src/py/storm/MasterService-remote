@@ -59,7 +59,7 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
   print('  string naiveWorkerLevelLoadBalancing(i32 taskid)')
   print('  void scalingOutSubtask(i32 taskid)')
   print('  bool scalingInSubtask(i32 taskid)')
-  print('  void logOnMaster(string from, string msg)')
+  print('  void logOnMaster(string fro, string msg)')
   print('')
   sys.exit(0)
 
