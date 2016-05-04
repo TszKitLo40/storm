@@ -1,6 +1,7 @@
 package backtype.storm.elasticity.routing;
 
 import backtype.storm.elasticity.ElasticTaskHolder;
+import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlideWindowKeyBucketSample;
@@ -31,6 +32,15 @@ public class BalancedHashRouting implements RoutingTable, ScalableRouting {
         hashValueToRoute = new HashMap<>();
         hashValueToRoute.putAll(hashValueToPartition);
         numberOfHashValues = hashValueToPartition.size();
+    }
+
+    public BalancedHashRouting(int numberOfRoutes) {
+        this.numberOfRoutes = numberOfRoutes;
+        numberOfHashValues = Config.NumberOfShard;
+        hashValueToRoute = new HashMap<>();
+        for(int i = 0; i < numberOfHashValues; i++) {
+            hashValueToRoute.put(i, i % numberOfRoutes);
+        }
     }
 
     public BalancedHashRouting(Map<Integer, Integer> hashValueToPartition, int numberOfRoutes, boolean enableSample) {
