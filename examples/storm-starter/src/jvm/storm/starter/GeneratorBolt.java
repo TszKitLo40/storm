@@ -1,5 +1,6 @@
 package storm.starter;
 
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
@@ -88,6 +89,7 @@ public class GeneratorBolt implements IRichBolt{
         _numberOfElements = Integer.parseInt(tuple.getString(0));
         _exponent = Double.parseDouble(tuple.getString(1));
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+        Slave.getInstance().logOnMaster("distribution changed");
     }
 
 }
