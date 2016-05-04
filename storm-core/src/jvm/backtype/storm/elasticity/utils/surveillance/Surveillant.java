@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public class Surveillant implements SurveillanceService.Iface, Runnable {
 
-    public static String thriftIp = "192.168.0.183";
+    public static String thriftIp = "192.168.0.120";
 
     public static int thriftPort = 22000;
 
@@ -42,7 +42,9 @@ public class Surveillant implements SurveillanceService.Iface, Runnable {
         try {
             TServerTransport serverTransport = new TServerSocket(this.thriftPort);
             TServer server = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
+       //     System.out.println("Hello");
             System.out.println("Server is working...");
+       //     System.out.println("Hello");
             server.serve();
 
         }
@@ -62,6 +64,7 @@ public class Surveillant implements SurveillanceService.Iface, Runnable {
         try {
             while(true) {
                 Thread.sleep(1000);
+           //     System.out.println("Hello");
                 throughputDisplay.flushResult(System.out);
             }
         } catch (InterruptedException e) {

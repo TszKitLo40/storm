@@ -592,10 +592,12 @@ service MasterService {
   string naiveWorkerLevelLoadBalancing(1: i32 taskid) throws (1: TaskNotExistException tnee);
   void scalingOutSubtask(1: i32 taskid) throws (1: TaskNotExistException tnee);
   bool scalingInSubtask(1: i32 taskid) throws (1: TaskNotExistException tnee);
-  void logOnMaster(1: string from, 2: string msg);
+  void logOnMaster(1: string fro, 2: string msg);
 
 }
 
 service SurveillanceService {
   void reportExecutorThroughput(1: string executorId, 2: double value);
 }
+
+

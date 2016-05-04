@@ -71,7 +71,7 @@ public class ZipfTopologyElastic {
         @Override
         public void execute(Tuple input, BasicOutputCollector collector) {
       System.out.println(input.getString(0)+"--->"+input.getInteger(1));
-            collector.
+
         }
 
 //        @Override
