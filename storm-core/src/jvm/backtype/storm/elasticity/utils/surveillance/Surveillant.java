@@ -16,7 +16,7 @@ import java.util.Map;
  */
 public class Surveillant implements SurveillanceService.Iface, Runnable {
 
-    public static String thriftIp = "192.168.0.183";
+    public static String thriftIp = backtype.storm.elasticity.config.Config.masterIp;
 
     public static int thriftPort = 22000;
 

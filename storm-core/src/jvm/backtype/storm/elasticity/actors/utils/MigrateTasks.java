@@ -18,7 +18,7 @@ public class MigrateTasks {
             return;
         }
 
-        TTransport transport = new TSocket("192.168.0.120",9090);
+        TTransport transport = new TSocket(backtype.storm.elasticity.config.Config.masterIp,9090);
         try {
             transport.open();
 

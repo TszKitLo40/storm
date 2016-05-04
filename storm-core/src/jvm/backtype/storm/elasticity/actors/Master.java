@@ -326,7 +326,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     public static Master createActor() {
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
-                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + "192.168.0.120"))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.masterIp))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
                     .withFallback(ConfigFactory.load()); 
             ActorSystem system = ActorSystem.create("ClusterSystem", config);

@@ -367,7 +367,7 @@ public class Slave extends UntypedActor {
 
     static public Slave createActor(String name, String port) {
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
-                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + "192.168.0.120"))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.masterIp))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                     .withFallback(ConfigFactory.load());
