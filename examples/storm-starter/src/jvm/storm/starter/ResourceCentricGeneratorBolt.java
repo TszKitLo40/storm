@@ -86,7 +86,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
         this.taskId = context.getThisTaskId();
 
-        downStreamTaskIds = context.getComponentTasks("computator");
+        downStreamTaskIds = context.getComponentTasks(ResourceCentricZipfComputationTopology.ComputationBolt);
 
         numberOfComputingTasks = downStreamTaskIds.size();
 

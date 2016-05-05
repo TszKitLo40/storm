@@ -94,6 +94,11 @@
           <artifactId>multilang-python</artifactId>
           <version>${project.version}</version>
       </dependency>
+      <dependency>
+          <groupId>org.apache.thrift</groupId>
+          <artifactId>libthrift</artifactId>
+          <version>0.9.0</version>
+      </dependency>
     <dependency>
       <groupId>commons-collections</groupId>
       <artifactId>commons-collections</artifactId>
@@ -217,8 +222,31 @@
           <includePluginDependencies>false</includePluginDependencies>
           <classpathScope>compile</classpathScope>
           <mainClass>${storm.topology}</mainClass>
+            <!--<relocations>-->
+                <!--<relocation>-->
+                    <!--<pattern>org.apache.thrift</pattern>-->
+                    <!--&lt;!&ndash; This pattern is inconsistent for backwards compatibility purposes. &ndash;&gt;-->
+                    <!--<shadedPattern>org.apache.thrift7</shadedPattern>-->
+                <!--</relocation>-->
+            <!--</relocations>-->
         </configuration>
       </plugin>
     </plugins>
   </build>
+    <!--<build>-->
+        <!--<plugins>-->
+            <!--<plugin>-->
+                <!--<configuration>-->
+                    <!--<relocations>-->
+                        <!--<relocation>-->
+                            <!--<pattern>org.apache.thrift</pattern>-->
+                            <!--&lt;!&ndash; This pattern is inconsistent for backwards compatibility purposes. &ndash;&gt;-->
+                            <!--<shadedPattern>org.apache.thrift7</shadedPattern>-->
+                        <!--</relocation>-->
+                    <!--</relocations>-->
+                <!--</configuration>-->
+            <!--</plugin>-->
+        <!--</plugins>-->
+    <!--</build>-->
 </project>
+

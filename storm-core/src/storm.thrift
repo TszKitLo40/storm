@@ -600,13 +600,13 @@ service SurveillanceService {
   void reportExecutorThroughput(1: string executorId, 2: double value);
 }
 
-service ChangeDistributionService{
-  void changeNumberOfElements(1: i32 numberofElements);
-  void changeExponent(1: double exponent);
-}
-
-service ResourceCentricControllerService {
-  void shardReassignment(1: i32 sourceTaskIndex, 2: i32 targetTaskIndex, 3: i32 shardId);
-}
+//service ChangeDistributionService{
+//  void changeNumberOfElements(1: i32 numberofElements);
+//  void changeExponent(1: double exponent);
+//}
+//
+//service ResourceCentricControllerService {
+//  void shardReassignment(1: i32 sourceTaskIndex, 2: i32 targetTaskIndex, 3: i32 shardId);
+//}
 
 

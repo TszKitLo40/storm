@@ -13,6 +13,13 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
+import org.apache.thrift.TException;
+import org.apache.thrift.server.TServer;
+import org.apache.thrift.server.TThreadPoolServer;
+import org.apache.thrift.transport.TServerSocket;
+import org.apache.thrift.transport.TServerTransport;
+import storm.starter.generated.ResourceCentricControllerService;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +29,7 @@ import java.util.concurrent.Semaphore;
 /**
  * Created by Robert on 4/5/16.
  */
-public class ResourceCentricControllerBolt implements IRichBolt {
+public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentricControllerService.Iface {
 
     OutputCollector collector;
 
@@ -63,6 +70,8 @@ public class ResourceCentricControllerBolt implements IRichBolt {
                 }
             }
         }).start();
+
+        createThriftThread(this);
     }
 
     @Override
@@ -101,30 +110,80 @@ public class ResourceCentricControllerBolt implements IRichBolt {
         return null;
     }
 
-    private void shardReassignment(int sourceTaskIndex, int targetTaskIndex, int shardId) throws InterruptedException {
-        if(sourceTaskIndex >= downstreamTaskIds.size())
-            return;
-        if(targetTaskIndex >= downstreamTaskIds.size())
-            return;
-        if(shardId > Config.NumberOfShard)
-            return;
+//    @Override
+//    public void shardReassignment(int sourceTaskIndex, int targetTaskIndex, int shardId) throws TException {
+//        try {
+//            if(sourceTaskIndex >= downstreamTaskIds.size())
+//                return;
+//            if(targetTaskIndex >= downstreamTaskIds.size())
+//                return;
+//            if(shardId > Config.NumberOfShard)
+//                return;
+//
+//            int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
+//
+//            sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskId, new Semaphore(0));
+//
+//            collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskId, targetTaskIndex, shardId));
+//
+//            sourceTaskIdToPendingTupleCleanedSemphore.get(sourceTaskId).acquire();
+//
+//            targetTaskIdToWaitingStateMigrationSemphore.put(targetTaskIndex, new Semaphore(0));
+//
+//            targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskIndex).acquire();
+//
+//            Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
-        int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
+    private void createThriftThread(final ResourceCentricControllerBolt bolt) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    ResourceCentricControllerService.Processor processor = new ResourceCentricControllerService.Processor(bolt);
+//                    MasterService.Processor processor = new MasterService.Processor(_instance);
+                    TServerTransport serverTransport = new TServerSocket(19090);
+                    TServer server = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
 
-        sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskId, new Semaphore(0));
+//                    log("Starting the monitoring daemon...");
+                    server.serve();
+                } catch (TException e) {
+                    e.printStackTrace();
+                }
 
-        collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskId, targetTaskIndex, shardId));
+            }
+        }).start();
+    }
 
-        sourceTaskIdToPendingTupleCleanedSemphore.get(sourceTaskId).acquire();
+    @Override
+    public void shardReassignment(int sourceTaskIndex, int targetTaskIndex, int shardId) throws org.apache.thrift.TException {
+        try {
+            if(sourceTaskIndex >= downstreamTaskIds.size())
+                return;
+            if(targetTaskIndex >= downstreamTaskIds.size())
+                return;
+            if(shardId > Config.NumberOfShard)
+                return;
 
-        targetTaskIdToWaitingStateMigrationSemphore.put(targetTaskIndex, new Semaphore(0));
+            int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
 
-        targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskIndex).acquire();
+            sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskId, new Semaphore(0));
 
-        Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
+            collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskId, targetTaskIndex, shardId));
 
+            sourceTaskIdToPendingTupleCleanedSemphore.get(sourceTaskId).acquire();
 
+            targetTaskIdToWaitingStateMigrationSemphore.put(targetTaskIndex, new Semaphore(0));
 
+            targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskIndex).acquire();
 
+            Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 }
