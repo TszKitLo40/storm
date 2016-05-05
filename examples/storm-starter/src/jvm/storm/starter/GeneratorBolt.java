@@ -85,9 +85,12 @@ public class GeneratorBolt implements IRichBolt{
     public void execute(Tuple tuple){
       //  setNumberOfElements(tuple);
       //  setExponent(tuple);
-        _numberOfElements = Integer.parseInt(tuple.getString(0));
-        _exponent = Double.parseDouble(tuple.getString(1));
-        _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+        if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
+            _numberOfElements = Integer.parseInt(tuple.getString(0));
+            _exponent = Double.parseDouble(tuple.getString(1));
+            _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+        }
+
     }
 
 }

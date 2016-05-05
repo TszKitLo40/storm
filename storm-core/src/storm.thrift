@@ -605,4 +605,8 @@ service ChangeDistributionService{
   void changeExponent(1: double exponent);
 }
 
+service ResourceCentricControllerService {
+  void shardReassignment(1: i32 sourceTaskIndex, 2: i32 targetTaskIndex, 3: i32 shardId);
+}
+
 
