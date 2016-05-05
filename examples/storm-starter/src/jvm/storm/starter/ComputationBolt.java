@@ -41,6 +41,7 @@ public class ComputationBolt extends BaseElasticBolt{
         count++;
         setValueByKey(number,count);
         collector.emit(tuple,new Values(number, count));
+        collector.ack(tuple);
     }
 
 
