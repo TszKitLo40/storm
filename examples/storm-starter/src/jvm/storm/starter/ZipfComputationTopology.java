@@ -17,12 +17,12 @@ public class ZipfComputationTopology {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        if(args.length < 3) {
-            System.out.println("the number of args should be at least 1");
+        if(args.length < 4) {
+            System.out.println("the number of args should be at least 4");
         }
         builder.setSpout("spout", new ZipfSpout(), 1);
 
-        builder.setBolt("generator", new GeneratorBolt(),Integer.parseInt(args[1])).allGrouping("spout");
+        builder.setBolt("generator", new GeneratorBolt(Integer.parseInt(args[4])),Integer.parseInt(args[1])).allGrouping("spout");
         builder.setBolt("computator", new ComputationBolt(Integer.parseInt(args[2])), Integer.parseInt(args[3])).fieldsGrouping("generator", new Fields("numberOfTask"));
 
         Config conf = new Config();
