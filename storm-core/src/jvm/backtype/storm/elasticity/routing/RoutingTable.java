@@ -8,7 +8,7 @@ import java.util.ArrayList;
 /**
  * Created by Robert on 11/3/15.
  */
-public interface RoutingTable extends Serializable {
+public interface RoutingTable extends Serializable, ScalableRouting {
     public static int origin = 0;
     public static int remote = -2;
     public int route(Object key);
@@ -16,6 +16,7 @@ public interface RoutingTable extends Serializable {
     public ArrayList<Integer> getRoutes();
     public Histograms getRoutingDistribution();
     public void enableRoutingDistributionSampling();
+//    public int scalingOut();
 
     
 

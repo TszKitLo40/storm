@@ -81,4 +81,14 @@ public class HashingRouting implements RoutingTable {
         sampler = new SlidingWindowRouteSampler(numberOfRoutes);
         sampler.enable();
     }
+
+    @Override
+    public int scalingOut() {
+        return numberOfRoutes++;
+    }
+
+    @Override
+    public void scalingIn() {
+        numberOfRoutes--;
+    }
 }

@@ -14,7 +14,7 @@ import java.util.*;
 /**
  * Created by robert on 11/26/15.
  */
-public class BalancedHashRouting implements RoutingTable, ScalableRouting {
+public class BalancedHashRouting implements RoutingTable {
 
     GlobalHashFunction hashFunction = GlobalHashFunction.getInstance();
 

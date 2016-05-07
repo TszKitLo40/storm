@@ -96,7 +96,10 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
         routingTable = new BalancedHashRouting(numberOfComputingTasks);
 
-        _distribution = new ZipfDistribution(10240, 0.001);
+        _numberOfElements = 10240;
+        _exponent = 0.001;
+
+        _distribution = new ZipfDistribution(_numberOfElements, _exponent);
 
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _emitThread = new Thread(new emitKey());

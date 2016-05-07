@@ -32,4 +32,14 @@ public class VoidRouting implements RoutingTable {
     public void enableRoutingDistributionSampling() {
 
     }
+
+    @Override
+    public int scalingOut() {
+        return 0;
+    }
+
+    @Override
+    public void scalingIn() {
+
+    }
 }

@@ -549,6 +549,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingOutSubtaskCommand(taskid));
         inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+//        handleExecutorScalingOutRequest(taskid);
     }
 
     @Override
@@ -559,8 +560,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingInSubtaskCommand(taskid));
         Status returnStatus = (Status)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
-//        System.out.println(returnStatus);
+        System.out.println(returnStatus);
         return returnStatus.code == Status.OK;
+//        handleExecutorScalingOutRequest(taskid);
+//        return true;
     }
 
     @Override

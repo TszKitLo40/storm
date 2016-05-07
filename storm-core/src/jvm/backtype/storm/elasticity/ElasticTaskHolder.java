@@ -202,6 +202,12 @@ public class ElasticTaskHolder {
                 System.out.println("It's a stateless operator!");
             }
 
+//            if(!state.getState().containsKey("payload")) {
+//                final int stateSize = 1024;
+//                Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
+//                state.getState().put("payload", new byte[stateSize]);
+//            }
+
             sendMessageToMaster((System.currentTimeMillis() - start) + "ms to prepare the state to migrate!");
             System.out.println("State for migration is ready!");
             sendMessageToMaster("State is ready for migration!");
@@ -237,6 +243,8 @@ public class ElasticTaskHolder {
         if(!_originalTaskIdToRemoteTaskExecutor.containsKey(message._elasticTask.get_taskID())) {
             //This is the first RemoteTasks assigned to this host.
             System.out.println("create new remote task executor!");
+
+            Slave.getInstance().logOnMaster("A new Remote Task Executor is created!##");
 
             ElasticRemoteTaskExecutor remoteTaskExecutor = new ElasticRemoteTaskExecutor(message._elasticTask, _sendingQueue, message._elasticTask.get_bolt());
 
@@ -728,9 +736,9 @@ public class ElasticTaskHolder {
         KeyValueState partialState = getState(token._taskId).getValidState(token._filter);
         RemoteState remoteState = new RemoteState(token._taskId, partialState.getState(), token._targetRoute);
 
-        final int stateSize = 1024 * 1024 * 32;
-        Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
-        remoteState._state.put("payload", new byte[stateSize]);
+//        final int stateSize = 1024;
+//        Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
+//        remoteState._state.put("payload", new byte[stateSize]);
 
         remoteState.markAsFinalized();
         if(_originalTaskIdToPriorityConnection.containsKey(token._taskId)) {
@@ -1114,11 +1122,11 @@ public class ElasticTaskHolder {
             if (!targetHost.equals("local")) {
                 KeyValueState partialState = getState(taskid).getValidState(filter);
 
-                if(!partialState.getState().containsKey("payload")) {
-                    final int stateSize = 1024 * 1024 * 32;
-                    Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
-                    partialState.getState().put("payload", new byte[stateSize]);
-                }
+//                if(!partialState.getState().containsKey("payload")) {
+//                    final int stateSize = 1024;
+//                    Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
+//                    partialState.getState().put("payload", new byte[stateSize]);
+//                }
 
                 RemoteState remoteState = new RemoteState(taskid, partialState.getState(), targetRoute);
                 _taskidRouteToConnection.get(taskid + "." + targetRoute).send(taskid, SerializationUtils.serialize(remoteState));
@@ -1437,7 +1445,7 @@ public class ElasticTaskHolder {
             balancedHashRouting.scalingIn();
             SmartTimer.getInstance().stop("Scaling In Subtask", "update routing table");
 
-//            sendMessageToMaster(SmartTimer.getInstance().getTimerString("Scaling In Subtask"));
+            sendMessageToMaster(SmartTimer.getInstance().getTimerString("Scaling In Subtask"));
 
             sendMessageToMaster("Scaling in completes with " + plan.getReassignmentList().size() + " movements.");
 
@@ -1466,7 +1474,7 @@ public class ElasticTaskHolder {
             Histograms histograms = balancedHashRouting.getBucketsDistribution();
             Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
 
-            int newSubtaskId = balancedHashRouting.scalingOut();
+            int newSubtaskId = routingTable.scalingOut();
 
             _bolts.get(taskId).get_elasticTasks().createAndLaunchElasticTasksForGivenRoute(newSubtaskId);
 

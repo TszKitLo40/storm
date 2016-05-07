@@ -50,4 +50,14 @@ public class ConcreteRouting implements RoutingTable {
     public void removeRouting(Object key) {
         routingTable.remove(key);
     }
+
+    @Override
+    public int scalingOut() {
+        return 0;
+    }
+
+    @Override
+    public void scalingIn() {
+
+    }
 }

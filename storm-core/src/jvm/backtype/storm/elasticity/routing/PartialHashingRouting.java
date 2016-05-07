@@ -70,6 +70,22 @@ public class PartialHashingRouting implements RoutingTable {
     }
 
     @Override
+    public synchronized int scalingOut() {
+        int newRouteIndex = -1;
+//        if(_routingTable instanceof BalancedHashRouting) {
+            newRouteIndex = _routingTable.scalingOut();
+//        }
+        _validRoutes.add(newRouteIndex);
+        return newRouteIndex;
+    }
+
+    @Override
+    public synchronized void scalingIn() {
+        _routingTable.scalingIn();
+        _validRoutes.remove(_routingTable.getNumberOfRoutes());
+    }
+
+    @Override
     public synchronized int route(Object key) {
         int route = _routingTable.route(key);
         if (_validRoutes.contains(route))
