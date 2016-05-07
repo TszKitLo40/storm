@@ -35,42 +35,90 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
     private int numberOfComputingTasks;
     private List<Integer> downStreamTaskIds;
 
+    private int _emit_cycles;
     private int taskId;
+    int _prime;
 
-   // final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
-   /* public class ChangeDistribution implements Runnable (Tuple tuple){
+   final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
+    public class ChangeDistribution implements Runnable {
 
         @Override
         public void run() {
             while (true) {
-                setNumberOfElements(tuple);
+                Utils.sleep(15000);
+                long seed = System.currentTimeMillis();
                 Random rand = new Random(seed);
                 System.out.println("distribution has been changed");
                 _prime = primes[rand.nextInt(primes.length)];
                 Slave.getInstance().logOnMaster("distribution has been changed");
             }
         }
-    }*/
+    }
 
+    public ResourceCentricGeneratorBolt(int emit_cycles){
+        _emit_cycles = emit_cycles;
+        _prime = 41;
+    }
 
     public class emitKey implements Runnable {
+//        public void run() {
+//            try {
+//                Random random = new Random();
+//                while (true) {
+//
+//                    Thread.sleep(_emit_cycles);
+////                    int key = _distribution.sample();
+//                      int key = random.nextInt(_numberOfElements);
+////                    System.out.println("key");
+////                    System.out.println(key);
+//
+////                    _collector.emit(new Values(String.valueOf(key)));
+//                    int pos = routingTable.route(String.valueOf(key));
+//                    int targetTaskId = downStreamTaskIds.get(pos);
+//                    _collector.emitDirect(targetTaskId, new Values(String.valueOf(key)));
+//                    monitor.rateTracker.notify(1);
+//                }
+//            }
+//            catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        }
+
         public void run() {
             try {
+            while (true) {
                 Random random = new Random();
-                while (true) {
 
-                    Thread.sleep(32);
-//                    int key = _distribution.sample();
-                      int key = random.nextInt(_numberOfElements);
+                    //    Slave.getInstance().logOnMaster("Time:"+String.valueOf(_sleepTimeInMilics));
+                    //   long BeforeSleep = System.currentTimeMillis();
+                    Utils.sleep(_emit_cycles);
+                    //    long AfterSleep = System.currentTimeMillis();
+                    //    Slave.getInstance().logOnMaster("Sleep_Time:"+String.valueOf(AfterSleep-BeforeSleep));
+                    //  Thread.sleep(_sleepTimeInMilics);
+                    int key = _distribution.sample();
 //                    System.out.println("key");
 //                    System.out.println(key);
-
-//                    _collector.emit(new Values(String.valueOf(key)));
+//                    _prime = primes[random.nextInt(primes.length)];
+                    key = ((key + _prime) * 101) % 1113;
+                 /*   if(count == 0){
+                        start = System.currentTimeMillis();
+                    }
+                    ++count;
+                    if(count == 1000){
+                        end = System.currentTimeMillis();
+                        Slave.getInstance().logOnMaster("1000:"+String.valueOf(end-start));
+                        count %= 1000;
+                    //    start = System.currentTimeMillis();
+                    }*/
                     int pos = routingTable.route(String.valueOf(key));
                     int targetTaskId = downStreamTaskIds.get(pos);
                     _collector.emitDirect(targetTaskId, new Values(String.valueOf(key)));
+
+
+//                    _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
-                }
+
+            }
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -128,6 +176,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
             _numberOfElements = Integer.parseInt(tuple.getString(0));
             _exponent = Double.parseDouble(tuple.getString(1));
             _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+            _prime = primes[new Random().nextInt(primes.length)];
         } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.UpstreamCommand)) {
             String command  = tuple.getString(0);
             if(command.equals("getHistograms")) {

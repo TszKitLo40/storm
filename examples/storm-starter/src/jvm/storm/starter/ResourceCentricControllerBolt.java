@@ -1,10 +1,16 @@
 package storm.starter;
 
 import backtype.storm.elasticity.actors.Slave;
+import backtype.storm.elasticity.common.ShardWorkload;
+import backtype.storm.elasticity.common.SubTaskWorkload;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
+import backtype.storm.elasticity.routing.RoutingTableUtils;
+import backtype.storm.elasticity.scheduler.ShardReassignment;
+import backtype.storm.elasticity.scheduler.ShardReassignmentPlan;
 import backtype.storm.elasticity.state.KeyValueState;
 import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBolt;
@@ -21,9 +27,7 @@ import org.apache.thrift.transport.TServerTransport;
 import storm.starter.generated.ResourceCentricControllerService;
 
 import java.net.InetAddress;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
@@ -67,6 +71,26 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                     try {
                         Thread.sleep(1000);
                         collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("getHistograms", 0, 0, 0));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
+
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    try {
+                        Thread.sleep(1000);
+                        Histograms histograms = new Histograms();
+                        for(int taskId: taskToHistogram.keySet()) {
+                            histograms.merge(taskToHistogram.get(taskId));
+                        }
+
+//                        Slave.getInstance().logOnMaster(histograms.toString());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -191,7 +215,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                 return;
             }
 
-            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", sourceTaskIndex, targetTaskIndex, shardId));
+            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", shardId, sourceTaskIndex, targetTaskIndex));
 
             int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
 
@@ -220,5 +244,150 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void scalingIn() throws TException {
+
+        SmartTimer.getInstance().start("Scaling In", "Algorithm");
+        BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+
+        int targetSubtaskId = balancedHashRouting.getNumberOfRoutes() -1;
+        int numberOfSubtasks = balancedHashRouting.getNumberOfRoutes();
+
+        Histograms histograms = new Histograms();
+        for(int taskId: taskToHistogram.keySet()) {
+            histograms.merge(taskToHistogram.get(taskId));
+        }
+
+        Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
+
+        ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
+        for(int i = 0; i < numberOfSubtasks; i++) {
+            subTaskWorkloads.add(new SubTaskWorkload(i));
+        }
+        for(int shardId: histograms.histograms.keySet()) {
+            subTaskWorkloads.get(shardToRoutingMapping.get(shardId)).increaseOrDecraeseWorkload(histograms.histograms.get(shardId));
+        }
+
+        Map<Integer, Set<ShardWorkload>> subtaskToShards = new HashMap<>();
+        for(int i = 0; i < numberOfSubtasks; i++) {
+            subtaskToShards.put(i, new HashSet<ShardWorkload>());
+        }
+        for(int shardId: shardToRoutingMapping.keySet()) {
+            int subtask = shardToRoutingMapping.get(shardId);
+            final Set<ShardWorkload> shardWorkloads = subtaskToShards.get(subtask);
+            final long workload = histograms.histograms.get(shardId);
+            shardWorkloads.add(new ShardWorkload(shardId, workload));
+        }
+
+        Set<ShardWorkload> shardsForTargetSubtask = subtaskToShards.get(targetSubtaskId);
+        List<ShardWorkload> sortedShards = new ArrayList<>(shardsForTargetSubtask);
+        Collections.sort(sortedShards, ShardWorkload.createReverseComparator());
+
+        ShardReassignmentPlan plan = new ShardReassignmentPlan();
+
+        Comparator<SubTaskWorkload> subTaskComparator = SubTaskWorkload.createReverseComparator();
+        subTaskWorkloads.remove(subTaskWorkloads.size() - 1);
+        for(ShardWorkload shardWorkload: sortedShards) {
+            Collections.sort(subTaskWorkloads, subTaskComparator);
+            SubTaskWorkload subtaskWorkloadToMoveIn = subTaskWorkloads.get(0);
+            plan.addReassignment(0, shardWorkload.shardId, targetSubtaskId, subtaskWorkloadToMoveIn.subtaskId);
+            subtaskWorkloadToMoveIn.increaseOrDecraeseWorkload(shardWorkload.workload);
+        }
+
+        SmartTimer.getInstance().stop("Scaling In", "Algorithm");
+        SmartTimer.getInstance().start("Scaling In", "Reassignments");
+
+        for(ShardReassignment reassignment: plan.getReassignmentList()) {
+            Slave.getInstance().logOnMaster("=============== START ===============");
+            shardReassignment(reassignment.originalRoute, reassignment.newRoute, reassignment.shardId);
+            Slave.getInstance().logOnMaster("=============== END ===============");
+        }
+        SmartTimer.getInstance().stop("Scaling In", "Reassignments");
+        Slave.getInstance().logOnMaster(SmartTimer.getInstance().getTimerString("Scaling In"));
+        Slave.getInstance().logOnMaster(String.format("%d shard reassignments conducted!", plan.getReassignmentList().size()));
+
+
+        routingTable.scalingIn();
+    }
+
+    @Override
+    public void scalingOut() throws TException {
+
+        Histograms histograms = new Histograms();
+        for(int taskId: taskToHistogram.keySet()) {
+            histograms.merge(taskToHistogram.get(taskId));
+        }
+
+        BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+
+        Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
+
+        int newSubtaskId = routingTable.scalingOut();
+
+        ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
+        for(int i = 0; i < newSubtaskId; i++ ) {
+            subTaskWorkloads.add(new SubTaskWorkload(i));
+        }
+        for(int shardId: histograms.histograms.keySet()) {
+            subTaskWorkloads.get(shardToRoutingMapping.get(shardId)).increaseOrDecraeseWorkload(histograms.histograms.get(shardId));
+        }
+
+        Map<Integer, Set<ShardWorkload>> subtaskToShards = new HashMap<>();
+        for(int i = 0; i < newSubtaskId; i++) {
+            subtaskToShards.put(i, new HashSet<ShardWorkload>());
+        }
+
+        for(int shardId: shardToRoutingMapping.keySet()) {
+            int subtask = shardToRoutingMapping.get(shardId);
+            final Set<ShardWorkload> shardWorkloads = subtaskToShards.get(subtask);
+            final long workload = histograms.histograms.get(shardId);
+            shardWorkloads.add(new ShardWorkload(shardId, workload));
+        }
+
+        long targetSubtaskWorkload = 0;
+        Comparator<ShardWorkload> shardComparator = ShardWorkload.createReverseComparator();
+        Comparator<SubTaskWorkload> subTaskReverseComparator = SubTaskWorkload.createReverseComparator();
+        ShardReassignmentPlan plan = new ShardReassignmentPlan();
+        boolean moved = true;
+        while(moved) {
+            moved = false;
+            Collections.sort(subTaskWorkloads, subTaskReverseComparator);
+            for(SubTaskWorkload subTaskWorkload: subTaskWorkloads) {
+                int subtask = subTaskWorkload.subtaskId;
+                List<ShardWorkload> shardWorkloads = new ArrayList<>(subtaskToShards.get(subtask));
+                Collections.sort(shardWorkloads, shardComparator);
+                boolean localMoved = false;
+                for(ShardWorkload shardWorkload: shardWorkloads) {
+                    if(targetSubtaskWorkload + shardWorkload.workload < subTaskWorkload.workload) {
+                        plan.addReassignment(0, shardWorkload.shardId, subTaskWorkload.subtaskId, newSubtaskId);
+                        subtaskToShards.get(subTaskWorkload.subtaskId).remove(new ShardWorkload(shardWorkload.shardId));
+                        targetSubtaskWorkload += shardWorkload.workload;
+                        subTaskWorkload.increaseOrDecraeseWorkload(-shardWorkload.workload);
+                        localMoved = true;
+                        moved = true;
+//                            System.out.println("Move " + shardWorkload.shardId + " from " + subTaskWorkload.subtaskId + " to " + newSubtaskId);
+                        break;
+                    }
+                }
+                if(localMoved) {
+                    break;
+                }
+
+            }
+        }
+
+        for(ShardReassignment reassignment: plan.getReassignmentList()) {
+            Slave.getInstance().logOnMaster("=============== START ===============");
+            shardReassignment(reassignment.originalRoute, reassignment.newRoute, reassignment.shardId);
+            Slave.getInstance().logOnMaster("=============== END ===============");
+        }
+
+    }
+
+    @Override
+    public void loadBalancing() throws TException {
+
     }
 }

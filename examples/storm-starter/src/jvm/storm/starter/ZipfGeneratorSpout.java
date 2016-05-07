@@ -1,7 +1,6 @@
 package storm.starter;
 
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;

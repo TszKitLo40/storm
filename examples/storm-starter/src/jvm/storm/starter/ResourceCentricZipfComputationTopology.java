@@ -36,12 +36,12 @@ public class ResourceCentricZipfComputationTopology {
         }
         builder.setSpout(Spout, new ZipfSpout(), 1);
 
-        builder.setBolt(GeneratorBolt, new ResourceCentricGeneratorBolt(),Integer.parseInt(args[1]))
+        builder.setBolt(GeneratorBolt, new ResourceCentricGeneratorBolt(Integer.parseInt(args[1])),Integer.parseInt(args[2]))
                 .allGrouping(Spout)
                 .allGrouping(Controller, UpstreamCommand);
 
 
-        builder.setBolt(ComputationBolt, new ResourceCentricComputationBolt(Integer.parseInt(args[2])), Integer.parseInt(args[3]))
+        builder.setBolt(ComputationBolt, new ResourceCentricComputationBolt(Integer.parseInt(args[3])), Integer.parseInt(args[4]))
                 .directGrouping(GeneratorBolt)
                 .directGrouping(GeneratorBolt, StateMigrationCommandStream)
                 .directGrouping(Controller, StateUpdateStream);
@@ -49,7 +49,9 @@ public class ResourceCentricZipfComputationTopology {
         builder.setBolt(Controller, new ResourceCentricControllerBolt(), 1)
                 .allGrouping(ComputationBolt, StateMigrationStream)
                 .allGrouping(ComputationBolt, StateReadyStream)
-                .allGrouping(GeneratorBolt, FeedbackStream);
+                .allGrouping(GeneratorBolt, FeedbackStream)
+                .allGrouping(GeneratorBolt, "statics");
+
 
         Config conf = new Config();
         //   if(args.length>2&&args[2].equals("debug"))

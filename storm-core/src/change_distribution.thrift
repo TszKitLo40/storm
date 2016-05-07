@@ -32,4 +32,9 @@ service ChangeDistributionService{
 
 service ResourceCentricControllerService {
   void shardReassignment(1: i32 sourceTaskIndex, 2: i32 targetTaskIndex, 3: i32 shardId);
+  void scalingIn();
+  void scalingOut();
+  void loadBalancing();
 }
+
+

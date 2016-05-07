@@ -12,6 +12,10 @@ public class Histograms implements Serializable {
 
     public Map<Integer, Long> histograms;
 
+    public Histograms() {
+        histograms = new HashMap<>();
+    }
+
     public Histograms(Map<Integer, Long> histograms) {
         this.histograms = new HashMap<>();
         this.histograms.putAll(histograms);
@@ -57,6 +61,16 @@ public class Histograms implements Serializable {
         }
 
         return ret;
+    }
+
+    public void merge(Histograms his) {
+        for(int key: his.histograms.keySet()) {
+            if(histograms.containsKey(key)) {
+                histograms.put(key, histograms.get(key) + his.histograms.get(key));
+            } else {
+                histograms.put(key, his.histograms.get(key));
+            }
+        }
     }
 
 }
