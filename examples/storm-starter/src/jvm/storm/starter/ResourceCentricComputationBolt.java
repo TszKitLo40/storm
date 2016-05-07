@@ -4,6 +4,7 @@ package storm.starter; /**
 
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.state.KeyValueState;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -43,6 +44,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
             collector.emit(tuple, new Values(number, count));
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateMigrationCommandStream)) {
             receivedMigrationCommand++;
+            Slave.getInstance().logOnMaster(String.format("Received StateMigrationCommand"));
             if(receivedMigrationCommand==upstreamTaskIds.size()) {
                 // received the migration command from each of the upstream tasks.
                 receivedMigrationCommand = 0;
@@ -51,12 +53,17 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
                 int shardId = tuple.getInteger(2);
                 KeyValueState state = getState();
 
+                state.getState().put("key", new byte[1024 * 1024 * 32]);
+
+                Slave.getInstance().logOnMaster("State migration starts!");
                 collector.emit(ResourceCentricZipfComputationTopology.StateMigrationStream, tuple, new Values(sourceTaskOffset, targetTaskOffset, shardId, state));
             }
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateUpdateStream)) {
+            Slave.getInstance().logOnMaster("Recieved new state!");
             int targetTaskOffset = tuple.getInteger(0);
             KeyValueState state = (KeyValueState) tuple.getValue(1);
             getState().update(state);
+            Slave.getInstance().logOnMaster("State is updated!");
             collector.emit(ResourceCentricZipfComputationTopology.StateReadyStream, tuple, new Values(targetTaskOffset));
 
         }
@@ -80,7 +87,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
 
     @Override
     public Object getKey(Tuple tuple) {
-        return tuple.getString(0);
+        return tuple.getValue(0);
     }
 
 }

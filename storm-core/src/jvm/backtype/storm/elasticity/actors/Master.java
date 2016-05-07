@@ -471,8 +471,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
 //        System.out.println("\n======================= BEGIN SHARD REASSIGNMENT =======================");
 
+
+        long startTime = System.currentTimeMillis();
+
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
         inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+
+        System.out.println("Shard reassignment time: " + (System.currentTimeMillis() - startTime));
 
 //        System.out.println("======================= End SHARD REASSIGNMENT =======================\n");
 //        getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))).tell(command, getSelf());

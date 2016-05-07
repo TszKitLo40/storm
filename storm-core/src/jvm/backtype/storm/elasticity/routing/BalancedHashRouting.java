@@ -41,6 +41,7 @@ public class BalancedHashRouting implements RoutingTable, ScalableRouting {
         for(int i = 0; i < numberOfHashValues; i++) {
             hashValueToRoute.put(i, i % numberOfRoutes);
         }
+        enableSampling();
     }
 
     public BalancedHashRouting(Map<Integer, Integer> hashValueToPartition, int numberOfRoutes, boolean enableSample) {
@@ -180,6 +181,9 @@ public class BalancedHashRouting implements RoutingTable, ScalableRouting {
         numberOfRoutes++;
         routeDistributionSampler = new SlidingWindowRouteSampler(numberOfRoutes);
         routeDistributionSampler.enable();
+
+//        if(super(PartialHashingRouting))
+
         return numberOfRoutes - 1;
     }
 

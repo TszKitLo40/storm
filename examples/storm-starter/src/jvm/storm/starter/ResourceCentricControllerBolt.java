@@ -20,6 +20,7 @@ import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
 import storm.starter.generated.ResourceCentricControllerService;
 
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,15 +46,17 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     Map<Integer, Semaphore> targetTaskIdToWaitingStateMigrationSemphore = new ConcurrentHashMap<>();
 
+    Map<Integer, Semaphore> sourceTaskIndexToResumingWaitingSemphore = new ConcurrentHashMap<>();
+
     @Override
     public void prepare(Map stormConf, TopologyContext context, final OutputCollector collector) {
         this.collector = collector;
 
         taskToHistogram = new HashMap<>();
 
-        upstreamTaskIds = context.getComponentTasks("generator");
+        upstreamTaskIds = context.getComponentTasks(ResourceCentricZipfComputationTopology.GeneratorBolt);
 
-        downstreamTaskIds = context.getComponentTasks("computator");
+        downstreamTaskIds = context.getComponentTasks(ResourceCentricZipfComputationTopology.ComputationBolt);
 
         routingTable = new BalancedHashRouting(downstreamTaskIds.size());
 
@@ -82,6 +85,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             Histograms histograms = (Histograms)input.getValue(1);
             taskToHistogram.put(sourceTaskId, histograms);
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateMigrationStream)) {
+            Slave.getInstance().logOnMaster("Will forward the state!");
             int sourceTaskOffset = input.getInteger(0);
             int targetTaskOffset = input.getInteger(1);
             int shardId = input.getInteger(2);
@@ -91,6 +95,12 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateReadyStream)) {
             int targetTaskOffset = input.getInteger(0);
             targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskOffset).release();
+        } else if (streamId.equals(ResourceCentricZipfComputationTopology.FeedbackStream)) {
+            String command = input.getString(0);
+            if(command.equals("resumed")) {
+                int sourceTaskIndex = input.getInteger(1);
+                sourceTaskIndexToResumingWaitingSemphore.get(sourceTaskIndex).release();
+            }
         }
     }
 
@@ -148,9 +158,9 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                     TServerTransport serverTransport = new TServerSocket(19090);
                     TServer server = new TThreadPoolServer(new TThreadPoolServer.Args(serverTransport).processor(processor));
 
-//                    log("Starting the monitoring daemon...");
+                    Slave.getInstance().logOnMaster("Controller daemon is started on " + InetAddress.getLocalHost().getHostAddress());
                     server.serve();
-                } catch (TException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
 
@@ -160,27 +170,52 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     @Override
     public void shardReassignment(int sourceTaskIndex, int targetTaskIndex, int shardId) throws org.apache.thrift.TException {
+        Slave.getInstance().logOnMaster("Shard reassignment is called!");
+        long startTime = System.currentTimeMillis();
         try {
-            if(sourceTaskIndex >= downstreamTaskIds.size())
+            if(sourceTaskIndex >= downstreamTaskIds.size()) {
+                Slave.getInstance().logOnMaster("Invalid source task index!");
                 return;
-            if(targetTaskIndex >= downstreamTaskIds.size())
+            }
+            if(targetTaskIndex >= downstreamTaskIds.size()) {
+                Slave.getInstance().logOnMaster("Invalid target task index!");
                 return;
-            if(shardId > Config.NumberOfShard)
+            }
+            if(shardId > Config.NumberOfShard) {
+                Slave.getInstance().logOnMaster("Invalid shard index!");
                 return;
+            }
+
+            if(routingTable.getBucketToRouteMapping().get(shardId)!=sourceTaskIndex) {
+                Slave.getInstance().logOnMaster(String.format("Shard %d does not belong to %d.", shardId, sourceTaskIndex));
+                return;
+            }
+
+            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", sourceTaskIndex, targetTaskIndex, shardId));
 
             int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
 
-            sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskId, new Semaphore(0));
+            sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskIndex, new Semaphore(0));
 
-            collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskId, targetTaskIndex, shardId));
+            Slave.getInstance().logOnMaster(String.format("Controller: sending pausing"));
 
-            sourceTaskIdToPendingTupleCleanedSemphore.get(sourceTaskId).acquire();
+            collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskIndex, targetTaskIndex, shardId));
+
+            sourceTaskIdToPendingTupleCleanedSemphore.get(sourceTaskIndex).acquire();
 
             targetTaskIdToWaitingStateMigrationSemphore.put(targetTaskIndex, new Semaphore(0));
 
             targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskIndex).acquire();
 
             Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
+
+            sourceTaskIndexToResumingWaitingSemphore.put(sourceTaskIndex, new Semaphore(0));
+            collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("resuming", sourceTaskIndex, targetTaskIndex, shardId));
+            sourceTaskIndexToResumingWaitingSemphore.get(sourceTaskIndex).acquire();
+
+            routingTable.reassignBucketToRoute(shardId, targetTaskIndex);
+
+            Slave.getInstance().logOnMaster(String.format("Shard reassignment is completed! (%d ms)", System.currentTimeMillis() - startTime));
 
         } catch (InterruptedException e) {
             e.printStackTrace();

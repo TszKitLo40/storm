@@ -228,7 +228,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
         double processingRatePerProcessor = 1 / (averageLatency / 1000000000.0);
         int desirableParallelism = (int)Math.ceil(inputRate / processingRatePerProcessor + overProvisioningFactor);
-        Slave.getInstance().sendMessageToMaster("Task " + _taskId + ": input rate=" + String.format("%.5f ",inputRate) + "rate per task=" +String.format("%.5f", processingRatePerProcessor) + " latency: "+ String.format("%.5f ms", averageLatency/1000000.0));
+//        Slave.getInstance().sendMessageToMaster("Task " + _taskId + ": input rate=" + String.format("%.5f ",inputRate) + "rate per task=" +String.format("%.5f", processingRatePerProcessor) + " latency: "+ String.format("%.5f ms", averageLatency/1000000.0));
         return desirableParallelism;
     }
 

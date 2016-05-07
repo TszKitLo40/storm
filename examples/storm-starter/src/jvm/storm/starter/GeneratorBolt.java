@@ -1,5 +1,6 @@
 package storm.starter;
 
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
@@ -9,6 +10,8 @@ import backtype.storm.task.OutputCollector;
 import backtype.storm.utils.Utils;
 
 import java.util.Map;
+import java.util.Random;
+
 import backtype.storm.elasticity.utils.surveillance.ThroughputMonitor;
 
 import backtype.storm.tuple.Values;
@@ -25,7 +28,8 @@ public class GeneratorBolt implements IRichBolt{
     double _exponent;
     Thread _emitThread;
     transient ThroughputMonitor monitor;
-   // final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
+    int _prime;
+    final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
    /* public class ChangeDistribution implements Runnable (Tuple tuple){
 
         @Override
@@ -43,10 +47,14 @@ public class GeneratorBolt implements IRichBolt{
         public void run() {
             while (true) {
                 try {
-                    Utils.sleep(1);
+                    Utils.sleep(4);
                     int key = _distribution.sample();
+                    long seed = System.currentTimeMillis();
+                    Random rand = new Random(seed);
                     System.out.println("key");
                     System.out.println(key);
+                    _prime = primes[rand.nextInt(primes.length)];
+                    key = ((key + _prime) * 101) % 1113;
                     _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
                 }
@@ -63,6 +71,7 @@ public class GeneratorBolt implements IRichBolt{
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         _collector = collector;
+        _prime = 41;
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
@@ -86,11 +95,11 @@ public class GeneratorBolt implements IRichBolt{
       //  setNumberOfElements(tuple);
       //  setExponent(tuple);
         if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
-            _numberOfElements = Integer.parseInt(tuple.getString(0));
-            _exponent = Double.parseDouble(tuple.getString(1));
-            _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-        }
-
+        _numberOfElements = Integer.parseInt(tuple.getString(0));
+        _exponent = Double.parseDouble(tuple.getString(1));
+        _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+        Slave.getInstance().logOnMaster("distribution changed");
+    }
     }
 
 }

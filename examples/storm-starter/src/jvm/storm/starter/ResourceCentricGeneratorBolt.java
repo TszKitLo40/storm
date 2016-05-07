@@ -17,6 +17,7 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 /**
  * Created by acelzj on 03/05/16.
@@ -55,12 +56,14 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
     public class emitKey implements Runnable {
         public void run() {
             try {
+                Random random = new Random();
                 while (true) {
 
-                    Utils.sleep(1);
-                    int key = _distribution.sample();
-                    System.out.println("key");
-                    System.out.println(key);
+                    Thread.sleep(32);
+//                    int key = _distribution.sample();
+                      int key = random.nextInt(_numberOfElements);
+//                    System.out.println("key");
+//                    System.out.println(key);
 
 //                    _collector.emit(new Values(String.valueOf(key)));
                     int pos = routingTable.route(String.valueOf(key));
@@ -78,6 +81,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         declarer.declare(new Fields("numberOfTask"));
         declarer.declareStream("statics", new Fields("taskId", "Histogram"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateMigrationCommandStream, new Fields("sourceTaskId","targetTaskId", "shardId"));
+        declarer.declareStream(ResourceCentricZipfComputationTopology.FeedbackStream, new Fields("command", "arg1"));
     }
 
     @Override
@@ -92,9 +96,12 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
         routingTable = new BalancedHashRouting(numberOfComputingTasks);
 
+        _distribution = new ZipfDistribution(10240, 0.001);
+
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
+
     }
 
     public Map getComponentConfiguration(){ return new HashedMap();}
@@ -123,6 +130,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
             if(command.equals("getHistograms")) {
                 _collector.emit("statics", new Values(taskId, routingTable.getBucketsDistribution()));
             } else if (command.equals("pausing")) {
+                Slave.getInstance().logOnMaster("Received pausing command on " + taskId);
                 int sourceTaskOffset = tuple.getInteger(1);
                 int targetTaskOffset = tuple.getInteger(2);
                 int shardId = tuple.getInteger(3);
@@ -137,6 +145,13 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                 routingTable.reassignBucketToRoute(shardId, targetTaskOffset);
                 Slave.getInstance().logOnMaster("Routing table is updated on " + taskId);
                 _collector.emitDirect(downStreamTaskIds.get(sourceTaskOffset), ResourceCentricZipfComputationTopology.StateMigrationCommandStream, new Values(sourceTaskOffset, targetTaskOffset, shardId));
+            } else if (command.equals("resuming")) {
+                int sourceTaskIndex = tuple.getInteger(1);
+                _emitThread = new Thread(new emitKey());
+                _emitThread.start();
+
+                Slave.getInstance().logOnMaster("Routing thread is resumed!");
+                _collector.emit(ResourceCentricZipfComputationTopology.FeedbackStream, new Values("resumed", sourceTaskIndex));
             }
         }
     }

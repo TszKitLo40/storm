@@ -33,7 +33,7 @@ public class Config {
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
-    public static boolean EnableSubtaskLevelLoadBalancing = true;
+    public static boolean EnableSubtaskLevelLoadBalancing = false;
 
     public static boolean EnableAutomaticScaling = false;
 

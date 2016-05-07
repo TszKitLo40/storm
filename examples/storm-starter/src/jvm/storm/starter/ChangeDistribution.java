@@ -13,12 +13,12 @@ import org.apache.thrift.transport.TTransport;
 public class ChangeDistribution {
     public static void main(String[] args) {
 
-        if(args.length!=4) {
-            System.out.println("args: hostname, task-id, number-of-routes, route-type ");
+        if(args.length!=2) {
+            System.out.println("args: numberOfElements exponent ");
             return;
         }
 
-        TTransport transport = new TSocket("192.168.0.120",9090);
+        TTransport transport = new TSocket("192.168.0.120",9080);
         try {
             transport.open();
 
@@ -26,7 +26,7 @@ public class ChangeDistribution {
 
             ChangeDistributionService.Client thriftClient = new ChangeDistributionService.Client(protocol);
             thriftClient.changeNumberOfElements(Integer.parseInt(args[0]));
-            thriftClient.changeNumberOfElements(Integer.parseInt(args[1]));
+            thriftClient.changeExponent(Double.parseDouble(args[1]));
             transport.close();
         } catch (TException e) {
             e.printStackTrace();

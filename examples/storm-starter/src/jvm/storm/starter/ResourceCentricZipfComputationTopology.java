@@ -13,6 +13,9 @@ public class ResourceCentricZipfComputationTopology {
     public static String StateMigrationStream = "StateMigration";
     public static String StateUpdateStream = "StateUpdate";
     public static String StateReadyStream = "SteateReady";
+    public static String FeedbackStream = "FeedbackStream";
+
+
     public static String UpstreamCommand = "UpstreamCommand";
 
     public static String Spout = "spout";
@@ -45,7 +48,8 @@ public class ResourceCentricZipfComputationTopology {
 
         builder.setBolt(Controller, new ResourceCentricControllerBolt(), 1)
                 .allGrouping(ComputationBolt, StateMigrationStream)
-                .allGrouping(ComputationBolt, StateReadyStream);
+                .allGrouping(ComputationBolt, StateReadyStream)
+                .allGrouping(GeneratorBolt, FeedbackStream);
 
         Config conf = new Config();
         //   if(args.length>2&&args[2].equals("debug"))

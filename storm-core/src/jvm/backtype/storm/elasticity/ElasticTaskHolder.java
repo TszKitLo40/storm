@@ -35,6 +35,7 @@ import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.TupleImpl;
 import backtype.storm.utils.Utils;
+import com.google.common.primitives.Bytes;
 import org.apache.commons.lang.SerializationException;
 import org.apache.commons.lang.SerializationUtils;
 import org.slf4j.Logger;
@@ -726,6 +727,11 @@ public class ElasticTaskHolder {
         //TODO: there should be some mechanism to guarantee that the state is flushed until all the tuple has been processed
         KeyValueState partialState = getState(token._taskId).getValidState(token._filter);
         RemoteState remoteState = new RemoteState(token._taskId, partialState.getState(), token._targetRoute);
+
+        final int stateSize = 1024 * 1024 * 32;
+        Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
+        remoteState._state.put("payload", new byte[stateSize]);
+
         remoteState.markAsFinalized();
         if(_originalTaskIdToPriorityConnection.containsKey(token._taskId)) {
             _originalTaskIdToPriorityConnection.get(token._taskId).send(token._taskId,SerializationUtils.serialize(remoteState));
@@ -1107,6 +1113,13 @@ public class ElasticTaskHolder {
             }
             if (!targetHost.equals("local")) {
                 KeyValueState partialState = getState(taskid).getValidState(filter);
+
+                if(!partialState.getState().containsKey("payload")) {
+                    final int stateSize = 1024 * 1024 * 32;
+                    Slave.getInstance().logOnMaster(String.format("%d bytes have been added to the state!", stateSize));
+                    partialState.getState().put("payload", new byte[stateSize]);
+                }
+
                 RemoteState remoteState = new RemoteState(taskid, partialState.getState(), targetRoute);
                 _taskidRouteToConnection.get(taskid + "." + targetRoute).send(taskid, SerializationUtils.serialize(remoteState));
 //                sendMessageToMaster("State has been sent to " + targetHost);
@@ -1585,7 +1598,7 @@ public class ElasticTaskHolder {
                             int desirableParallelism = _bolts.get(taskId).getDesirableParallelism();
 //                            sendMessageToMaster("Task: " + taskId + "average latency: " + _bolts.get(taskId).getMetrics().getAverageLatency());
 //                            sendMessageToMaster("Task: " + taskId + "rate: " + _bolts.get(taskId).getRate());
-                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
+//                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
                             if(currentParallelism < desirableParallelism) {
                                 ExecutorScalingOutRequestMessage requestMessage = new ExecutorScalingOutRequestMessage(taskId);
                                 _slaveActor.sendMessageObjectToMaster(requestMessage);

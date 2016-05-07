@@ -14,16 +14,22 @@ import org.apache.thrift.transport.TTransport;
 public class ShardReassignment {
     public static void main(String[] args) {
 
-        System.out.println("command: sourceTaskId targetTaskId shardId");
+        System.out.println("command: thrift-ip sourceTaskId targetTaskId shardId");
 
-        TTransport transport = new TSocket(backtype.storm.elasticity.config.Config.masterIp,19090);
+
         try {
+            TTransport transport = new TSocket(args[0],19090);
             transport.open();
 
             TProtocol protocol = new TBinaryProtocol(transport);
 
             ResourceCentricControllerService.Client thriftClient = new ResourceCentricControllerService.Client(protocol);
-            thriftClient.shardReassignment(Integer.getInteger(args[0]), Integer.getInteger(args[1]), Integer.getInteger(args[2]));
+//            int sum = Integer.getInteger(args[0]);
+//            sum += Integer.getInteger(args[1]);
+//            sum += Integer.getInteger(args[2]);
+//            System.out.println(sum);
+
+            thriftClient.shardReassignment(Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]));
             transport.close();
         } catch (TException e) {
             e.printStackTrace();
