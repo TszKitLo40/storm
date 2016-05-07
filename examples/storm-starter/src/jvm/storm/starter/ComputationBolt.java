@@ -7,6 +7,7 @@ import backtype.storm.Config;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
+import backtype.storm.elasticity.utils.surveillance.ThroughputMonitor;
 import backtype.storm.task.ShellBolt;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.BasicOutputCollector;
@@ -24,7 +25,7 @@ import storm.starter.util.ComputationSimulator;
 import java.util.Map;
 public class ComputationBolt extends BaseElasticBolt{
     int sleepTimeInMilics;
-
+   // transient ThroughputMonitor monitor;
 
     public ComputationBolt(int sleepTimeInSecs) {
         this.sleepTimeInMilics = sleepTimeInSecs;
@@ -33,8 +34,9 @@ public class ComputationBolt extends BaseElasticBolt{
     @Override
     public void execute(Tuple tuple, ElasticOutputCollector collector) {
 //        System.out.println("execute");
-//        utils.sleep(sleepTimeInMilics);
-        ComputationSimulator.compute(sleepTimeInMilics*1000000);
+        Utils.sleep(sleepTimeInMilics);
+     //   ComputationSimulator.compute(sleepTimeInMilics*1000000);
+    //    monitor.rateTracker.notify(1);
         String number = tuple.getString(0);
         Integer count = (Integer)getValueByKey(number);
         if (count == null)
@@ -55,6 +57,7 @@ public class ComputationBolt extends BaseElasticBolt{
     @Override
     public void prepare(Map stormConf, TopologyContext context) {
         declareStatefulOperator();
+    //    monitor = new ThroughputMonitor(""+context.getThisTaskId());
     }
 
     @Override

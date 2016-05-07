@@ -23,12 +23,18 @@ import org.apache.commons.math3.distribution.ZipfDistribution;
 public class GeneratorBolt implements IRichBolt{
 
     ZipfDistribution _distribution;
+    transient int count;
     OutputCollector _collector;
     int _numberOfElements;
     double _exponent;
     Thread _emitThread;
     transient ThroughputMonitor monitor;
+    int _sleepTimeInMilics;
     int _prime;
+    transient long start;
+    transient long end;
+    long seed;
+    Random rand;
     final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
    /* public class ChangeDistribution implements Runnable (Tuple tuple){
 
@@ -43,18 +49,32 @@ public class GeneratorBolt implements IRichBolt{
             }
         }
     }*/
+    public GeneratorBolt(int sleepTimeInMilics) { _sleepTimeInMilics = sleepTimeInMilics; }
     public class emitKey implements Runnable {
         public void run() {
             while (true) {
                 try {
-                    Utils.sleep(4);
+                //    Slave.getInstance().logOnMaster("Time:"+String.valueOf(_sleepTimeInMilics));
+                 //   long BeforeSleep = System.currentTimeMillis();
+                    Utils.sleep(_sleepTimeInMilics);
+                //    long AfterSleep = System.currentTimeMillis();
+                //    Slave.getInstance().logOnMaster("Sleep_Time:"+String.valueOf(AfterSleep-BeforeSleep));
+                  //  Thread.sleep(_sleepTimeInMilics);
                     int key = _distribution.sample();
-                    long seed = System.currentTimeMillis();
-                    Random rand = new Random(seed);
                     System.out.println("key");
                     System.out.println(key);
                     _prime = primes[rand.nextInt(primes.length)];
                     key = ((key + _prime) * 101) % 1113;
+                 /*   if(count == 0){
+                        start = System.currentTimeMillis();
+                    }
+                    ++count;
+                    if(count == 1000){
+                        end = System.currentTimeMillis();
+                        Slave.getInstance().logOnMaster("1000:"+String.valueOf(end-start));
+                        count %= 1000;
+                    //    start = System.currentTimeMillis();
+                    }*/
                     _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
                 }
@@ -72,9 +92,27 @@ public class GeneratorBolt implements IRichBolt{
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         _collector = collector;
         _prime = 41;
+        count = 0;
+        start = 0;
+        end = 0;
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(1000);
+                        Slave.getInstance().logOnMaster("My throughput:" + monitor.rateTracker.reportRate());
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
     }
 
     public Map getComponentConfiguration(){ return new HashedMap();}
@@ -98,6 +136,8 @@ public class GeneratorBolt implements IRichBolt{
         _numberOfElements = Integer.parseInt(tuple.getString(0));
         _exponent = Double.parseDouble(tuple.getString(1));
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+        long seed = System.currentTimeMillis();
+        rand = new Random(seed);
         Slave.getInstance().logOnMaster("distribution changed");
     }
     }
