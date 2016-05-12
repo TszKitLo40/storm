@@ -185,7 +185,7 @@ public class ElasticScheduler {
     }
 
 
-    public double getSkewnessFactor(Histograms histograms, BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
+    public static double getSkewnessFactor(Histograms histograms, BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
 //        RoutingTable routingTable = master.getRoutingTable(taskId);
 //        BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
 //        if(balancedHashRouting == null) {
@@ -320,7 +320,7 @@ public class ElasticScheduler {
 
     }
 
-    ShardReassignmentPlan getMinimizedShardToTaskReassignment(int taskId, int numberOfRoutes, Map<Integer, Integer> oldMapping,  Histograms histograms) {
+    public static ShardReassignmentPlan getMinimizedShardToTaskReassignment(int taskId, int numberOfRoutes, Map<Integer, Integer> oldMapping,  Histograms histograms) {
         ShardReassignmentPlan plan = new ShardReassignmentPlan();
 
         PartitioningMinimizedMovement solver = new PartitioningMinimizedMovement(numberOfRoutes, oldMapping, histograms.histograms );

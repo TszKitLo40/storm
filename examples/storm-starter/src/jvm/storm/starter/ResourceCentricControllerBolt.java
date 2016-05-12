@@ -6,6 +6,7 @@ import backtype.storm.elasticity.common.SubTaskWorkload;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.RoutingTableUtils;
+import backtype.storm.elasticity.scheduler.ElasticScheduler;
 import backtype.storm.elasticity.scheduler.ShardReassignment;
 import backtype.storm.elasticity.scheduler.ShardReassignmentPlan;
 import backtype.storm.elasticity.state.KeyValueState;
@@ -314,7 +315,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     @Override
     public void scalingOut() throws TException {
-
+        SmartTimer.getInstance().start("Scaling Out", "Algorithm");
         Histograms histograms = new Histograms();
         for(int taskId: taskToHistogram.keySet()) {
             histograms.merge(taskToHistogram.get(taskId));
@@ -378,16 +379,56 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             }
         }
 
+        SmartTimer.getInstance().stop("Scaling Out", "Algorithm");
+        SmartTimer.getInstance().start("Scaling Out", "Reassignments");
         for(ShardReassignment reassignment: plan.getReassignmentList()) {
             Slave.getInstance().logOnMaster("=============== START ===============");
             shardReassignment(reassignment.originalRoute, reassignment.newRoute, reassignment.shardId);
             Slave.getInstance().logOnMaster("=============== END ===============");
         }
+        SmartTimer.getInstance().stop("Scaling Out", "Reassignments");
+        Slave.getInstance().logOnMaster(SmartTimer.getInstance().getTimerString("Scaling Out"));
+        Slave.getInstance().logOnMaster(String.format("Scaled out with %d reassignments", plan.getReassignmentList().size()));
 
     }
 
     @Override
     public void loadBalancing() throws TException {
 
+        SmartTimer.getInstance().start("Load Balancing", "Algorithm");
+        Histograms histograms = new Histograms();
+        for(int taskId: taskToHistogram.keySet()) {
+            histograms.merge(taskToHistogram.get(taskId));
+        }
+
+        try {
+            double workloadFactor = ElasticScheduler.getSkewnessFactor(histograms, routingTable);
+            boolean skewness = workloadFactor >= Config.taskLevelLoadBalancingThreshold;
+
+            if(skewness) {
+
+//                ShardReassignmentPlan plan = getCompleteShardToTaskMapping(taskId, histograms, numberOfRoutes, balancedHashRouting.getBucketToRouteMapping());
+                    ShardReassignmentPlan plan = ElasticScheduler.getMinimizedShardToTaskReassignment(0, routingTable.getNumberOfRoutes(), routingTable.getBucketToRouteMapping(), histograms);
+
+                SmartTimer.getInstance().stop("Load Balancing", "Algorithm");
+                SmartTimer.getInstance().start("Load Balancing", "Reassignments");
+                    if(!plan.getReassignmentList().isEmpty()) {
+                        for(ShardReassignment reassignment: plan.getReassignmentList()) {
+                            shardReassignment(reassignment.shardId, reassignment.newRoute, reassignment.shardId);
+                    }
+                    } else {
+                        System.out.println("Shard Assignment is not modified after optimization.");
+                    }
+                SmartTimer.getInstance().stop("Load Balancing", "Reassignments");
+                Slave.getInstance().logOnMaster(SmartTimer.getInstance().getTimerString("Load Balancing"));
+                Slave.getInstance().logOnMaster(plan.getReassignmentList().size() + " shard reassignments has be performed for load balancing! ");
+            } else {
+                Slave.getInstance().logOnMaster("No shard reassignment will be performed!");
+            }
+
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

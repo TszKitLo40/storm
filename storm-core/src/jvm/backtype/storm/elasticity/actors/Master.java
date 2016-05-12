@@ -59,6 +59,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     private Map<String, Set<String>> _ipToWorkerLogicalName = new HashMap<>();
 
+    private Set<String> _supervisorActorNames = new HashSet<>();
+
+    private Map<Integer, List<String>> _taskToCoreLocations = new HashMap<>();
+
 //    IConnection _loggingInput;
 
     static Master _instance;
@@ -152,18 +156,36 @@ public class Master extends UntypedActor implements MasterService.Iface {
             ClusterEvent.UnreachableMember unreachableMember = (ClusterEvent.UnreachableMember) message;
             log(unreachableMember.member().address().toString() + " is unreachable!");
 
+            if(_supervisorActorNames.contains(unreachableMember.member().address().toString())) {
+                final String ip = extractIpFromActorAddress(unreachableMember.member().address().toString());
+                System.out.println(String.format("Supervisor on %s is dead!", ip));
+                _supervisorActorNames.remove(unreachableMember.member().address().toString());
+                ResourceManager.instance().computationResource.unregisterNode(ip);
+                System.out.println("Resource Manager is updated upon the dead of the supervisor.");
+                return;
+            }
+
             for(String name: _nameToPath.keySet()) {
                 if(_nameToPath.get(name).address().toString().equals(unreachableMember.member().address().toString())){
-                    final String ip = extractIpFromActorAddress(getSender().path().toString());
+                    final String ip = extractIpFromActorAddress(unreachableMember.member().address().toString());
                     if(ip == null) {
                         continue;
                     }
                     final String logicalName = _hostNameToWorkerLogicalName.get(name);
 
                     _ipToWorkerLogicalName.get(ip).remove(logicalName);
-                    if(_ipToWorkerLogicalName.get(ip).isEmpty()) {
-                        _ipToWorkerLogicalName.remove(ip);
-                        ResourceManager.instance().computationResource.unregisterNode(ip);
+//                    if(_ipToWorkerLogicalName.get(ip).isEmpty()) {
+//                        _ipToWorkerLogicalName.remove(ip);
+////                        ResourceManager.instance().computationResource.unregisterNode(ip);
+//                    }
+                    for(int task: _taskidToActorName.keySet()) {
+
+                        if(_nameToPath.get(_taskidToActorName.get(task)).address().toString().equals(unreachableMember.member().address().toString())) {
+                            for(String coreIp: _taskToCoreLocations.get(task)) {
+                                ResourceManager.instance().computationResource.returnProcessor(coreIp);
+                                System.out.println("The CPU core for task " + task + " is returned, as the its hosting worker is called!");
+                            }
+                        }
                     }
 
                     _nameToPath.remove(name);
@@ -179,6 +201,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
 //
 //            System.out.println("_nameToPath: "+_nameToPath);
 //            System.out.println("_nameToWorkerLogicalName: " + _hostNameToWorkerLogicalName);
+
+        } else if(message instanceof SupervisorRegistrationMessage){
+            SupervisorRegistrationMessage supervisorRegistrationMessage = (SupervisorRegistrationMessage)message;
+            final String ip = extractIpFromActorAddress(getSender().path().toString());
+            ResourceManager.instance().computationResource.registerNode(ip, supervisorRegistrationMessage.getNumberOfProcessors());
+            _supervisorActorNames.add(getSender().path().address().toString());
+            System.out.println(String.format("Supervisor is registered on %s with %d processors", ip, supervisorRegistrationMessage.getNumberOfProcessors()));
 
         } else if(message instanceof WorkerRegistrationMessage) {
             WorkerRegistrationMessage workerRegistrationMessage = (WorkerRegistrationMessage)message;
@@ -197,7 +226,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             if(!_ipToWorkerLogicalName.containsKey(ip))
                 _ipToWorkerLogicalName.put(ip, new HashSet<String>());
             _ipToWorkerLogicalName.get(ip).add(logicalName);
-            ResourceManager.instance().computationResource.registerNode(ip, workerRegistrationMessage.getNumberOfProcessors());
+//            ResourceManager.instance().computationResource.registerNode(ip, workerRegistrationMessage.getNumberOfProcessors());
             System.out.println(ResourceManager.instance().computationResource);
 
             log("[" + workerRegistrationMessage.getName() + "] is registered on " + _hostNameToWorkerLogicalName.get(workerRegistrationMessage.getName()));
@@ -284,6 +313,11 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 System.err.println("There is not enough computation resources for scaling out!");
                 return;
             }
+
+            if(!_taskToCoreLocations.containsKey(taskid)) {
+                _taskToCoreLocations.put(taskid, new ArrayList<String>());
+            }
+            _taskToCoreLocations.get(taskid).add(hostIp);
 
             RoutingTable balancecHashRouting = RoutingTableUtils.getBalancecHashRouting(getRoutingTable(taskid));
             if(balancecHashRouting == null) {

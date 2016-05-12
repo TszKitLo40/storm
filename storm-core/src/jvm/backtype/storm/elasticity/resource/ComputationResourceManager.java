@@ -15,10 +15,12 @@ public class ComputationResourceManager {
             System.out.println("Node has already been registered! Ignore...");
         } else
             nodeIpToProcessors.put(ip, processors);
+        System.out.println(this.toString());
     }
 
     public void unregisterNode(String ip) {
         nodeIpToProcessors.remove(ip);
+        System.out.println(this.toString());
     }
 
     public String toString() {

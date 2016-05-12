@@ -14,7 +14,8 @@
 ;; See the License for the specific language governing permissions and
 ;; limitations under the License.
 (ns backtype.storm.daemon.supervisor
-  (:import [java.io OutputStreamWriter BufferedWriter IOException])
+  (:import [java.io OutputStreamWriter BufferedWriter IOException]
+           [backtype.storm.elasticity.actors Slave])
   (:import [backtype.storm.scheduler ISupervisor]
            [backtype.storm.utils LocalState Time Utils]
            [backtype.storm.daemon Shutdownable]
@@ -826,6 +827,7 @@
                         (generate-supervisor-id))]
           (ls-supervisor-id! state curr-id)
           (reset! id-atom curr-id))
+        (Slave/createActor "supervisorActor", "20000", true)
         )
       (confirmAssigned [this port]
         true)

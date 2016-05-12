@@ -61,6 +61,8 @@ public class Slave extends UntypedActor {
 
     final Object thriftClientLock = new Object();
 
+    boolean supervisorActor = false; // indicate if this actor is used by a supervisor to communicate with the master.
+
     void connectToMasterThriftServer(String ip, int port) {
         System.out.println("Thrift server ip: " + ip + " port: " + port);
         TTransport transport = new TSocket(ip, port);
@@ -83,6 +85,11 @@ public class Slave extends UntypedActor {
         _instance = this;
         System.out.println("Slave constructor is called!");
 //        createLiveNotificationHeartbeat();
+    }
+
+    public Slave(String name, String port, boolean supervisorActor) {
+        this(name, port);
+        this.supervisorActor = supervisorActor;
     }
 
     private void createLiveNotificationHeartbeat() {
@@ -268,13 +275,19 @@ public class Slave extends UntypedActor {
     void register(Member member) {
         if(member.hasRole("master")) {
             _master = getContext().actorSelection(member.address()+"/user/master");
-            _master.tell(new WorkerRegistrationMessage(_name, _port, ResourceMonitor.getNumberOfProcessors()),getSelf());
+            if(supervisorActor) {
+                _master.tell(new SupervisorRegistrationMessage(_name, _port, ResourceMonitor.getNumberOfProcessors()),getSelf());
+            } else {
+                _master.tell(new WorkerRegistrationMessage(_name, _port, ResourceMonitor.getNumberOfProcessors()),getSelf());
+            }
 
             System.out.println("I have sent registration message to master.");
         } else if (member.hasRole("slave")) {
-            getContext().actorSelection(member.address()+"/user/slave")
-                    .tell(new WorkerRegistrationMessage(_name, _port),getSelf());
-            System.out.format("I have sent registration message to %s\n", member.address());
+            if(!supervisorActor) {
+                getContext().actorSelection(member.address()+"/user/slave")
+                        .tell(new WorkerRegistrationMessage(_name, _port),getSelf());
+                System.out.format("I have sent registration message to %s\n", member.address());
+            }
 //            sendMessageToMaster("I have sent registration message to "+ member.address());
         }
     }
@@ -374,6 +387,29 @@ public class Slave extends UntypedActor {
                     .withFallback(ConfigFactory.load());
             ActorSystem system = ActorSystem.create("ClusterSystem", config);
             system.actorOf(Props.create(Slave.class, name, port), "slave");
+
+            System.out.println("Slave actor is created!");
+//            Slave slave = Slave.getInstance();
+
+
+
+            return Slave.waitAndGetInstance();
+        } catch (UnknownHostException e ) {
+            e.printStackTrace();
+            return null;
+        }
+
+    }
+
+    static public Slave createActor(String name, String port, boolean supervisorActor) {
+        try{
+            final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + InetAddress.getLocalHost().getHostAddress()))
+                    .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
+                    .withFallback(ConfigFactory.load());
+            ActorSystem system = ActorSystem.create("ClusterSystem", config);
+            system.actorOf(Props.create(Slave.class, name, port, supervisorActor), "slave");
 
             System.out.println("Slave actor is created!");
 //            Slave slave = Slave.getInstance();
