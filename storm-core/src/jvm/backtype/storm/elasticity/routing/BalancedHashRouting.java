@@ -172,6 +172,16 @@ public class BalancedHashRouting implements RoutingTable {
         return this.hashValueToRoute;
     }
 
+    public synchronized void setBucketToRouteMapping( Map<Integer, Integer> newMapping) {
+        this.hashValueToRoute.clear();
+        this.hashValueToRoute.putAll(newMapping);
+    }
+
+    public synchronized void update(BalancedHashRouting newRoute) {
+        this.numberOfRoutes = newRoute.numberOfRoutes;
+        this.setBucketToRouteMapping(newRoute.getBucketToRouteMapping());
+    }
+
     /**
      * create a new route (empty route)
      * @return new route id

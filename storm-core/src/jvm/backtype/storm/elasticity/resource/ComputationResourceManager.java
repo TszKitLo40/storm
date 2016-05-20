@@ -68,7 +68,12 @@ public class ComputationResourceManager {
     }
 
     public void returnProcessor(String nodeIP) {
-        nodeIpToProcessors.put(nodeIP,nodeIpToProcessors.get(nodeIP)+1);
-        System.out.println(this.toString());
+
+        if(nodeIpToProcessors.containsKey(nodeIP)) {
+            nodeIpToProcessors.put(nodeIP,nodeIpToProcessors.get(nodeIP)+1);
+            System.out.println(this.toString());
+        } else {
+            System.out.println("Cannot find " + nodeIP + " in the computation resource manager!");
+        }
     }
 }

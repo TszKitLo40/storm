@@ -1,10 +1,13 @@
 package backtype.storm.elasticity;
 
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteState;
+import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
+import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.elasticity.state.*;
 
@@ -169,8 +172,19 @@ public class ElasticRemoteTaskExecutor {
             System.out.println("Routing table cannot be merged, when either of the routing table is not an instance of PartialHashingRouting");
             return;
         }
+
+        if(RoutingTableUtils.getBalancecHashRouting(routingTable)!=null && RoutingTableUtils.getBalancecHashRouting(_elasticTasks.get_routingTable())!=null) {
+            BalancedHashRouting exitingRouting = RoutingTableUtils.getBalancecHashRouting(_elasticTasks.get_routingTable());
+            BalancedHashRouting incomingRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+            exitingRouting.update(incomingRouting);
+            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
+        }
+
         ArrayList<Integer> newRoutes = routingTable.getRoutes();
         ((PartialHashingRouting)_elasticTasks.get_routingTable()).addValidRoutes(newRoutes);
+
+
+
         for(int i:routingTable.getRoutes()) {
             _elasticTasks.createAndLaunchElasticTasksForGivenRoute(i);
         }

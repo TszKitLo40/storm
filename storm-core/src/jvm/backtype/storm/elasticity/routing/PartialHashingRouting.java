@@ -124,7 +124,7 @@ public class PartialHashingRouting implements RoutingTable {
         addValidRoutes(list);
     }
 
-    public void addValidRoutes(ArrayList<Integer> routes) {
+    public synchronized void addValidRoutes(ArrayList<Integer> routes) {
         for(int i: routes) {
             if(_routingTable.getRoutes().contains(i)) {
                 _validRoutes.add(i);

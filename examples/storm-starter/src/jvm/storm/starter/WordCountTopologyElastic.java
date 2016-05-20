@@ -50,12 +50,15 @@ public class WordCountTopologyElastic {
 
         public WordCount(int sleepTimeInSecs) {
             this.sleepTimeInMilics = sleepTimeInSecs;
+
         }
 
         @Override
         public void execute(Tuple tuple, ElasticOutputCollector collector) {
 //        utils.sleep(sleepTimeInMilics);
-            ComputationSimulator.compute(sleepTimeInMilics);
+            Utils.sleep(sleepTimeInMilics/1000/1000);
+//            ComputationSimulator.compute(sleepTimeInMilics);
+//            System.out.println("Time: " + sleepTimeInMilics);
             String word = tuple.getString(0);
             Integer count = (Integer)getValueByKey(word);
             if (count == null)
@@ -75,6 +78,18 @@ public class WordCountTopologyElastic {
         @Override
         public void prepare(Map stormConf, TopologyContext context) {
             declareStatefulOperator();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    int i = 1;
+                    int old = sleepTimeInMilics;
+                    while(true) {
+                        Utils.sleep(5000);
+                        sleepTimeInMilics = old * i;
+                        i = (i+1)%15 + 1;
+                    }
+                }
+            }).start();
         }
 
         @Override
@@ -114,9 +129,9 @@ public class WordCountTopologyElastic {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(1), 1);
+        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(10), 1);
 
-        builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 2).fieldsGrouping("spout", new Fields("word"));
+        builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
         builder.setBolt("print", new Printer(),2).globalGrouping("count");
 
         Config conf = new Config();

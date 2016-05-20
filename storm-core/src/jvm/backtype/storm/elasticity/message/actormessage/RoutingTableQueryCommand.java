@@ -7,6 +7,8 @@ public class RoutingTableQueryCommand implements ICommand{
 
     public int taskid;
 
+    public boolean completeRouting = true;
+
     public RoutingTableQueryCommand(int taskid) {
         this.taskid = taskid;
     }

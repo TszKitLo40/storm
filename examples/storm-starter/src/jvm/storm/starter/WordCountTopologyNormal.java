@@ -68,6 +68,7 @@ public class WordCountTopologyNormal {
     @Override
     public void prepare(Map stormConf, TopologyContext context) {
         counts = new HashMap<String, Integer>();
+
     }
 
 //    @Override

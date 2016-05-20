@@ -197,7 +197,12 @@ public class Slave extends UntypedActor {
                 getSender().tell(distribution, getSelf());
             } else if (message instanceof RoutingTableQueryCommand) {
                 RoutingTableQueryCommand queryCommand = (RoutingTableQueryCommand)message;
-                RoutingTable queryResult = ElasticTaskHolder.instance().getRoutingTable(queryCommand.taskid);
+                RoutingTable queryResult;
+                if(queryCommand.completeRouting){
+                    queryResult = ElasticTaskHolder.instance().getRoutingTable(queryCommand.taskid);
+                } else {
+                    queryResult = ElasticTaskHolder.instance().getOriginalRoutingTable(queryCommand.taskid);
+                }
                 getSender().tell(queryResult, getSelf());
             } else if (message instanceof ReassignBucketToRouteCommand) {
                 System.out.println("I received ReassignBucketToRouteCommand message " + message);
@@ -219,11 +224,13 @@ public class Slave extends UntypedActor {
             } else if (message instanceof TestAliveMessage) {
                 sendMessageToMaster("Alive: " + ((TestAliveMessage) message).msg);
             } else if (message instanceof ScalingOutSubtaskCommand) {
-
+                System.out.println("ScalingOutSubtaskCommand response will be sent!");
                 getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
+                System.out.println("ScalingOutSubtaskCommand response is sent!");
             } else if (message instanceof ScalingInSubtaskCommand) {
-
+                System.out.println("ScalingInSubtaskCommand response will be sent!");
                 getSender().tell(ElasticTaskHolder.instance().handleScalingInSubtaskCommand(((ScalingInSubtaskCommand) message).taskId), getSelf());
+                System.out.println("ScalingInSubtaskCommand response is sent!");
             } else if (message instanceof SubtaskLevelLoadBalancingCommand) {
 
                 getSender().tell(ElasticTaskHolder.instance().handleSubtaskLevelLoadBalancingCommand(((SubtaskLevelLoadBalancingCommand) message).taskid), getSelf());

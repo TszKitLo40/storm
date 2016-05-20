@@ -8,6 +8,7 @@ import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
 import backtype.storm.elasticity.routing.*;
+import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.KeyFrequencySampler;
 import backtype.storm.tuple.Tuple;
 
@@ -44,11 +45,17 @@ public class ElasticTasks implements Serializable {
 
     public transient KeyFrequencySampler _sample;
 
+    private boolean remote = false;
+
 
     public ElasticTasks(BaseElasticBolt bolt, Integer taskID) {
         _bolt = bolt;
         _taskID = taskID;
         _routingTable = new VoidRouting();
+    }
+
+    public void setRemoteElasticTasks() {
+        remote = true;
     }
 
 //    public ElasticTasks(ElasticTasks instance) {
@@ -114,6 +121,14 @@ public class ElasticTasks implements Serializable {
 //        }
         _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
         if (route == RoutingTable.remote) {
+            if(remote) {
+                String str = "A tuple is routed to remote on a remote ElasticTasks!\n";
+                str += "target route is " + RoutingTableUtils.getBalancecHashRouting(_routingTable).route(key) + "\n";
+                str += "target shard is " + GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard +"\n";
+                str +=_routingTable.toString();
+                Slave.getInstance().sendMessageToMaster(str);
+                return false;
+            }
 //            System.out.println("a tuple is routed to remote!");
             RemoteTuple remoteTuple = new RemoteTuple(_taskID, ((PartialHashingRouting)_routingTable).getOrignalRoute(key), tuple);
             try {
@@ -481,7 +496,8 @@ public class ElasticTasks implements Serializable {
 
     public void makesSureNoPendingTuples(int routeId) {
         if(!_queues.containsKey(routeId)) {
-            System.err.println("RouteId cannot be found in makesSureNoPendingTuples!");
+            System.err.println(String.format("RouteId %d cannot be found in makesSureNoPendingTuples!", routeId));
+            Slave.getInstance().logOnMaster(String.format("RouteId %d cannot be found in makesSureNoPendingTuples!", routeId));
             return;
         }
 //        Slave.getInstance().sendMessageToMaster("Cleaning...." + this._taskID + "." + routeId);

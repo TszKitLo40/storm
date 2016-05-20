@@ -33,15 +33,15 @@ public class Config {
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
-    public static boolean EnableSubtaskLevelLoadBalancing = false;
+    public static boolean EnableSubtaskLevelLoadBalancing = true;
 
-    public static boolean EnableAutomaticScaling = true;
+    public static boolean EnableAutomaticScaling = false;
 
     public static int LoggingServerPort = 10000;
 
     public static double latencySampleRate = 0.1;
 
-    public static int numberOfLatencyHistoryRecords = 100;
+    public static int numberOfLatencyHistoryRecords = 10;
 
     public static int latencyMaximalTimeIntervalInSecond = 1;
 

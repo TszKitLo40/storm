@@ -17,6 +17,7 @@ import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.PartitioningMinimizedMovement;
 import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.generated.TaskNotExistException;
+import backtype.storm.utils.Utils;
 import org.apache.thrift.TException;
 import org.eclipse.jetty.util.ArrayQueue;
 
@@ -24,6 +25,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RunnableFuture;
 
 /**
  * Created by Robert on 11/11/15.
@@ -58,6 +60,46 @@ public class ElasticScheduler {
         if(Config.EnableAutomaticScaling) {
             enableAutomaticScaling();
         }
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final int task = 17;
+                final int maxParallelism = 15;
+                final int minParallelism = 4;
+                boolean scalingOut = true;
+                while(true) {
+                    Utils.sleep(1000);
+                    try {
+                        System.out.println("Test: try to get the lock!");
+                        synchronized (lock) {
+                            System.out.println("Test: got the lock!");
+                            RoutingTable routingTable = master.getRoutingTable(17);
+                            int parallelism = routingTable.getNumberOfRoutes();
+                            if(parallelism < minParallelism) {
+                                scalingOut = true;
+                            } else if (parallelism > maxParallelism){
+                                scalingOut = false;
+                            }
+
+                            if(scalingOut) {
+                                master.handleExecutorScalingOutRequest(task);
+                            } else {
+                                master.handleExecutorScalingInRequest(task);
+                            }
+                        }
+                    }
+                    catch (TaskNotExistException e) {
+                        System.out.println(String.format("Task %d does not exist!", task));
+//                        e.printStackTrace();;
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            }
+        }).start();
 
 
     }
@@ -272,7 +314,7 @@ public class ElasticScheduler {
             // 2. get Distribution;
             Histograms histograms = master.getBucketDistribution(taskId);
 
-            System.out.println(histograms);
+//            System.out.println(histograms);
 
             double workloadFactor = getSkewnessFactor(histograms, balancedHashRouting);
             boolean skewness = workloadFactor >= threshold;

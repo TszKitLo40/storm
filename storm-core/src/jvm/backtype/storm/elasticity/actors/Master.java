@@ -53,7 +53,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     public Map<Integer, String> _elasticTaskIdToWorkerLogicalName = new HashMap<>();
 
-    public Map<String, String> _taskidRouteToWorker = new HashMap<>();
+    public Map<String, String> _taskidRouteToWorker = new ConcurrentHashMap<>();
 
     private Map<String, String> _hostNameToWorkerLogicalName = new HashMap<>();
 
@@ -181,9 +181,21 @@ public class Master extends UntypedActor implements MasterService.Iface {
                     for(int task: _taskidToActorName.keySet()) {
 
                         if(_nameToPath.get(_taskidToActorName.get(task)).address().toString().equals(unreachableMember.member().address().toString())) {
+                            System.out.println("_taskidToActorName--> Task: " + task + " + _taskidToActorName: " + _taskidToActorName.get(task));
+                            int i = 1;
                             for(String coreIp: _taskToCoreLocations.get(task)) {
+                                System.out.println("No: " + i++);
                                 ResourceManager.instance().computationResource.returnProcessor(coreIp);
                                 System.out.println("The CPU core for task " + task + " is returned, as the its hosting worker is called!");
+                            }
+
+                            _elasticTaskIdToWorkerLogicalName.remove(task);
+                            _taskidToActorName.remove(task);
+                            _taskToCoreLocations.remove(task);
+                            for(String str: _taskidRouteToWorker.keySet()) {
+                                if(str.split("\\.")[0].equals(""+task)) {
+                                    _taskidRouteToWorker.remove(str);
+                                }
                             }
                         }
                     }
@@ -247,6 +259,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
                     _taskidRouteToWorker.remove(registrationMessage.taskid + "." + i);
                     System.out.println("Route " + registrationMessage.taskid + "." + i + " is removed from " + getWorkerLogicalName(registrationMessage.host));
                 }
+//                for(String n: _taskidRouteToWorker.keySet()) {
+//                    System.out.println(String.format("%s: %s", n, _taskidRouteToWorker.get(n)));
+//                }
             }
 
         } else if (message instanceof String) {
@@ -275,15 +290,27 @@ public class Master extends UntypedActor implements MasterService.Iface {
             RoutingTable routingTable = getRoutingTable(taskId);
             int targetRouteId = routingTable.getNumberOfRoutes() - 1;
             String hostWorkerLogicalName = _taskidRouteToWorker.get(taskId+"."+targetRouteId);
-            String hostIp = getIpForWorkerLogicalName(hostWorkerLogicalName);
 
+            if(hostWorkerLogicalName==null) {
+                System.out.println("hostWorkerLogicalName is null!");
+                System.out.println(taskId+"."+targetRouteId);
+                for(String n: _taskidRouteToWorker.keySet()) {
+                    System.out.println(String.format("%s: %s", n, _taskidRouteToWorker.get(n)));
+                }
+            }
+
+
+            String hostIp = getIpForWorkerLogicalName(hostWorkerLogicalName);
+            System.out.println("ScalingInSubtask will be called!");
             if(scalingInSubtask(taskId)) {
                 System.out.println("Task" + taskId + " successfully scales in!");
                 ResourceManager.instance().computationResource.returnProcessor(hostIp);
             } else {
                 System.out.println("Task " + taskId + " scaling in fails!");
             }
-
+//            System.out.println("Current Routing Table: ");
+////            System.out.println(getOriginalRoutingTable(taskId));
+//            System.out.println("=====================================\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -298,7 +325,15 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 break;
             }
         }
+        if(hostIp == null) {
+            System.out.println(String.format("Cannot find ip for %s", workerLogicalName));
+            System.out.println("_ipToWorkerLogicalName:");
+            for(String ip: _ipToWorkerLogicalName.keySet()) {
+                System.out.println(String.format("%s : %s", ip, _ipToWorkerLogicalName.get(ip)));
+            }
+        }
         return hostIp;
+
     }
 
     public void handleExecutorScalingOutRequest(int taskid) {
@@ -325,8 +360,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 balancecHashRouting = RoutingTableUtils.getBalancecHashRouting(getRoutingTable(taskid));
             }
 
+            System.out.println("ScalingOutSubtask will be called!");
             scalingOutSubtask(taskid);
-            System.out.println("A local new task " + taskid + "." + balancecHashRouting.getNumberOfRoutes() +" is created!");
+            System.out.println("ScalingOutSubtask is called!");
+//            System.out.println("A local new task " + taskid + "." + balancecHashRouting.getNumberOfRoutes() +" is created!");
+//            for(String name: _ipToWorkerLogicalName.keySet()) {
+//                System.out.println(String.format("%s: %s", name, _ipToWorkerLogicalName.get(name)));
+//            }
 
             if(!hostIp.equals(preferredIp)) {
                 Set<String> candidateHosterWorkers = _ipToWorkerLogicalName.get(hostIp);
@@ -341,6 +381,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 migrateTasks(workerHostName, hosterWorker, taskid, targetRoute);
                 System.out.println("Task " + taskid + "." + targetRoute + " has been migrated!");
             }
+
+//            System.out.println("Current Routing Table: ");
+//            System.out.println(getOriginalRoutingTable(taskid));
+//            System.out.println("=====================================\n");
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -466,7 +510,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ThroughputQueryCommand(taskid));
 //        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
-        return (double)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        return (double)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
 
     }
 
@@ -550,7 +594,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         }
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new SubtaskLevelLoadBalancingCommand(taskid));
-        return (String)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        return (String)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
     }
 
     @Override
@@ -581,9 +625,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
+        System.out.println("Scaling out message has been sent!");
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingOutSubtaskCommand(taskid));
-        inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
-//        handleExecutorScalingOutRequest(taskid);
+        inbox.receive(new FiniteDuration(30000, TimeUnit.SECONDS));
+        System.out.println("Scaling out response is received!");
     }
 
     @Override
@@ -592,12 +637,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
         final Inbox inbox = Inbox.create(getContext().system());
+        System.out.println("Scaling in message has been sent!");
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingInSubtaskCommand(taskid));
-        Status returnStatus = (Status)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
-        System.out.println(returnStatus);
+        Status returnStatus = (Status)inbox.receive(new FiniteDuration(30000, TimeUnit.SECONDS));
+        System.out.println("Scaling in response is received!");
+//        System.out.println(returnStatus);
         return returnStatus.code == Status.OK;
-//        handleExecutorScalingOutRequest(taskid);
-//        return true;
     }
 
     @Override
@@ -621,7 +666,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new DistributionQueryCommand(taskid));
-        return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        return (Histograms)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
     }
 
     public RoutingTable getRoutingTable(int taskid) throws TaskNotExistException{
@@ -629,7 +674,17 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
-        return (RoutingTable)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+    }
+
+    public RoutingTable getOriginalRoutingTable(int taskid) throws TaskNotExistException{
+        if(!_taskidToActorName.containsKey(taskid))
+            throw new TaskNotExistException("task " + taskid + " does not exist!");
+        final Inbox inbox = Inbox.create(getContext().system());
+        RoutingTableQueryCommand command = new RoutingTableQueryCommand(taskid);
+        command.completeRouting = false;
+        inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
+        return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
     }
 
     public Histograms getBucketDistribution(int taskid) throws TaskNotExistException{
@@ -637,7 +692,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         final Inbox inbox = Inbox.create(getContext().system());
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new BucketDistributionQueryCommand(taskid));
-        return (Histograms)inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        return (Histograms)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
     }
 
     public String getRouteHosterName(int taskid, int route) {

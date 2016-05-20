@@ -175,10 +175,11 @@ public class ElasticTaskHolder {
             /* construct the instance of ElasticTasks to be executed remotely */
             ElasticTasks existingElasticTasks = _bolts.get(taskid).get_elasticTasks();
             ElasticTasks remoteElasticTasks = new ElasticTasks(existingElasticTasks.get_bolt(),existingElasticTasks.get_taskID());
+            remoteElasticTasks.setRemoteElasticTasks();
             remoteElasticTasks.set_routingTable(complementHashingRouting);
 
-            System.out.println("cleaning pending tuples for state consistency!");
-            existingElasticTasks.makesSureNoPendingTuples(route);
+//            System.out.println("cleaning pending tuples for state consistency!");
+//            existingElasticTasks.makesSureNoPendingTuples(route);
 
             System.out.println("Packing the involved state...");
             long start = System.currentTimeMillis();
@@ -819,7 +820,7 @@ public class ElasticTaskHolder {
                 throw new RuntimeException("Balanced Hash Routing is null!");
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
-//                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
+                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
                 System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
             }
         }
@@ -827,7 +828,7 @@ public class ElasticTaskHolder {
             BalancedHashRouting balancedHashRouting = getBalancedHashRoutingFromRemoteBolt(reassignment.taskid);
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
-//                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
+                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
                 System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
             }
         }
@@ -1009,6 +1010,14 @@ public class ElasticTaskHolder {
         } else {
 //            return _bolts.get(taskid).get_elasticTasks()._sample.getDistribution();
             return _bolts.get(taskid).get_elasticTasks().get_routingTable().getRoutingDistribution();
+        }
+    }
+
+    public RoutingTable getOriginalRoutingTable(int taskid) throws TaskNotExistingException {
+        if(!_bolts.containsKey(taskid)) {
+            throw new TaskNotExistingException("task " + taskid + "does not exist!");
+        } else {
+            return _bolts.get(taskid).get_elasticTasks().get_routingTable();
         }
     }
 
@@ -1380,6 +1389,7 @@ public class ElasticTaskHolder {
          */
 
         try {
+            System.out.println("begin to handle scaling in subtask command...");
             SmartTimer.getInstance().start("Scaling In Subtask", "prepare");
             if(!_bolts.containsKey(taskId)) {
                 throw new TaskNotExistingException(taskId);
@@ -1395,6 +1405,7 @@ public class ElasticTaskHolder {
             int targetSubtaskId = balancedHashRouting.getNumberOfRoutes() -1;
             int numberOfSubtasks = balancedHashRouting.getNumberOfRoutes();
             // collect the necessary metrics first.
+            System.out.println("begin to collect the metrics...");
             Histograms histograms = balancedHashRouting.getBucketsDistribution();
             Map<Integer, Integer> shardToRoutingMapping = balancedHashRouting.getBucketToRouteMapping();
 
@@ -1418,6 +1429,7 @@ public class ElasticTaskHolder {
             }
             SmartTimer.getInstance().stop("Scaling In Subtask", "prepare");
             SmartTimer.getInstance().start("Scaling In Subtask", "algorithm");
+            System.out.println("begin to compute the shard reassignments...");
             Set<ShardWorkload> shardsForTargetSubtask = subtaskToShards.get(targetSubtaskId);
             List<ShardWorkload> sortedShards = new ArrayList<>(shardsForTargetSubtask);
             Collections.sort(sortedShards, ShardWorkload.createReverseComparator());
@@ -1435,19 +1447,38 @@ public class ElasticTaskHolder {
             SmartTimer.getInstance().stop("Scaling In Subtask", "algorithm");
             System.out.println(plan.toString());
             SmartTimer.getInstance().start("Scaling In Subtask", "deploy");
+            System.out.println("begin to conduct shard reassignments...");
             for(ShardReassignment reassignment: plan.getReassignmentList()) {
 //                sendMessageToMaster("=============== START ===============");
                 reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
 //                sendMessageToMaster("=============== END ===============");
             }
             SmartTimer.getInstance().stop("Scaling In Subtask", "deploy");
+
+            SmartTimer.getInstance().start("Scaling In Subtask", "Termination");
+            if(_taskidRouteToConnection.containsKey(taskId + "." + targetSubtaskId)){
+                withdrawRemoteElasticTasks(taskId, targetSubtaskId);
+            }
+            _bolts.get(taskId).get_elasticTasks().terminateGivenQuery(targetSubtaskId);
+            SmartTimer.getInstance().stop("Scaling In Subtask", "Termination");
+
             SmartTimer.getInstance().start("Scaling In Subtask", "update routing table");
             balancedHashRouting.scalingIn();
             SmartTimer.getInstance().stop("Scaling In Subtask", "update routing table");
 
-            sendMessageToMaster(SmartTimer.getInstance().getTimerString("Scaling In Subtask"));
+
+//            sendMessageToMaster(SmartTimer.getInstance().getTimerString("Scaling In Subtask"));
 
             sendMessageToMaster("Scaling in completes with " + plan.getReassignmentList().size() + " movements.");
+
+            String string = "";
+            for(ShardReassignment reassignment: plan.getReassignmentList()) {
+                string += reassignment.shardId + " ";
+            }
+            sendMessageToMaster(string);
+
+            sendMessageToMaster("Current DOP: " + balancedHashRouting.getRoutes().size());
+            System.out.println("scaling in subtask command is done, current Dop = " + balancedHashRouting.getRoutes().size());
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1457,6 +1488,7 @@ public class ElasticTaskHolder {
     } 
     public String handleScalingOutSubtaskCommand(int taskId){
         try {
+            System.out.println("Begin to handle scaling out subtask command!");
             SmartTimer.getInstance().start("ScalingOut", "Create Empty subtask");
             if(!_bolts.containsKey(taskId)) {
                 throw new TaskNotExistingException(taskId);
@@ -1483,6 +1515,7 @@ public class ElasticTaskHolder {
 
             SmartTimer.getInstance().stop("ScalingOut", "Create Empty subtask");
             SmartTimer.getInstance().start("ScalingOut", "Algorithm");
+            System.out.println("Begin to compute shard reassignments...");
             ArrayList<SubTaskWorkload> subTaskWorkloads = new ArrayList<>();
             for(int i = 0; i < newSubtaskId; i++ ) {
                 subTaskWorkloads.add(new SubTaskWorkload(i));
@@ -1537,12 +1570,13 @@ public class ElasticTaskHolder {
             }
             SmartTimer.getInstance().stop("ScalingOut", "Algorithm");
 
-            for(int i = 0; i < newSubtaskId; i++) {
-                sendMessageToMaster("Subtask " + i + ": " + subTaskWorkloads.get(i).workload);
-            }
-            sendMessageToMaster("new subtask: " + targetSubtaskWorkload);
+//            for(int i = 0; i < newSubtaskId; i++) {
+//                sendMessageToMaster("Subtask " + i + ": " + subTaskWorkloads.get(i).workload);
+//            }
+//            sendMessageToMaster("new subtask: " + targetSubtaskWorkload);
 
             SmartTimer.getInstance().start("ScalingOut", "Conduct");
+            System.out.println("Begin to conduct shard reassignments...");
             for(ShardReassignment reassignment: plan.getReassignmentList()) {
 //                sendMessageToMaster("=============== START ===============");
                 reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
@@ -1551,7 +1585,13 @@ public class ElasticTaskHolder {
             SmartTimer.getInstance().stop("ScalingOut", "Conduct");
             sendMessageToMaster(SmartTimer.getInstance().getTimerString("ScalingOut"));
             sendMessageToMaster("Scaling out succeeds with " + plan.getReassignmentList().size() + " movements!");
-
+            String shardMovements = "";
+            for(ShardReassignment reassignment: plan.getReassignmentList()) {
+                shardMovements += reassignment.shardId + " ";
+            }
+            sendMessageToMaster(shardMovements);
+            sendMessageToMaster("Current DOP: " + balancedHashRouting.getRoutes().size());
+            System.out.println("Scaling out command is handed. The current Dop is " + balancedHashRouting.getRoutes().size());
             return "Succeed!";
 
         } catch (Exception e) {
@@ -1609,10 +1649,10 @@ public class ElasticTaskHolder {
 //                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
                             if(currentParallelism < desirableParallelism) {
                                 ExecutorScalingOutRequestMessage requestMessage = new ExecutorScalingOutRequestMessage(taskId);
-                                _slaveActor.sendMessageObjectToMaster(requestMessage);
+//                                _slaveActor.sendMessageObjectToMaster(requestMessage);
                             } else if (currentParallelism > desirableParallelism) {
                                 ExecutorScalingInRequestMessage requestMessage = new ExecutorScalingInRequestMessage(taskId);
-                                _slaveActor.sendMessageObjectToMaster(requestMessage);
+//                                _slaveActor.sendMessageObjectToMaster(requestMessage);
                             }
                         }
                     }
