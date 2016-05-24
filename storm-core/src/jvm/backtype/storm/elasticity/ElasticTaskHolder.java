@@ -1076,7 +1076,8 @@ public class ElasticTaskHolder {
         else
             targetHost = "local";
 
-//        sendMessageToMaster("From + " + originalHost + " to " + targetHost);
+        sendMessageToMaster("From + " + originalHost + " to " + targetHost);
+        System.out.println("From + " + originalHost + " to " + targetHost);
 
         SmartTimer.getInstance().stop("ShardReassignment", "prepare");
 

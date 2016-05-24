@@ -16,6 +16,7 @@ import backtype.storm.generated.HostNotExistException;
 import backtype.storm.generated.MasterService;
 import backtype.storm.generated.MigrationException;
 import backtype.storm.generated.TaskNotExistException;
+import backtype.storm.utils.Time;
 import backtype.storm.utils.Utils;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -25,6 +26,7 @@ import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
 import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
+import org.omg.CORBA.TIMEOUT;
 import scala.Array;
 import scala.concurrent.duration.FiniteDuration;
 
@@ -35,6 +37,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,6 +68,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
 //    IConnection _loggingInput;
 
+    private Inbox _inbox; // use a single inbox to avoid a bug that occasionally causes message delivery failures.
+
     static Master _instance;
 
     public static Master getInstance() {
@@ -74,6 +79,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
     public Master() {
         _instance = this;
         createThriftServiceThread();
+    }
+
+    private Inbox getInbox() {
+        if(_inbox == null) {
+            _inbox = Inbox.create(getContext().system());
+        }
+        return _inbox;
     }
 
 //    public void deployLoggingServer() {
@@ -454,7 +466,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
 //            getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))).tell(new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo), getSelf());
 //            log("[Elastic]: Migration message has been sent!");
 
-            final Inbox inbox = Inbox.create(getContext().system());
+//            final Inbox inbox = Inbox.create(getContext().system());
+            final Inbox inbox = getInbox();
             inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
             inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
             return;
@@ -470,7 +483,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
             throw new HostNotExistException("Host " + workerName + " does not exist!");
         }
         try {
-            final Inbox inbox = Inbox.create(getContext().system());
+//            final Inbox inbox = Inbox.create(getContext().system());
+            final Inbox inbox = getInbox();
             inbox.send(getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))), new RoutingCreatingCommand(taskid, routeNo, type));
 //            getContext().actorFor(_nameToPath.get(getHostByWorkerLogicalName(workerName))).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
 //          _nameToActors.get(getHostByWorkerLogicalName(workerName)).tell(new RoutingCreatingCommand(taskid, routeNo, type), getSelf());
@@ -507,10 +521,16 @@ public class Master extends UntypedActor implements MasterService.Iface {
     public double reportTaskThroughput(int taskid) throws TException {
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ThroughputQueryCommand(taskid));
 //        inbox.send(_nameToActors.get(_taskidToActorName.get(taskid)), new ThroughputQueryCommand(taskid));
+        try {
         return (double)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return -1;
+        }
 
     }
 
@@ -545,15 +565,20 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
         ReassignBucketToRouteCommand command = new ReassignBucketToRouteCommand(taskid, bucket, originalRoute, newRoute);
-        final Inbox inbox = Inbox.create(getContext().system());
-
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
 //        System.out.println("\n======================= BEGIN SHARD REASSIGNMENT =======================");
 
 
         long startTime = System.currentTimeMillis();
 
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
-        inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+        try {
+            inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return;
+        }
 
         System.out.println("Shard reassignment time: " + (System.currentTimeMillis() - startTime));
 
@@ -592,9 +617,15 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid)) {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new SubtaskLevelLoadBalancingCommand(taskid));
-        return (String)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        try {
+            return (String)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return "Timeout!";
+        }
     }
 
     @Override
@@ -624,10 +655,15 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid)) {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
-        final Inbox inbox = Inbox.create(getContext().system());
-        System.out.println("Scaling out message has been sent!");
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingOutSubtaskCommand(taskid));
-        inbox.receive(new FiniteDuration(30000, TimeUnit.SECONDS));
+        System.out.println("Scaling out message has been sent!");
+        try {
+            inbox.receive(new FiniteDuration(30000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+        }
         System.out.println("Scaling out response is received!");
     }
 
@@ -636,13 +672,19 @@ public class Master extends UntypedActor implements MasterService.Iface {
         if(!_elasticTaskIdToWorkerLogicalName.containsKey(taskid)) {
             throw new TaskNotExistException("Task " + taskid + " does not exist!");
         }
-        final Inbox inbox = Inbox.create(getContext().system());
-        System.out.println("Scaling in message has been sent!");
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new ScalingInSubtaskCommand(taskid));
-        Status returnStatus = (Status)inbox.receive(new FiniteDuration(30000, TimeUnit.SECONDS));
-        System.out.println("Scaling in response is received!");
+        System.out.println("Scaling in message has been sent!");
+        try {
+            Status returnStatus = (Status)inbox.receive(new FiniteDuration(30000, TimeUnit.SECONDS));
+            System.out.println("Scaling in response is received!");
+//            System.out.println("Sender: " + getSender().toString());
 //        System.out.println(returnStatus);
         return returnStatus.code == Status.OK;
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
@@ -664,35 +706,59 @@ public class Master extends UntypedActor implements MasterService.Iface {
     public Histograms getDistributionHistogram(int taskid) throws TaskNotExistException{
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new DistributionQueryCommand(taskid));
-        return (Histograms)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        try {
+            return (Histograms)inbox.receive(new FiniteDuration(10, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public RoutingTable getRoutingTable(int taskid) throws TaskNotExistException{
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
-        return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        try {
+            return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public RoutingTable getOriginalRoutingTable(int taskid) throws TaskNotExistException{
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         RoutingTableQueryCommand command = new RoutingTableQueryCommand(taskid);
         command.completeRouting = false;
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
-        return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        try {
+            return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public Histograms getBucketDistribution(int taskid) throws TaskNotExistException{
         if(!_taskidToActorName.containsKey(taskid))
             throw new TaskNotExistException("task " + taskid + " does not exist!");
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new BucketDistributionQueryCommand(taskid));
-        return (Histograms)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        try {
+            return (Histograms)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public String getRouteHosterName(int taskid, int route) {

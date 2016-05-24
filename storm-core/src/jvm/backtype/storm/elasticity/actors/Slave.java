@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -62,6 +63,15 @@ public class Slave extends UntypedActor {
     final Object thriftClientLock = new Object();
 
     boolean supervisorActor = false; // indicate if this actor is used by a supervisor to communicate with the master.
+
+    private Inbox _inbox;
+
+    private Inbox getInbox() {
+        if(_inbox == null) {
+            _inbox = Inbox.create(getContext().system());
+        }
+        return _inbox;
+    }
 
     void connectToMasterThriftServer(String ip, int port) {
         System.out.println("Thrift server ip: " + ip + " port: " + port);
@@ -226,10 +236,16 @@ public class Slave extends UntypedActor {
             } else if (message instanceof ScalingOutSubtaskCommand) {
                 System.out.println("ScalingOutSubtaskCommand response will be sent!");
                 getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
+//                getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
+//                getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
+                sendMessageObjectToMaster("ScalingOutSubtaskCommand has been sent!");
                 System.out.println("ScalingOutSubtaskCommand response is sent!");
             } else if (message instanceof ScalingInSubtaskCommand) {
                 System.out.println("ScalingInSubtaskCommand response will be sent!");
                 getSender().tell(ElasticTaskHolder.instance().handleScalingInSubtaskCommand(((ScalingInSubtaskCommand) message).taskId), getSelf());
+//                getSender().tell(ElasticTaskHolder.instance().handleScalingInSubtaskCommand(((ScalingInSubtaskCommand) message).taskId), getSelf());
+//                getSender().tell(ElasticTaskHolder.instance().handleScalingInSubtaskCommand(((ScalingInSubtaskCommand) message).taskId), getSelf());
+                sendMessageObjectToMaster("ScalingInSubtaskCommand has been sent!");
                 System.out.println("ScalingInSubtaskCommand response is sent!");
             } else if (message instanceof SubtaskLevelLoadBalancingCommand) {
 
@@ -256,10 +272,16 @@ public class Slave extends UntypedActor {
         if(!_nameToPath.containsKey(targetNode)) {
             throw new HostNotExistException(targetNode + " does not exist!");
         }
-        final Inbox inbox = Inbox.create(getContext().system());
+//        final Inbox inbox = Inbox.create(getContext().system());
+        final Inbox inbox = getInbox();
         sendMessageToMaster("Begin to send " + object + " to " + targetNode);
         inbox.send(getContext().actorFor(_nameToPath.get(targetNode)), object);
-        return inbox.receive(new FiniteDuration(30, TimeUnit.SECONDS));
+        try {
+            return inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
+        } catch (TimeoutException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     ElasticTaskMigrationMessage addIpInfo(ElasticTaskMigrationMessage message, String address) {

@@ -69,7 +69,7 @@ public class ElasticScheduler {
                 final int minParallelism = 4;
                 boolean scalingOut = true;
                 while(true) {
-                    Utils.sleep(1000);
+                    Utils.sleep(200);
                     try {
                         System.out.println("Test: try to get the lock!");
                         synchronized (lock) {
