@@ -35,11 +35,11 @@ public class Config {
 
     public static boolean EnableSubtaskLevelLoadBalancing = true;
 
-    public static boolean EnableAutomaticScaling = false;
+    public static boolean EnableAutomaticScaling = true;
 
     public static int LoggingServerPort = 10000;
 
-    public static double latencySampleRate = 0.1;
+    public static double latencySampleRate = 1;
 
     public static int numberOfLatencyHistoryRecords = 10;
 

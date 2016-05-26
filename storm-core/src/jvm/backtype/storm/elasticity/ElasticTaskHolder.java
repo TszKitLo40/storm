@@ -228,21 +228,28 @@ public class ElasticTaskHolder {
         System.out.println("ElasticTaskMigrationMessage: "+ message.getString());
         System.out.println("#. of routes"+message._elasticTask.get_routingTable().getRoutes().size());
 //        _remoteTasks.put(message._elasticTask.get_taskID(), message._elasticTask);
-        IConnection iConnection = _context.connect(message._ip + ":" + message._port + "-" + message._elasticTask.get_taskID(),message._ip,message._port);
-        _originalTaskIdToConnection.put(message._elasticTask.get_taskID(),iConnection);
-
-        IConnection prioritizedConnection = _context.connect(message._ip + ":" + (message._port + 5) + "-" + message._elasticTask.get_taskID(), message._ip, message._port +5);
-        _originalTaskIdToPriorityConnection.put(message._elasticTask.get_taskID(), prioritizedConnection);
-
-        IConnection remoteExecutionResultConnection = _context.connect(message._ip + ":" + (message._port + 10) + "-" + message._elasticTask.get_taskID(), message._ip, message._port +10);
-        _originalTaskIdToExecutorResultConnection.put(message._elasticTask.get_taskID(), remoteExecutionResultConnection);
-
-        System.out.println("Connected with original Task Holders");
-        sendMessageToMaster("Connected with original Task holders!");
 
 
         if(!_originalTaskIdToRemoteTaskExecutor.containsKey(message._elasticTask.get_taskID())) {
             //This is the first RemoteTasks assigned to this host.
+//            if(!_originalTaskIdToConnection.containsKey(message._elasticTask.get_taskID())) {
+                IConnection iConnection = _context.connect(message._ip + ":" + message._port + "-" + message._elasticTask.get_taskID(), message._ip, message._port);
+                _originalTaskIdToConnection.put(message._elasticTask.get_taskID(), iConnection);
+//            }
+
+//            if(!_originalTaskIdToPriorityConnection.containsKey(message._elasticTask.get_taskID())) {
+                IConnection prioritizedConnection = _context.connect(message._ip + ":" + (message._port + 5) + "-" + message._elasticTask.get_taskID(), message._ip, message._port + 5);
+                _originalTaskIdToPriorityConnection.put(message._elasticTask.get_taskID(), prioritizedConnection);
+//            }
+
+//            if(!_originalTaskIdToExecutorResultConnection.containsKey(message._elasticTask.get_taskID())) {
+                IConnection remoteExecutionResultConnection = _context.connect(message._ip + ":" + (message._port + 10) + "-" + message._elasticTask.get_taskID(), message._ip, message._port + 10);
+                _originalTaskIdToExecutorResultConnection.put(message._elasticTask.get_taskID(), remoteExecutionResultConnection);
+//            }
+
+            System.out.println("Connected with original Task Holders");
+            sendMessageToMaster("Connected with original Task holders!");
+            
             System.out.println("create new remote task executor!");
 
             Slave.getInstance().logOnMaster("A new Remote Task Executor is created!##");
@@ -399,10 +406,11 @@ public class ElasticTaskHolder {
                                 if(connection != null) {
                                     TaskMessage taskMessage = new TaskMessage(latencyForRoutes.taskId, bytes);
                                     insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, connection, taskMessage);
-                                    System.out.println("ExecutionLatencyForRoutesMessage is sent!");
+//                                    System.out.println("ExecutionLatencyForRoutesMessage is sent!");
                                 } else {
                                     System.err.println("Cannot find the connection for task " + latencyForRoutes.toString());
                                 }
+
 
 
                             } else if (message instanceof CleanPendingTupleToken) {
@@ -414,7 +422,7 @@ public class ElasticTaskHolder {
                                     TaskMessage taskMessage = new TaskMessage(cleanPendingTupleToken.taskId, bytes);
                                     insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, connection, taskMessage);
 
-                                    System.out.println("CleanPendingTuplesToken is sent!");
+                                    System.out.println("CleanPendingTuplesToken is sent to " + connection.toString());
                                     sendMessageToMaster("CleanPendingTuplesToken is sent!");
                                 }
                             }
@@ -585,6 +593,7 @@ public class ElasticTaskHolder {
                             queue.put(remoteTuple);
                         } else {
                         Object object = SerializationUtils.deserialize(message.message());
+                        System.out.println(String.format("Received %s!", object));
                         if(object instanceof RemoteTupleExecuteResult) {
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
                             ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
@@ -632,7 +641,8 @@ public class ElasticTaskHolder {
 
                             ExecutionLatencyForRoutesMessage latencyForRoutesMessage = (ExecutionLatencyForRoutesMessage)object;
                             int taskId = latencyForRoutesMessage.taskId;
-                            _bolts.get(taskId).getMetrics().updateLatency(latencyForRoutesMessage.latencyForRoutes);
+//                            sendMessageToMaster(String.format("Latency data at %s is received!", latencyForRoutesMessage.timeStamp));
+                            _bolts.get(taskId).updateLatencyMetrics(latencyForRoutesMessage.latencyForRoutes);
 
                         } else if (object instanceof CleanPendingTupleToken) {
                             CleanPendingTupleToken cleanPendingTupleToken = (CleanPendingTupleToken) object;
@@ -642,7 +652,7 @@ public class ElasticTaskHolder {
                         }
 
                         else if (object instanceof String) {
-                            System.out.println(object);
+                            System.out.println("Received Message: " + object);
                         } else {
                             System.err.println("Unexpected Object: " + object);
                         }
@@ -820,7 +830,7 @@ public class ElasticTaskHolder {
                 throw new RuntimeException("Balanced Hash Routing is null!");
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
-                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
+//                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
                 System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the original elastic task");
             }
         }
@@ -828,7 +838,7 @@ public class ElasticTaskHolder {
             BalancedHashRouting balancedHashRouting = getBalancedHashRoutingFromRemoteBolt(reassignment.taskid);
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
-                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
+//                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
                 System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
             }
         }
@@ -837,6 +847,7 @@ public class ElasticTaskHolder {
     public void establishConnectionToRemoteTaskHolder(int taksId, int route, String remoteIp, int remotePort) {
         IConnection connection = _context.connect("",remoteIp,remotePort);
         _taskidRouteToConnection.put(taksId+"."+route, connection);
+//        connection.send(0, SerializationUtils.serialize("Hello!"));
         System.out.println("Established connection with remote task holder!");
     }
 
@@ -973,7 +984,9 @@ public class ElasticTaskHolder {
         System.out.println("Route "+ route+ " has been removed from the routing table");
 
         if(remoteTaskExecutor._elasticTasks.get_routingTable().getRoutes().size()==0) {
-            removeEmptyRemoteTaskExecutor(taskid);
+            System.out.println("Removing the elastic task...");
+//            removeEmptyRemoteTaskExecutor(taskid);
+            System.out.println("Removed the elastic task...");
         }
 
 
@@ -1076,8 +1089,8 @@ public class ElasticTaskHolder {
         else
             targetHost = "local";
 
-        sendMessageToMaster("From + " + originalHost + " to " + targetHost);
-        System.out.println("From + " + originalHost + " to " + targetHost);
+//        sendMessageToMaster("From " + originalHost + " to " + targetHost);
+        System.out.println("From " + originalHost + " to " + targetHost);
 
         SmartTimer.getInstance().stop("ShardReassignment", "prepare");
 
@@ -1614,6 +1627,7 @@ public class ElasticTaskHolder {
                         for(int remoteTaskId: _originalTaskIdToRemoteTaskExecutor.keySet()) {
                             ExecutionLatencyForRoutes latencyForRoutes = _originalTaskIdToRemoteTaskExecutor.get(remoteTaskId)._elasticTasks.getExecutionLatencyForRoutes();
                             ExecutionLatencyForRoutesMessage message = new ExecutionLatencyForRoutesMessage(remoteTaskId, latencyForRoutes);
+                            message.setTimeStamp(Calendar.getInstance().getTime().toString());
                             _sendingQueue.put(message);
                         }
                         for(int taskId: _bolts.keySet()) {
@@ -1650,10 +1664,10 @@ public class ElasticTaskHolder {
 //                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
                             if(currentParallelism < desirableParallelism) {
                                 ExecutorScalingOutRequestMessage requestMessage = new ExecutorScalingOutRequestMessage(taskId);
-//                                _slaveActor.sendMessageObjectToMaster(requestMessage);
+                                _slaveActor.sendMessageObjectToMaster(requestMessage);
                             } else if (currentParallelism > desirableParallelism) {
                                 ExecutorScalingInRequestMessage requestMessage = new ExecutorScalingInRequestMessage(taskId);
-//                                _slaveActor.sendMessageObjectToMaster(requestMessage);
+                                _slaveActor.sendMessageObjectToMaster(requestMessage);
                             }
                         }
                     }

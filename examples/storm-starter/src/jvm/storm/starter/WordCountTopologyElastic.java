@@ -5,6 +5,7 @@ import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
+import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.task.ShellBolt;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.BasicOutputCollector;
@@ -86,6 +87,7 @@ public class WordCountTopologyElastic {
                     while(true) {
                         Utils.sleep(5000);
                         sleepTimeInMilics = old * i;
+                        Slave.getInstance().sendMessageToMaster("# sleep time: " + sleepTimeInMilics);
                         i = (i+1)%15 + 1;
                     }
                 }
@@ -129,7 +131,7 @@ public class WordCountTopologyElastic {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(10), 1);
+        builder.setSpout("spout", new MyWordCount.WordGenerationSpout(1), 1);
 
         builder.setBolt("count", new WordCount(Integer.parseInt(args[1])), 1).fieldsGrouping("spout", new Fields("word"));
         builder.setBolt("print", new Printer(),2).globalGrouping("count");

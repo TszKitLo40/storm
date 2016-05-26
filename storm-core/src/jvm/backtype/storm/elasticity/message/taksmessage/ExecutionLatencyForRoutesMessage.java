@@ -9,8 +9,12 @@ import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
 public class ExecutionLatencyForRoutesMessage implements ITaskMessage {
     public int taskId;
     public ExecutionLatencyForRoutes latencyForRoutes;
+    public String timeStamp;
     public ExecutionLatencyForRoutesMessage(int taskId, ExecutionLatencyForRoutes latencyForRoutes) {
         this.taskId = taskId;
         this.latencyForRoutes = latencyForRoutes;
+    }
+    public void setTimeStamp(String time) {
+        this.timeStamp = time;
     }
 }

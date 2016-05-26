@@ -232,7 +232,7 @@ public class Slave extends UntypedActor {
                 _ip = responseMessage.ip;
                 connectToMasterThriftServer(responseMessage.masterIp, 9090);
             } else if (message instanceof TestAliveMessage) {
-                sendMessageToMaster("Alive: " + ((TestAliveMessage) message).msg);
+//                sendMessageToMaster("Alive: " + ((TestAliveMessage) message).msg);
             } else if (message instanceof ScalingOutSubtaskCommand) {
                 System.out.println("ScalingOutSubtaskCommand response will be sent!");
                 getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());

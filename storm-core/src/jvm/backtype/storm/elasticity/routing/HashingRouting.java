@@ -91,4 +91,11 @@ public class HashingRouting implements RoutingTable {
     public void scalingIn() {
         numberOfRoutes--;
     }
+
+    @Override
+    public String toString() {
+        String str ="";
+        str += String.format("Hashing routing with %d routes", numberOfRoutes);
+        return str;
+    }
 }

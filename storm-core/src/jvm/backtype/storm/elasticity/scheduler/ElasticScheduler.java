@@ -61,45 +61,10 @@ public class ElasticScheduler {
             enableAutomaticScaling();
         }
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final int task = 17;
-                final int maxParallelism = 15;
-                final int minParallelism = 4;
-                boolean scalingOut = true;
-                while(true) {
-                    Utils.sleep(200);
-                    try {
-                        System.out.println("Test: try to get the lock!");
-                        synchronized (lock) {
-                            System.out.println("Test: got the lock!");
-                            RoutingTable routingTable = master.getRoutingTable(17);
-                            int parallelism = routingTable.getNumberOfRoutes();
-                            if(parallelism < minParallelism) {
-                                scalingOut = true;
-                            } else if (parallelism > maxParallelism){
-                                scalingOut = false;
-                            }
 
-                            if(scalingOut) {
-                                master.handleExecutorScalingOutRequest(task);
-                            } else {
-                                master.handleExecutorScalingInRequest(task);
-                            }
-                        }
-                    }
-                    catch (TaskNotExistException e) {
-                        System.out.println(String.format("Task %d does not exist!", task));
-//                        e.printStackTrace();;
-                    }
-                    catch (Exception e) {
-                        e.printStackTrace();
-                    }
+//        createScalingInAndOutTestingThread(17);
 
-                }
-            }
-        }).start();
+
 
 
     }
@@ -189,7 +154,8 @@ public class ElasticScheduler {
                         if(request instanceof ExecutorScalingInRequestMessage) {
                             System.out.println("Handling Scaling in request!");
                             ExecutorScalingInRequestMessage requestMessage = (ExecutorScalingInRequestMessage)request;
-                            final boolean skewed = isWorkloadSkewed(requestMessage.taskID);
+//                            final boolean skewed = isWorkloadSkewed(requestMessage.taskID);
+                            final boolean skewed = false;
                             if(skewed) {
                                 System.out.println("Scaling in request on " + requestMessage.taskID + " is ignored, as skewness is detected!");
                                 pendingTaskLevelLoadBalancingQueue.add(requestMessage.taskID);
@@ -278,6 +244,64 @@ public class ElasticScheduler {
         return (loadMax - loadMin) / (double)loadMax;
     }
 
+    /**
+     * Given the statics collected from the routing table, this function predict the ratio of actual performance
+     * to the optimal performance. Performance ratio is from 0 to 1. The higher ratio is, the better load balance
+     * is achieved.
+     * @param histograms statics on the bucket level
+     * @param balancedHashRouting routing table, containing the shard to task mapping.
+     * @return the performance factor
+     * @throws TaskNotExistException
+     * @throws RoutingTypeNotSupportedException
+     */
+    public static double getPerformanceFactor(Histograms histograms, BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
+//        RoutingTable routingTable = master.getRoutingTable(taskId);
+//        BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+//        if(balancedHashRouting == null) {
+//            throw new RoutingTypeNotSupportedException("Only support BalancedHashRouting family routing table!");
+//        }
+//            System.out.println("routing Table: " + balancedHashRouting.toString());
+
+
+
+        // 2. get Distribution;
+//        Histograms histograms = master.getBucketDistribution(taskId);
+//            System.out.println("Histograms: " + histograms.toString());
+
+        // 3. evaluate the skewness
+        Map<Integer, Integer> shardToRouteMapping = balancedHashRouting.getBucketToRouteMapping();
+        final int numberOfRoutes = balancedHashRouting.getNumberOfRoutes();
+        long[] routeLoads = new long[numberOfRoutes];
+
+        for(Integer shard: shardToRouteMapping.keySet()) {
+            //            System.out.println("\n\n shard:" + shard);
+            //            System.out.println("numberOfRoutes: " + numberOfRoutes);
+            //            System.out.println("shardToRouteMapping.get(shard): "+ shardToRouteMapping.get(shard) + "\n");
+            //            System.out.println("routeLoads[shardToRouteMapping.get(shard)]" + routeLoads[shardToRouteMapping.get(shard)] + "\n");
+            //            System.out.println("histograms.histogramsToArrayList().get(shard)" + histograms.histogramsToArrayList().get(shard) + "\n");
+            routeLoads[shardToRouteMapping.get(shard)] += histograms.histogramsToArrayList().get(shard);
+        }
+
+        long loadSum = 0;
+        long loadMin = Long.MAX_VALUE;
+        long loadMax = Long.MIN_VALUE;
+        for(Long i: routeLoads) {
+            loadSum += i;
+        }
+
+
+        double ratio = 1;
+
+        double standardLoad = loadSum / (double)routeLoads.length;
+
+        for(Long i: routeLoads) {
+            if(i != 0)
+                ratio = Math.min(ratio, standardLoad / i);
+        }
+
+        return ratio;
+    }
+
     public boolean isWorkloadSkewed(int taskId) {
         try {
             RoutingTable routingTable = master.getRoutingTable(taskId);
@@ -317,13 +341,14 @@ public class ElasticScheduler {
 //            System.out.println(histograms);
 
             double workloadFactor = getSkewnessFactor(histograms, balancedHashRouting);
+            double performanceFactor = getPerformanceFactor(histograms, balancedHashRouting);
             boolean skewness = workloadFactor >= threshold;
 
 //            System.out.println("Workload distribution:\n");
 //            for(int i = 0; i < routeLoads.length; i++ ){
 //                System.out.println(i + ": " + routeLoads[i]);
 //            }
-            System.out.print("Workload factor: " + workloadFactor);
+            System.out.print("Workload factor: " + workloadFactor + "  Performance factor: " + performanceFactor);
             System.out.println("  Threshold: " + threshold);
 
             if(workloadFactor > 0.99) {
@@ -555,6 +580,47 @@ public class ElasticScheduler {
         return plan;
     }
 
+
+    private void createScalingInAndOutTestingThread(final int task) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final int maxParallelism = 15;
+                final int minParallelism = 4;
+                boolean scalingOut = true;
+                while(true) {
+                    Utils.sleep(200);
+                    try {
+                        System.out.println("Test: try to get the lock!");
+                        synchronized (lock) {
+                            System.out.println("Test: got the lock!");
+                            RoutingTable routingTable = master.getRoutingTable(17);
+                            int parallelism = routingTable.getNumberOfRoutes();
+                            if(parallelism < minParallelism) {
+                                scalingOut = true;
+                            } else if (parallelism > maxParallelism){
+                                scalingOut = false;
+                            }
+
+                            if(scalingOut) {
+                                master.handleExecutorScalingOutRequest(task);
+                            } else {
+                                master.handleExecutorScalingInRequest(task);
+                            }
+                        }
+                    }
+                    catch (TaskNotExistException e) {
+                        System.out.println(String.format("Task %d does not exist!", task));
+//                        e.printStackTrace();;
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+
+                }
+            }
+        }).start();
+    }
 
 
 }
