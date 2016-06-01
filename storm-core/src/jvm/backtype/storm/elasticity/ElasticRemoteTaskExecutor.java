@@ -92,24 +92,29 @@ public class ElasticRemoteTaskExecutor {
             int count = 0;
             while (!_terminating) {
                 try {
-
+//                    System.out.println("poll...");
                     Tuple input = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
+//                    System.out.println("polled!");
 
-                    boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
-                    count++;
+                    if(input != null) {
+                        boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
+                        count++;
                     if(count % 10000 == 0) {
                         System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
                         count = 0;
                     }
 
-                    if(!handled)
-                        System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
+                        if (!handled)
+                            System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
 
-                    //                    catch (Exception e) {
-                    //                        e.printStackTrace();
-                    //                    }
+                        //                    catch (Exception e) {
+                        //                        e.printStackTrace();
+                        //                    }
+                    }
                 } catch (InterruptedException e) {
                     System.out.println("InputTupleRouting thread is interrupted!");
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
             }
@@ -203,7 +208,7 @@ public class ElasticRemoteTaskExecutor {
             BalancedHashRouting exitingRouting = RoutingTableUtils.getBalancecHashRouting(_elasticTasks.get_routingTable());
             BalancedHashRouting incomingRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
             exitingRouting.update(incomingRouting);
-            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
+//            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
         }
 
         ArrayList<Integer> newRoutes = routingTable.getRoutes();

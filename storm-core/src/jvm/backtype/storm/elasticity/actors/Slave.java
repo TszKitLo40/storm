@@ -184,7 +184,7 @@ public class Slave extends UntypedActor {
                 handleTaskMigrationCommandMessage(taskMigrationCommand);
                 getSender().tell("Task Migration finishes!", getSelf());
             } else if (message instanceof ElasticTaskMigrationMessage) {
-                sendMessageToMaster("Received Migration Message!!!!");
+//                sendMessageToMaster("Received Migration Message!!!!");
                 handleElasticTaskMigrationMessage((ElasticTaskMigrationMessage) message);
             } else if (message instanceof RoutingCreatingCommand) {
                 RoutingCreatingCommand creatingCommand = (RoutingCreatingCommand) message;
@@ -238,7 +238,7 @@ public class Slave extends UntypedActor {
                 getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
 //                getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
 //                getSender().tell(ElasticTaskHolder.instance().handleScalingOutSubtaskCommand(((ScalingOutSubtaskCommand) message).taskId), getSelf());
-                sendMessageObjectToMaster("ScalingOutSubtaskCommand has been sent!");
+//                sendMessageToMaster("ScalingOutSubtaskCommand has been sent!");
                 System.out.println("ScalingOutSubtaskCommand response is sent!");
             } else if (message instanceof ScalingInSubtaskCommand) {
                 System.out.println("ScalingInSubtaskCommand response will be sent!");
@@ -274,7 +274,7 @@ public class Slave extends UntypedActor {
         }
 //        final Inbox inbox = Inbox.create(getContext().system());
         final Inbox inbox = getInbox();
-        sendMessageToMaster("Begin to send " + object + " to " + targetNode);
+//        sendMessageToMaster("Begin to send " + object + " to " + targetNode);
         inbox.send(getContext().actorFor(_nameToPath.get(targetNode)), object);
         try {
             return inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));

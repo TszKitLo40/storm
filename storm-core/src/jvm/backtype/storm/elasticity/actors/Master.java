@@ -321,7 +321,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 System.out.println("Task " + taskId + " scaling in fails!");
             }
 //            System.out.println("Current Routing Table: ");
-////            System.out.println(getOriginalRoutingTable(taskId));
+//            System.out.println(getOriginalRoutingTable(taskId));
 //            System.out.println("=====================================\n");
         } catch (Exception e) {
             e.printStackTrace();

@@ -106,7 +106,7 @@ public class QueryRunnable implements Runnable {
             ee.printStackTrace();
         }
         System.out.println("A query thread is terminated!");
-        ElasticTaskHolder.instance().sendMessageToMaster("**********Query Runnable (" + id + ") is terminated!");
+//        ElasticTaskHolder.instance().sendMessageToMaster("**********Query Runnable (" + id + ") is terminated!");
 
     }
 

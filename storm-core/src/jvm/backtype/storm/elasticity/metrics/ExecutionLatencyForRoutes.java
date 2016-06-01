@@ -71,7 +71,7 @@ public class ExecutionLatencyForRoutes  implements Serializable {
             if(!validRoutes.contains(route)) {
                 routeToLatency.remove(route);
             }
-            System.out.println(String.format("latency for route %d is removed.", route));
+//            System.out.println(String.format("latency for route %d is removed.", route));
         }
     }
 }

@@ -79,6 +79,12 @@ public class WordCountTopologyElastic {
         @Override
         public void prepare(Map stormConf, TopologyContext context) {
             declareStatefulOperator();
+            
+            /**
+             * This thread periodically changes the sleep time of the execute() function,
+             * to test the elasticity of the system, i.e., the ability to scaling in and out
+             * according to the current workload.
+             */
             new Thread(new Runnable() {
                 @Override
                 public void run() {
