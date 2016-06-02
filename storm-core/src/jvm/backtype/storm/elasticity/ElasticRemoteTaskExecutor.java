@@ -208,7 +208,10 @@ public class ElasticRemoteTaskExecutor {
             BalancedHashRouting exitingRouting = RoutingTableUtils.getBalancecHashRouting(_elasticTasks.get_routingTable());
             BalancedHashRouting incomingRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
             exitingRouting.update(incomingRouting);
-//            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
+            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
+            Slave.getInstance().sendMessageToMaster("existing routing table: " + exitingRouting.toString());
+        } else {
+            Slave.getInstance().sendMessageToMaster("Routing table cannot be updated as balanced routing table cannot be extracted!");
         }
 
         ArrayList<Integer> newRoutes = routingTable.getRoutes();

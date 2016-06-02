@@ -320,9 +320,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
             } else {
                 System.out.println("Task " + taskId + " scaling in fails!");
             }
-//            System.out.println("Current Routing Table: ");
-//            System.out.println(getOriginalRoutingTable(taskId));
-//            System.out.println("=====================================\n");
+            System.out.println("Current Routing Table: ");
+            System.out.println(getOriginalRoutingTable(taskId));
+            System.out.println("=====================================\n");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -394,9 +394,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
                 System.out.println("Task " + taskid + "." + targetRoute + " has been migrated!");
             }
 
-//            System.out.println("Current Routing Table: ");
-//            System.out.println(getOriginalRoutingTable(taskid));
-//            System.out.println("=====================================\n");
+            System.out.println("Current Routing Table: ");
+            System.out.println(getOriginalRoutingTable(taskid));
+            System.out.println("=====================================\n");
 
         } catch (Exception e) {
             e.printStackTrace();

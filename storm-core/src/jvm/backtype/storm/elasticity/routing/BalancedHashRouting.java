@@ -108,53 +108,63 @@ public class BalancedHashRouting implements RoutingTable {
 //            routeToBuckets.add(new ArrayList<Integer>());// = new ArrayList<>();
 //        }
 
-        NumberFormat formatter = new DecimalFormat("#0.0000");
+        try {
+            NumberFormat formatter = new DecimalFormat("#0.0000");
 
-        ArrayList<Integer>[] routeToBuckets = new ArrayList[numberOfRoutes];
-        for(int i=0; i< numberOfRoutes; i++) {
-            routeToBuckets[i] = new ArrayList<>();
-        }
-
-        for(int bucket: hashValueToRoute.keySet()) {
-            routeToBuckets[hashValueToRoute.get(bucket)].add(bucket);
-        }
-
-        for(ArrayList<Integer> list: routeToBuckets) {
-            Collections.sort(list);
-        }
-
-        String ret = "Balanced Hash Routing: \n";
-        ret += "number of routes: " + getNumberOfRoutes() +"\n";
-        ret += "Route Details:\n";
-
-        if(sample != null) {
-            Double[] bucketFrequencies = sample.getFrequencies();
-
-            for(int i = 0; i < routeToBuckets.length; i++) {
-                double sum = 0;
-                ret += "Route " + i + ": ";
-                for(Integer bucket: routeToBuckets[i]) {
-                    sum += bucketFrequencies[bucket];
-                    ret += bucket + " (" + formatter.format(bucketFrequencies[bucket]) + ")  ";
-                }
-                ret +="total = " + formatter.format(sum) + "\n";
+            ArrayList<Integer>[] routeToBuckets = new ArrayList[numberOfRoutes];
+            for (int i = 0; i < numberOfRoutes; i++) {
+                routeToBuckets[i] = new ArrayList<>();
             }
-        } else {
-            for(int i = 0; i < routeToBuckets.length; i++) {
-                ret += "Route " + i + ": ";
-                for(Integer bucket: routeToBuckets[i]) {
-                    ret += bucket + "  ";
-                }
-                ret += "\n";
+
+            for (int bucket : hashValueToRoute.keySet()) {
+                routeToBuckets[hashValueToRoute.get(bucket)].add(bucket);
             }
-        }
 
+            for (ArrayList<Integer> list : routeToBuckets) {
+                Collections.sort(list);
+            }
 
+            String ret = "Balanced Hash Routing: " + System.identityHashCode(this) + "\n";
+            ret += "number of routes: " + getNumberOfRoutes() + "\n";
+            ret += "Route Details:\n";
+
+            if (sample != null) {
+                Double[] bucketFrequencies = sample.getFrequencies();
+
+                for (int i = 0; i < routeToBuckets.length; i++) {
+                    double sum = 0;
+                    ret += "Route " + i + ": ";
+                    for (Integer bucket : routeToBuckets[i]) {
+                        sum += bucketFrequencies[bucket];
+                        ret += bucket + " (" + formatter.format(bucketFrequencies[bucket]) + ")  ";
+                    }
+                    ret += "total = " + formatter.format(sum) + "\n";
+                }
+            } else {
+                for (int i = 0; i < routeToBuckets.length; i++) {
+                    ret += "Route " + i + ": ";
+                    for (Integer bucket : routeToBuckets[i]) {
+                        ret += bucket + "  ";
+                    }
+                    ret += "\n";
+                }
+            }
 
 
 //        ret += hashValueToRoute;
 //        ret +="\n";
-        return ret;
+            return ret;
+        }
+        catch (Exception e) {
+            System.out.println("There is something wrong with the routing table!");
+            System.out.println("Number of route: " + numberOfRoutes);
+            System.out.println("Shard to Route mapping:");
+            for(int shard: hashValueToRoute.keySet()) {
+                System.out.println(shard + "." + hashValueToRoute.get(shard));
+            }
+            System.out.println();
+            return "routing table cannot convert to String due to " + e.getMessage();
+        }
     }
 
     public int getNumberOfBuckets() {

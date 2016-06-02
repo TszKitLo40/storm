@@ -264,6 +264,8 @@ public class ElasticTaskHolder {
             remoteTaskExecutor.prepare(message.state);
             System.out.println("ElasticRemoteTaskExecutor is prepared!");
 //            remoteTaskExecutor.createProcessingThread();
+            Slave.getInstance().logOnMaster(remoteTaskExecutor._elasticTasks.get_routingTable().toString());
+
             System.out.println("Remote Task Executor is launched");
         } else {
             //There is already a RemoteTasks for that tasks on this host, so we just need to update the routing table
@@ -652,7 +654,7 @@ public class ElasticTaskHolder {
                         } else if (object instanceof CleanPendingTupleToken) {
                             System.out.println("CleanPendingTupleToken");
                             CleanPendingTupleToken cleanPendingTupleToken = (CleanPendingTupleToken) object;
-//                            sendMessageToMaster("Received CleanPendingTupleToken");
+                            sendMessageToMaster("Received CleanPendingTupleToken");
 
                             handleCleanPendingTupleToken(cleanPendingTupleToken);
                         }
@@ -781,7 +783,7 @@ public class ElasticTaskHolder {
 
         PendingTupleCleanedMessage message = new PendingTupleCleanedMessage(token.taskId, token.routeId);
         _originalTaskIdToPriorityConnection.get(token.taskId).send(token.taskId, SerializationUtils.serialize(message));
-//        sendMessageToMaster("PendingTupleCleanedMessage is sent back!");
+        sendMessageToMaster("PendingTupleCleanedMessage is sent back!");
     }
 
     private KeyValueState getState(int taskId) {
@@ -846,7 +848,8 @@ public class ElasticTaskHolder {
             BalancedHashRouting balancedHashRouting = getBalancedHashRoutingFromRemoteBolt(reassignment.taskid);
             for(int bucket: reassignment.reassignment.keySet()) {
                 balancedHashRouting.reassignBucketToRoute(bucket, reassignment.reassignment.get(bucket));
-//                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
+                sendMessageToMaster(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
+                sendMessageToMaster(balancedHashRouting.toString());
                 System.out.println(bucket + " is reassigned to "+ reassignment.reassignment.get(bucket) + " in the remote elastic task");
             }
         }
@@ -1126,11 +1129,11 @@ public class ElasticTaskHolder {
         // Update the routing table on original ElasticTaskHolder
         handleBucketToRouteReassignment(reassignment);
 
-        // Update the routing table on the source
-        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
-//            sendMessageToMaster("BucketToRouteReassignment is sent to the original Host ");
-            _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
-        }
+//        // Update the routing table on the source
+//        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
+////            sendMessageToMaster("BucketToRouteReassignment is sent to the original Host ");
+//            _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
+//        }
         SmartTimer.getInstance().stop("ShardReassignment", "rerouting");
         SmartTimer.getInstance().start("ShardReassignment","state migration");
 //        sendMessageToMaster("Begin state migration session!");
@@ -1139,6 +1142,15 @@ public class ElasticTaskHolder {
 
         // before state migration, we should make sure there is no pending tuples for consistency!
         makeSureTargetRouteNoPendingTuples(taskid, orignalRoute);
+        // Update the routing table on the source
+        if(_taskidRouteToConnection.containsKey(taskid+"."+orignalRoute)){
+//            sendMessageToMaster("BucketToRouteReassignment is sent to the original Host ");
+            _taskidRouteToConnection.get(taskid+"."+orignalRoute).send(taskid, SerializationUtils.serialize(reassignment));
+        }
+//         Update the routing table on the target subtask
+//        if(_taskidRouteToConnection.containsKey(taskid+"."+targetRoute)){
+//            _taskidRouteToConnection.get(taskid+"."+targetRoute).send(taskid, SerializationUtils.serialize(reassignment));
+//        }
 
         if(!targetHost.equals(originalHost)) {
                 HashBucketFilter filter = new HashBucketFilter(balancedHashRouting.getNumberOfBuckets(), bucketId);
