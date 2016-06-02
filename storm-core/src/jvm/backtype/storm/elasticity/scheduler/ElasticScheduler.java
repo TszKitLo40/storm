@@ -362,7 +362,7 @@ public class ElasticScheduler {
                 try {
                     ShardReassignmentPlan plan = getMinimizedShardToTaskReassignment(taskId, routingTable.getNumberOfRoutes(), balancedHashRouting.getBucketToRouteMapping(), histograms);
 
-                    System.out.println(plan);
+//                    System.out.println(plan);
 
                     if(!plan.getReassignmentList().isEmpty()) {
                         applyShardToRouteReassignment(plan);
