@@ -33,7 +33,7 @@ public class GeneratorBolt implements IRichBolt{
     int _prime;
     transient long start;
     transient long end;
-    long seed;
+    long _seed;
     Random rand;
     final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
    /* public class ChangeDistribution implements Runnable (Tuple tuple){
@@ -61,8 +61,8 @@ public class GeneratorBolt implements IRichBolt{
                 //    Slave.getInstance().logOnMaster("Sleep_Time:"+String.valueOf(AfterSleep-BeforeSleep));
                   //  Thread.sleep(_sleepTimeInMilics);
                     int key = _distribution.sample();
-                    System.out.println("key");
-                    System.out.println(key);
+                //    System.out.println("key");
+                //    System.out.println(key);
                     _prime = primes[rand.nextInt(primes.length)];
                     key = ((key + _prime) * 101) % 1113;
                  /*   if(count == 0){
@@ -95,11 +95,14 @@ public class GeneratorBolt implements IRichBolt{
         count = 0;
         start = 0;
         end = 0;
+        _numberOfElements = 1000;
+        _exponent = 0.75;
+        _distribution = new ZipfDistribution(_numberOfElements, _exponent);
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
 
-        new Thread(new Runnable() {
+     /*   new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
@@ -111,7 +114,7 @@ public class GeneratorBolt implements IRichBolt{
                     e.printStackTrace();
                 }
             }
-        }).start();
+        }).start();*/
 
     }
 
@@ -135,9 +138,10 @@ public class GeneratorBolt implements IRichBolt{
         if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
         _numberOfElements = Integer.parseInt(tuple.getString(0));
         _exponent = Double.parseDouble(tuple.getString(1));
+        _seed = Long.parseLong(tuple.getString(2));
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-        long seed = System.currentTimeMillis();
-        rand = new Random(seed);
+    //    _seed = System.currentTimeMillis();
+        rand = new Random(_seed);
         Slave.getInstance().logOnMaster("distribution changed");
     }
     }

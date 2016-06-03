@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class Surveillant implements SurveillanceService.Iface, Runnable {
 
-    public static String thriftIp = "192.168.0.120";
+    public static String thriftIp = "192.168.0.147";
 
     public static int thriftPort = 22000;
 

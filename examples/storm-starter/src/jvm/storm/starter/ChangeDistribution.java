@@ -18,7 +18,7 @@ public class ChangeDistribution {
             return;
         }
 
-        TTransport transport = new TSocket("192.168.0.120",9080);
+        TTransport transport = new TSocket("192.168.0.147",9080);
         try {
             transport.open();
 
