@@ -116,7 +116,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
                     log("Starting the monitoring daemon...");
                     server.serve();
-                } catch (TException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
 
