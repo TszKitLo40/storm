@@ -243,6 +243,9 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         try {
             RoutingTable routingTable = _elasticTasks.get_routingTable();
             BalancedHashRouting balancedHashRouting = (BalancedHashRouting) RoutingTableUtils.getBalancecHashRouting(routingTable);
+            if(balancedHashRouting == null){
+                return 1;
+            }
             Histograms histograms = balancedHashRouting.getBucketsDistribution();
             performanceFactor = ElasticScheduler.getPerformanceFactor(histograms, balancedHashRouting);
         } catch (Exception e) {

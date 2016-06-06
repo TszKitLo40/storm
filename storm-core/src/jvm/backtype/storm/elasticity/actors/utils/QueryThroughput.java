@@ -23,7 +23,7 @@ public class QueryThroughput {
             System.out.println("args: taskid, cycle-in-secs");
             return;
         }
-     //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/throught.txt");
+     //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWihtoutLoadBalancingAndAutoScaling.txt");
      //   if (!file.exists()) {
      //       file.createNewFile();
       //  }

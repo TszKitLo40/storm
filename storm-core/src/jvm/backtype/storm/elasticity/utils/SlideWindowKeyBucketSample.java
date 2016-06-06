@@ -4,6 +4,7 @@ import backtype.storm.utils.RateTracker;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by robert on 12/18/15.
@@ -63,11 +64,16 @@ public class SlideWindowKeyBucketSample implements Serializable {
     }
 
     public Histograms getDistribution() {
-        HashMap<Integer, Long> distribution = new HashMap<>();
+        ConcurrentHashMap<Integer, Long> distribution = new ConcurrentHashMap<>();
         for(Integer i=0; i < _nBuckets; i++ ) {
             distribution.put(i, (long)(buckets[i].reportRate() * sampleLength));
         }
-
+        for(int i = 0; i < _nBuckets; ++i){
+            System.out.print(i);
+            System.out.print(" ");
+            System.out.print(distribution.get(i));
+            System.out.println();
+        }
         return new Histograms(distribution);
     }
 }
