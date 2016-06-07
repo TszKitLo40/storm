@@ -174,7 +174,9 @@ public class ElasticTasks implements Serializable {
 
 
     public static ElasticTasks createHashRouting(int numberOfRoutes, BaseElasticBolt bolt, int taskID, ElasticOutputCollector collector) {
-        RoutingTable routingTable = new HashingRouting(numberOfRoutes);
+     //   RoutingTable routingTable = new HashingRouting(numberOfRoutes);
+     //========>below are my version
+        RoutingTable routingTable = new BalancedHashRouting(numberOfRoutes);
         ElasticTasks ret = new ElasticTasks(bolt, taskID);
         ret._routingTable = routingTable;
         ret.prepare(collector);
