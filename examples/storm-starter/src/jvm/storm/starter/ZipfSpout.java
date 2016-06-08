@@ -9,6 +9,7 @@ import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
+import com.sun.prism.shader.Solid_TextureSecondPassLCD_Loader;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 import org.apache.thrift.TException;
 import org.apache.thrift.server.TServer;
@@ -28,27 +29,29 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
     int _numberOfElements;
     double _exponent;
     static ZipfSpout _instance;
-  //  Thread _changeDistributionThread;
-
+    Thread _changeDistributionThread;
+    long _sleepTimeInMilics;
+    long _seed;
     public ZipfSpout(){
 
     }
-    /*public class ChangeDistribution implements Runnable {
+    public class ChangeDistribution implements Runnable {
         public void run() {
             while (true) {
-                _collector.emit(new Values(_numberOfElements, _exponent));
+                Utils.sleep(_sleepTimeInMilics);
+                _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
             }
         }
-    }*/
+    }
 
     public void changeNumberOfElements(int numberofElements) throws TException{
         _numberOfElements = numberofElements;
-        _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent)));
+        _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
     }
 
     public void changeExponent(double exponent) throws TException{
         _exponent = exponent;
-        _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent)));
+        _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
     }
 
     public void createThriftServiceThread() {
@@ -74,19 +77,22 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
 
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector){
         _collector = collector;
-        _numberOfElements = 100;
-        _exponent = 1;
+        _numberOfElements = 1000;
+        _exponent = 0.75;
         _instance = this;
+        _sleepTimeInMilics = 60000;
+        _seed = System.currentTimeMillis();
      //   createThriftServiceThread();
-        _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent)));
-        createThriftServiceThread();
+        _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
+     //   createThriftServiceThread();
         System.out.println("emited");
-   //     _changeDistributionThread = new Thread(new ChangeDistribution());
+        _changeDistributionThread = new Thread(new ChangeDistribution());
+        _changeDistributionThread.start();
     }
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("numberOfElements", "exponent"));
+        declarer.declare(new Fields("numberOfElements", "exponent", "seed"));
     }
 
     public void nextTuple(){
