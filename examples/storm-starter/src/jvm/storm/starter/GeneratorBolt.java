@@ -144,7 +144,7 @@ public class GeneratorBolt implements IRichBolt{
 //        rand = new Random(_seed);
         _prime = primes[(int)_seed % primes.length];
 
-        Slave.getInstance().logOnMaster("distribution changed");
+        Slave.getInstance().logOnMaster(String.format("Prime changed to %d!", _prime));
     }
     }
 
