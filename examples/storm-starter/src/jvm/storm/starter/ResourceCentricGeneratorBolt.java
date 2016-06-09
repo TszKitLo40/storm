@@ -46,8 +46,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         public void run() {
             while (true) {
                 Utils.sleep(15000);
-                long seed = System.currentTimeMillis();
-                Random rand = new Random(seed);
+                Random rand = new Random(1);
                 System.out.println("distribution has been changed");
                 _prime = primes[rand.nextInt(primes.length)];
                 Slave.getInstance().logOnMaster("distribution has been changed");
@@ -144,8 +143,8 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
         routingTable = new BalancedHashRouting(numberOfComputingTasks);
 
-        _numberOfElements = 10240;
-        _exponent = 0.001;
+        _numberOfElements = 1000;
+        _exponent = 0.75;
 
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
 
@@ -153,6 +152,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
 
+//        new Thread(new ChangeDistribution()).start();
     }
 
     public Map getComponentConfiguration(){ return new HashedMap();}
@@ -205,6 +205,9 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                 Slave.getInstance().logOnMaster("Routing thread is resumed!");
                 _collector.emit(ResourceCentricZipfComputationTopology.FeedbackStream, new Values("resumed", sourceTaskIndex));
             }
+        } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.SeedUpdateStream)) {
+            _prime = primes[Math.abs(tuple.getInteger(0) % primes.length)];
+            Slave.getInstance().logOnMaster(String.format("Prime is changed to %d on task %d", _prime, taskId ));
         }
     }
 

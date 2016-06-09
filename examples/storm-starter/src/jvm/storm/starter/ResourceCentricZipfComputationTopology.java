@@ -14,6 +14,8 @@ public class ResourceCentricZipfComputationTopology {
     public static String StateUpdateStream = "StateUpdate";
     public static String StateReadyStream = "SteateReady";
     public static String FeedbackStream = "FeedbackStream";
+    public static String RateAndLatencyReportStream = "LatencyAndRateReport";
+    public static String SeedUpdateStream = "SeedUpdateStream";
 
 
     public static String UpstreamCommand = "UpstreamCommand";
@@ -26,7 +28,7 @@ public class ResourceCentricZipfComputationTopology {
     public static void main(String[] args) throws Exception {
 
         if(args.length == 0) {
-            System.out.println("args: topology-name sleep-time-in-millis [debug|any other]");
+            System.out.println("args: topology-name sleep-time-in-millis-of-generator-bolt number-of-task-of-generator-bolt sleep-time-in-millisec-of-computation-bolt number-of-task-of-computatoin-bolt");
         }
 
         TopologyBuilder builder = new TopologyBuilder();
@@ -38,7 +40,8 @@ public class ResourceCentricZipfComputationTopology {
 
         builder.setBolt(GeneratorBolt, new ResourceCentricGeneratorBolt(Integer.parseInt(args[1])),Integer.parseInt(args[2]))
                 .allGrouping(Spout)
-                .allGrouping(Controller, UpstreamCommand);
+                .allGrouping(Controller, UpstreamCommand)
+                .allGrouping(Controller, SeedUpdateStream);
 
 
         builder.setBolt(ComputationBolt, new ResourceCentricComputationBolt(Integer.parseInt(args[3])), Integer.parseInt(args[4]))
@@ -50,7 +53,8 @@ public class ResourceCentricZipfComputationTopology {
                 .allGrouping(ComputationBolt, StateMigrationStream)
                 .allGrouping(ComputationBolt, StateReadyStream)
                 .allGrouping(GeneratorBolt, FeedbackStream)
-                .allGrouping(GeneratorBolt, "statics");
+                .allGrouping(GeneratorBolt, "statics")
+                .allGrouping(ComputationBolt, RateAndLatencyReportStream);
 
 
         Config conf = new Config();

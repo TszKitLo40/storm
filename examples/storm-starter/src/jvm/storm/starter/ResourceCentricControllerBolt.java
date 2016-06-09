@@ -4,7 +4,9 @@ import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.common.ShardWorkload;
 import backtype.storm.elasticity.common.SubTaskWorkload;
 import backtype.storm.elasticity.config.Config;
+import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
+import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.scheduler.ElasticScheduler;
 import backtype.storm.elasticity.scheduler.ShardReassignment;
@@ -41,6 +43,10 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     Map<Integer, Histograms> taskToHistogram;
 
+    Map<Integer, Double> taskToRate;
+
+    Map<Integer, Long> taskToLatency;
+
     BalancedHashRouting routingTable;
 
     List<Integer> downstreamTaskIds;
@@ -58,6 +64,8 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         this.collector = collector;
 
         taskToHistogram = new HashMap<>();
+        taskToRate = new HashMap<>();
+        taskToLatency = new HashMap<>();
 
         upstreamTaskIds = context.getComponentTasks(ResourceCentricZipfComputationTopology.GeneratorBolt);
 
@@ -90,6 +98,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                         for(int taskId: taskToHistogram.keySet()) {
                             histograms.merge(taskToHistogram.get(taskId));
                         }
+                        Slave.getInstance().logOnMaster(String.format("Rate: %f, Latency: %d", getRate(), getLatency()));
 
 //                        Slave.getInstance().logOnMaster(histograms.toString());
                     } catch (Exception e) {
@@ -100,6 +109,11 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         }).start();
 
         createThriftThread(this);
+
+//        createAutomaticScalingThread();
+
+        createLoadBalancingThread();
+        createSeedUpdatingThread();
     }
 
     @Override
@@ -126,6 +140,12 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                 int sourceTaskIndex = input.getInteger(1);
                 sourceTaskIndexToResumingWaitingSemphore.get(sourceTaskIndex).release();
             }
+        } else if (streamId.equals(ResourceCentricZipfComputationTopology.RateAndLatencyReportStream)) {
+            int taskId = input.getInteger(0);
+            double rate = input.getDouble(1);
+            long latency = input.getLong(2);
+            taskToLatency.put(taskId, latency);
+            taskToRate.put(taskId, rate);
         }
     }
 
@@ -138,6 +158,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         declarer.declareStream(ResourceCentricZipfComputationTopology.UpstreamCommand, new Fields("Command", "arg1", "arg2", "arg3"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateUpdateStream, new Fields("targetTaskId", "state"));
+        declarer.declareStream(ResourceCentricZipfComputationTopology.SeedUpdateStream, new Fields("seed"));
     }
 
     @Override
@@ -195,7 +216,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     @Override
     public void shardReassignment(int sourceTaskIndex, int targetTaskIndex, int shardId) throws org.apache.thrift.TException {
-        Slave.getInstance().logOnMaster("Shard reassignment is called!");
+        Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d: %d --> %d is called!", shardId, sourceTaskIndex, targetTaskIndex));
         long startTime = System.currentTimeMillis();
         try {
             if(sourceTaskIndex >= downstreamTaskIds.size()) {
@@ -392,6 +413,20 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     }
 
+    private boolean getSkewness() {
+        Histograms histograms = new Histograms();
+        for(int taskId: taskToHistogram.keySet()) {
+            histograms.merge(taskToHistogram.get(taskId));
+        }
+        try {
+            double workloadFactor = ElasticScheduler.getSkewnessFactor(histograms, routingTable);
+            return workloadFactor >= Config.taskLevelLoadBalancingThreshold;
+        } catch (Exception e) {
+            return false;
+        }
+
+    }
+
     @Override
     public void loadBalancing() throws TException {
 
@@ -402,8 +437,10 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         }
 
         try {
-            double workloadFactor = ElasticScheduler.getSkewnessFactor(histograms, routingTable);
-            boolean skewness = workloadFactor >= Config.taskLevelLoadBalancingThreshold;
+//            double workloadFactor = ElasticScheduler.getSkewnessFactor(histograms, routingTable);
+//            workloadFactor >= Config.taskLevelLoadBalancingThreshold;
+            boolean skewness = getSkewness();
+
 
             if(skewness) {
 
@@ -414,7 +451,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                 SmartTimer.getInstance().start("Load Balancing", "Reassignments");
                     if(!plan.getReassignmentList().isEmpty()) {
                         for(ShardReassignment reassignment: plan.getReassignmentList()) {
-                            shardReassignment(reassignment.shardId, reassignment.newRoute, reassignment.shardId);
+                            shardReassignment(reassignment.originalRoute, reassignment.newRoute, reassignment.shardId);
                     }
                     } else {
                         System.out.println("Shard Assignment is not modified after optimization.");
@@ -430,5 +467,108 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    Double getRate() {
+        double rate = 0;
+        for(double r: taskToRate.values()) {
+            rate += r;
+        }
+        return rate;
+    }
+
+    Long getLatency() {
+        long sumedLatnecy = 0;
+        for(long l: taskToLatency.values()) {
+            sumedLatnecy +=l;
+        }
+        if(taskToLatency.size() > 0) {
+            return sumedLatnecy / taskToLatency.size();
+        }
+        return 1L;
+    }
+
+    public int getDesirableParallelism() {
+        final double overProvisioningFactor = 0.5;
+
+        double inputRate = getRate();
+
+        Long averageLatency = getLatency();
+        double performanceFactor = 1;
+        try {
+            BalancedHashRouting balancedHashRouting = (BalancedHashRouting) RoutingTableUtils.getBalancecHashRouting(routingTable);
+            if(balancedHashRouting == null){
+                return 1;
+            }
+            Histograms histograms = balancedHashRouting.getBucketsDistribution();
+            performanceFactor = ElasticScheduler.getPerformanceFactor(histograms, balancedHashRouting);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        double processingRatePerProcessor = 1 / (averageLatency / 1000000000.0);
+        int desirableParallelism = (int)Math.ceil(inputRate / (processingRatePerProcessor * performanceFactor) + overProvisioningFactor);
+//        Slave.getInstance().sendMessageToMaster("Task " + _taskId + ": input rate=" + String.format("%.5f ",inputRate) + "rate per task=" +String.format("%.5f", processingRatePerProcessor) + " latency: "+ String.format("%.5f ms", averageLatency/1000000.0));
+//        Slave.getInstance().sendMessageToMaster(String.format("Task %d: input rate=%.5f rate per task=%.5f latency: %.5f ms performance factor=%.2f", _taskId, inputRate, processingRatePerProcessor, averageLatency/1000000.0, performanceFactor));
+        return desirableParallelism;
+    }
+
+    private void createAutomaticScalingThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        Thread.sleep(1000);
+                        int currentParallelism = routingTable.getNumberOfRoutes();
+                        int desirableParallleism = getDesirableParallelism();
+
+                        if(currentParallelism < desirableParallleism) {
+                            scalingOut();
+                        } else if (currentParallelism > desirableParallleism) {
+                            if(getSkewness()) {
+                                loadBalancing();
+                            } else
+                                scalingIn();
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+
+    }
+
+    private void createLoadBalancingThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(1000);
+                        loadBalancing();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
+    private void createSeedUpdatingThread() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while(true) {
+                        Thread.sleep(15000);
+                        collector.emit(ResourceCentricZipfComputationTopology.SeedUpdateStream, new Values(new Random().nextInt()));
+                        Slave.getInstance().logOnMaster("New seed is generated!");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 }
