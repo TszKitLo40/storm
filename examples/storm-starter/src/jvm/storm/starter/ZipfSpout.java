@@ -44,12 +44,12 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
         }
     }
 
-    public void changeNumberOfElements(int numberofElements) throws TException{
+    public void changeNumberOfElements(int numberofElements) throws TException {
         _numberOfElements = numberofElements;
         _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
     }
 
-    public void changeExponent(double exponent) throws TException{
+    public void changeExponent(double exponent) throws TException {
         _exponent = exponent;
         _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
     }

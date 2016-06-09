@@ -28,6 +28,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
     OutputCollector _collector;
     int _numberOfElements;
     double _exponent;
+    long _seed;
     Thread _emitThread;
     transient ThroughputMonitor monitor;
     transient BalancedHashRouting routingTable;
@@ -175,8 +176,9 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
             _numberOfElements = Integer.parseInt(tuple.getString(0));
             _exponent = Double.parseDouble(tuple.getString(1));
+            _seed = Long.parseLong(tuple.getString(2));
             _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-            _prime = primes[new Random().nextInt(primes.length)];
+            _prime = primes[new Random(_seed).nextInt(primes.length)];
         } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.UpstreamCommand)) {
             String command  = tuple.getString(0);
             if(command.equals("getHistograms")) {

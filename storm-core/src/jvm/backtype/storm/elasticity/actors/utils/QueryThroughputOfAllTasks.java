@@ -27,7 +27,8 @@ public class QueryThroughputOfAllTasks {
             return;
         }
      //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithLoadBalancingAndAutoScaling.txt");
-        File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
+     //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
+        File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScalingOnResourceMetricZipfComputationTopology.txt");
         if (!file.exists()) {
             file.createNewFile();
         }
@@ -35,7 +36,7 @@ public class QueryThroughputOfAllTasks {
         int length = args.length;
         TTransport transport = new TSocket(backtype.storm.elasticity.config.Config.masterIp,9090);
         List<Integer> tasks = new ArrayList<Integer>();
-        for(int i = 0; i < length-1; ++i){
+        for (int i = 0; i < length-1; ++i) {
             tasks.add(Integer.parseInt(args[i]));
         }
         try {
@@ -51,7 +52,7 @@ public class QueryThroughputOfAllTasks {
 
                 TProtocol protocol = new TBinaryProtocol(transport);
                 MasterService.Client thriftClient = new MasterService.Client(protocol);
-                try{
+                try {
                     double throughput = 0;
                     for(int taskid : tasks) {
                         throughput += thriftClient.reportTaskThroughput(taskid);
