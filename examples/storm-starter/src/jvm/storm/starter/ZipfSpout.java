@@ -38,7 +38,7 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
     }
     public class ChangeDistribution implements Runnable {
         public void run() {
-            Random random = new Random();
+            Random random = new Random(0);
             while (true) {
                 Utils.sleep(_sleepTimeInMilics);
                 _seed = Math.abs(random.nextLong());
