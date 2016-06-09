@@ -19,6 +19,7 @@ import org.apache.thrift.transport.TServerTransport;
 import storm.starter.surveillance.ThroughputMonitor;
 
 import java.util.Map;
+import java.util.Random;
 
 
 /**
@@ -37,8 +38,10 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
     }
     public class ChangeDistribution implements Runnable {
         public void run() {
+            Random random = new Random();
             while (true) {
                 Utils.sleep(_sleepTimeInMilics);
+                _seed = Math.abs(random.nextLong());
                 _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
             }
         }
