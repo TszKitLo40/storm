@@ -41,8 +41,8 @@ public class ZipfGeneratorSpout extends BaseRichSpout{
         public void run() {
             while (true) {
                     Utils.sleep(15000);
-                    long seed = System.currentTimeMillis();
-                    Random rand = new Random(seed);
+//                    long seed = System.currentTimeMillis();
+                    Random rand = new Random(1);
                     System.out.println("distribution has been changed");
                     _prime = primes[rand.nextInt(primes.length)];
                     Slave.getInstance().logOnMaster("distribution has been changed");

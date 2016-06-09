@@ -27,8 +27,13 @@ public class QueryThroughputOfAllTasks {
             return;
         }
      //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithLoadBalancingAndAutoScaling.txt");
+<<<<<<< HEAD
      //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
         File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScalingOnResourceMetricZipfComputationTopology.txt");
+=======
+//        File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
+        File file = new File("./throughput.txt");
+>>>>>>> Li/intra-task-parallelism
         if (!file.exists()) {
             file.createNewFile();
         }
@@ -52,10 +57,16 @@ public class QueryThroughputOfAllTasks {
 
                 TProtocol protocol = new TBinaryProtocol(transport);
                 MasterService.Client thriftClient = new MasterService.Client(protocol);
+<<<<<<< HEAD
                 try {
                     double throughput = 0;
+=======
+                try{
+                    double throughputSum = 0;
+>>>>>>> Li/intra-task-parallelism
                     for(int taskid : tasks) {
-                        throughput += thriftClient.reportTaskThroughput(taskid);
+                        double throughput = thriftClient.reportTaskThroughput(taskid);
+                        throughputSum += throughput;
                     //     String content = "Task "+ taskid + ": "+throughput;
                      //       String newline = System.getProperty("line.separator");
                     //    byte[] contentInBytes = content.getBytes();
@@ -68,8 +79,8 @@ public class QueryThroughputOfAllTasks {
                         // fw.write(nextlineInBytes);
                      //   }
                     }
-                    System.out.println("Throughput of all tasks is " + throughput);
-                    String content = ""+throughput;
+                    System.out.println("Throughput of all tasks is " + throughputSum);
+                    String content = ""+throughputSum;
                     String newline = System.getProperty("line.separator");
                     byte[] nextlineInBytes = newline.getBytes();
                     byte[] contentInBytes = content.getBytes();

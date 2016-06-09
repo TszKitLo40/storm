@@ -63,7 +63,7 @@ public class GeneratorBolt implements IRichBolt{
                     int key = _distribution.sample();
                 //    System.out.println("key");
                 //    System.out.println(key);
-                    _prime = primes[rand.nextInt(primes.length)];
+//                    _prime = primes[rand.nextInt(primes.length)];
                     key = ((key + _prime) * 101) % 1113;
                  /*   if(count == 0){
                         start = System.currentTimeMillis();
@@ -141,7 +141,9 @@ public class GeneratorBolt implements IRichBolt{
         _exponent = Double.parseDouble(tuple.getString(1));
         _seed = Long.parseLong(tuple.getString(2));
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-        rand = new Random(_seed);
+//        rand = new Random(_seed);
+        _prime = primes[(int)_seed % primes.length];
+
         Slave.getInstance().logOnMaster("distribution changed");
     }
     }

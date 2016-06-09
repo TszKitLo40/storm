@@ -329,6 +329,7 @@ public class Slave extends UntypedActor {
                 thriftClient.logOnMaster(_logicalName, message);
             }
         } catch (Exception e) {
+            System.out.println("thriftClient: " + thriftClient + " _logicalName: " + _logicalName + " message: " + message );
             e.printStackTrace();
         }
     }
@@ -342,6 +343,7 @@ public class Slave extends UntypedActor {
             thriftClient.logOnMaster(_logicalName, message);
             }
         } catch (Exception e) {
+            System.out.println("thriftClient: " + thriftClient + " _logicalName: " + _logicalName + " message: " + message );
             e.printStackTrace();
         }
     }

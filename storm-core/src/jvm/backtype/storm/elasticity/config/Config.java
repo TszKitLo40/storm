@@ -33,9 +33,9 @@ public class Config {
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
-    public static boolean EnableSubtaskLevelLoadBalancing = true;
+    public static boolean EnableSubtaskLevelLoadBalancing = false;
 
-    public static boolean EnableAutomaticScaling = true;
+    public static boolean EnableAutomaticScaling = false;
 
     public static int LoggingServerPort = 10000;
 
@@ -47,6 +47,6 @@ public class Config {
 
     public static double taskLevelLoadBalancingThreshold = 0.2;
 
-    public static String masterIp = "192.168.0.147";
+    public static String masterIp = "192.168.0.183";
 
 }
