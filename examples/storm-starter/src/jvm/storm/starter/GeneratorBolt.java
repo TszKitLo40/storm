@@ -8,15 +8,16 @@ import backtype.storm.tuple.Tuple;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.utils.Utils;
+import backtype.storm.elasticity.utils.surveillance.ThroughputMonitor;
+import backtype.storm.tuple.Values;
+
+import org.apache.commons.collections.map.HashedMap;
+import org.apache.commons.math3.distribution.ZipfDistribution;
 
 import java.util.Map;
 import java.util.Random;
 
-import backtype.storm.elasticity.utils.surveillance.ThroughputMonitor;
 
-import backtype.storm.tuple.Values;
-import org.apache.commons.collections.map.HashedMap;
-import org.apache.commons.math3.distribution.ZipfDistribution;
 /**
  * Created by acelzj on 03/05/16.
  */
@@ -49,6 +50,7 @@ public class GeneratorBolt implements IRichBolt{
             }
         }
     }*/
+
     public GeneratorBolt(int sleepTimeInMilics) { _sleepTimeInMilics = sleepTimeInMilics; }
     public class emitKey implements Runnable {
         public void run() {
@@ -77,15 +79,14 @@ public class GeneratorBolt implements IRichBolt{
                     }*/
                     _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }
     }
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("numberOfTask"));
+        declarer.declare(new Fields("key"));
     }
 
     @Override
@@ -136,16 +137,17 @@ public class GeneratorBolt implements IRichBolt{
     public void execute(Tuple tuple){
       //  setNumberOfElements(tuple);
       //  setExponent(tuple);
-        if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
-        _numberOfElements = Integer.parseInt(tuple.getString(0));
-        _exponent = Double.parseDouble(tuple.getString(1));
-        _seed = Long.parseLong(tuple.getString(2));
-        _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-//        rand = new Random(_seed);
-        _prime = primes[(int)_seed % primes.length];
+        if (tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
+            _numberOfElements = Integer.parseInt(tuple.getString(0));
+            _exponent = Double.parseDouble(tuple.getString(1));
+            _seed = Long.parseLong(tuple.getString(2));
+            _distribution = new ZipfDistribution(_numberOfElements, _exponent);
+            rand = new Random(_seed);
+     //   _prime = primes[(int)_seed % primes.length];
+            _prime = primes[rand.nextInt(primes.length)];
 
-        Slave.getInstance().logOnMaster(String.format("Prime changed to %d!", _prime));
-    }
+            Slave.getInstance().logOnMaster(String.format("Prime changed to %d!", _prime));
+        }
     }
 
 }

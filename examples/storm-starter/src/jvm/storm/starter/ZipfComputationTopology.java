@@ -23,7 +23,7 @@ public class ZipfComputationTopology {
         builder.setSpout("spout", new ZipfSpout(), 1);
 
         builder.setBolt("generator", new GeneratorBolt(Integer.parseInt(args[1])),Integer.parseInt(args[2])).allGrouping("spout");
-        builder.setBolt("computator", new ComputationBolt(Integer.parseInt(args[3])), Integer.parseInt(args[4])).fieldsGrouping("generator", new Fields("numberOfTask"));
+        builder.setBolt("computator", new ComputationBolt(Integer.parseInt(args[3])), Integer.parseInt(args[4])).fieldsGrouping("generator", new Fields("key"));
 
         Config conf = new Config();
         //   if(args.length>2&&args[2].equals("debug"))

@@ -29,11 +29,14 @@ public class QueryThroughputOfAllTasks {
      //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithLoadBalancingAndAutoScaling.txt");
 
      //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
-        File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScalingOnResourceMetricZipfComputationTopology.txt");
+     //   File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScalingOnResourceMetricZipfComputationTopology.txt");
 
-//        File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
+    //    File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScaling.txt");
+    //    File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithLoadBalancingWithoutAutoScalingInOneExecutor.txt");
 //        File file = new File("./throughput.txt");
-
+    //    File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithLoadBalancingAndAutoScalingInOneExecutor.txt");
+    //    File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScalingInOneExecutor.txt");
+        File file = new File("/home/acelzj/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/throughput/ThroughtWithoutLoadBalancingAndAutoScalingWith10SubtasksInOneExecutor.txt");
         if (!file.exists()) {
             file.createNewFile();
         }
@@ -88,6 +91,7 @@ public class QueryThroughputOfAllTasks {
                     e.printStackTrace();
                 }
             //    i++;
+
                 transport.close();
             }
 

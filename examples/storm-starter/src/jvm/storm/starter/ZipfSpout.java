@@ -9,14 +9,12 @@ import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
-import com.sun.prism.shader.Solid_TextureSecondPassLCD_Loader;
-import org.apache.commons.math3.distribution.ZipfDistribution;
+
 import org.apache.thrift.TException;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TThreadPoolServer;
 import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
-import storm.starter.surveillance.ThroughputMonitor;
 
 import java.util.Map;
 import java.util.Random;
@@ -88,7 +86,7 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
      //   createThriftServiceThread();
         _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), String.valueOf(_seed)));
      //   createThriftServiceThread();
-        System.out.println("emited");
+     //   System.out.println("emited");
         _changeDistributionThread = new Thread(new ChangeDistribution());
         _changeDistributionThread.start();
     }
