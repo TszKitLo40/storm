@@ -68,12 +68,12 @@ public class SlideWindowKeyBucketSample implements Serializable {
         for(Integer i=0; i < _nBuckets; i++ ) {
             distribution.put(i, (long)(buckets[i].reportRate() * sampleLength));
         }
-        for(int i = 0; i < _nBuckets; ++i){
-            System.out.print(i);
-            System.out.print(" ");
-            System.out.print(distribution.get(i));
-            System.out.println();
-        }
+//        for(int i = 0; i < _nBuckets; ++i){
+//            System.out.print(i);
+//            System.out.print(" ");
+//            System.out.print(distribution.get(i));
+//            System.out.println();
+//        }
         return new Histograms(distribution);
     }
 }

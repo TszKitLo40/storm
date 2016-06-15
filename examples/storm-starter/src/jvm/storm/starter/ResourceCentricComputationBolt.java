@@ -32,6 +32,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
     int receivedMigrationCommand;
 
     ElasticOutputCollector outputCollector;
+    private int taskId;
 
     public ResourceCentricComputationBolt(int sleepTimeInSecs) {
         this.sleepTimeInMilics = sleepTimeInSecs;
@@ -46,7 +47,8 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
         String streamId = tuple.getSourceStreamId();
         if(streamId.equals(Utils.DEFAULT_STREAM_ID)) {
             final long currentTime = System.nanoTime();
-            ComputationSimulator.compute(sleepTimeInMilics * 1000000);
+//            ComputationSimulator.compute(sleepTimeInMilics * 1000000);
+            Utils.sleep(sleepTimeInMilics);
             final long executionLatency = System.nanoTime() - currentTime;
             latencyHistory.offer(executionLatency);
             if(latencyHistory.size() > Config.numberOfLatencyHistoryRecords) {
@@ -59,29 +61,32 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
             count++;
             setValueByKey(number, count);
             rateTracker.notify(1);
-            collector.emit(tuple, new Values(number, count));
+//            collector.emit(tuple, new Values(number, count));
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateMigrationCommandStream)) {
             receivedMigrationCommand++;
-            Slave.getInstance().logOnMaster(String.format("Received StateMigrationCommand"));
+            int sourceTaskOffset = tuple.getInteger(0);
+            int targetTaskOffset = tuple.getInteger(1);
+            int shardId = tuple.getInteger(2);
+            if(receivedMigrationCommand == 1)
+                Slave.getInstance().logOnMaster(String.format("Task %d Received StateMigrationCommand %d: %d--->%d.", taskId, shardId, sourceTaskOffset, targetTaskOffset));
             if(receivedMigrationCommand==upstreamTaskIds.size()) {
+                Slave.getInstance().logOnMaster(String.format("Task %d Received StateMigrationCommand %d: %d--->%d.", taskId, shardId, sourceTaskOffset, targetTaskOffset));
+
                 // received the migration command from each of the upstream tasks.
                 receivedMigrationCommand = 0;
-                int sourceTaskOffset = tuple.getInteger(0);
-                int targetTaskOffset = tuple.getInteger(1);
-                int shardId = tuple.getInteger(2);
                 KeyValueState state = getState();
 
-//                state.getState().put("key", new byte[1024 * 1024 * 32]);
+                state.getState().put("key", new byte[1024 *  1]);
 
-                Slave.getInstance().logOnMaster("State migration starts!");
+//                Slave.getInstance().logOnMaster("State migration starts!");
                 collector.emit(ResourceCentricZipfComputationTopology.StateMigrationStream, tuple, new Values(sourceTaskOffset, targetTaskOffset, shardId, state));
             }
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateUpdateStream)) {
-            Slave.getInstance().logOnMaster("Recieved new state!");
+//            Slave.getInstance().logOnMaster("Recieved new state!");
             int targetTaskOffset = tuple.getInteger(0);
             KeyValueState state = (KeyValueState) tuple.getValue(1);
             getState().update(state);
-            Slave.getInstance().logOnMaster("State is updated!");
+//            Slave.getInstance().logOnMaster("State is updated!");
             collector.emit(ResourceCentricZipfComputationTopology.StateReadyStream, tuple, new Values(targetTaskOffset));
 
         }
@@ -105,7 +110,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
         latencyHistory = new ConcurrentLinkedQueue<>();
         rateTracker = new RateTracker(1000,10);
 
-        final int taskId = context.getThisTaskId();
+        taskId = context.getThisTaskId();
 
         new Thread(new Runnable() {
             @Override

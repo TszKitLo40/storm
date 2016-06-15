@@ -59,6 +59,12 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     Map<Integer, Semaphore> sourceTaskIndexToResumingWaitingSemphore = new ConcurrentHashMap<>();
 
+    long[] generatorTaskProgress;
+
+    long progress;
+
+    final long progressTolerance = 200;
+
     @Override
     public void prepare(Map stormConf, TopologyContext context, final OutputCollector collector) {
         this.collector = collector;
@@ -72,6 +78,11 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         downstreamTaskIds = context.getComponentTasks(ResourceCentricZipfComputationTopology.ComputationBolt);
 
         routingTable = new BalancedHashRouting(downstreamTaskIds.size());
+
+        generatorTaskProgress = new long[upstreamTaskIds.size()];
+
+        progress = 0;
+
 
         new Thread(new Runnable() {
             @Override
@@ -101,6 +112,29 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                         Slave.getInstance().logOnMaster(String.format("Rate: %f, Latency: %d", getRate(), getLatency()));
 
 //                        Slave.getInstance().logOnMaster(histograms.toString());
+
+                        Map<Integer, Integer> bucketToRoute = routingTable.getBucketToRouteMapping();
+
+                        long[] routeCount = new long[routingTable.getNumberOfRoutes()];
+
+                        for(int bucket: histograms.histograms.keySet()) {
+                            routeCount[bucketToRoute.get(bucket)] += histograms.histograms.get(bucket);
+                        }
+
+                        long sum = 0;
+                        long min = Long.MAX_VALUE;
+                        long max = Long.MIN_VALUE;
+                        String str = "";
+                        for(long count: routeCount) {
+                            sum += count;
+                            str += count + " ";
+                            min = Math.min(min, count);
+                            max = Math.max(max, count);
+                        }
+                        Slave.getInstance().logOnMaster(str);
+                        Slave.getInstance().logOnMaster(String.format("Max: %d Min: %d avg: %d |p = %2.4f", max, min, sum/routeCount.length, sum/routeCount.length / (double)max));
+
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -113,7 +147,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 //        createAutomaticScalingThread();
 
         createLoadBalancingThread();
-        createSeedUpdatingThread();
+//        createSeedUpdatingThread();
     }
 
     @Override
@@ -146,6 +180,22 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             long latency = input.getLong(2);
             taskToLatency.put(taskId, latency);
             taskToRate.put(taskId, rate);
+        } else if (streamId.equals(ResourceCentricZipfComputationTopology.CountReportSteram)) {
+            int taskid = input.getInteger(0);
+            long localProgress = input.getLong(1);
+            generatorTaskProgress[taskid] = localProgress;
+            long min = Long.MAX_VALUE;
+            int i = 0;
+            for(long p: generatorTaskProgress) {
+                min = Math.min(p, min);
+//                Slave.getInstance().logOnMaster(String.format("Progress of Task %d: %d", i++, p ));
+            }
+//            Slave.getInstance().logOnMaster(String.format("progress: %d, min : %d", progress, min));
+            if(min > progress) {
+                progress = min;
+//                Slave.getInstance().logOnMaster(String.format("CountPermission is updated to %d", progress + progressTolerance));
+                collector.emit(ResourceCentricZipfComputationTopology.CountPermissionStream, new Values(progress + progressTolerance));
+            }
         }
     }
 
@@ -159,6 +209,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         declarer.declareStream(ResourceCentricZipfComputationTopology.UpstreamCommand, new Fields("Command", "arg1", "arg2", "arg3"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateUpdateStream, new Fields("targetTaskId", "state"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.SeedUpdateStream, new Fields("seed"));
+        declarer.declareStream(ResourceCentricZipfComputationTopology.CountPermissionStream, new Fields("permissionCount"));
     }
 
     @Override
@@ -460,7 +511,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                 Slave.getInstance().logOnMaster(SmartTimer.getInstance().getTimerString("Load Balancing"));
                 Slave.getInstance().logOnMaster(plan.getReassignmentList().size() + " shard reassignments has be performed for load balancing! ");
             } else {
-                Slave.getInstance().logOnMaster("No shard reassignment will be performed!");
+//                Slave.getInstance().logOnMaster("No shard reassignment will be performed!");
             }
 
 
@@ -545,7 +596,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             public void run() {
                 try {
                     while(true) {
-                        Thread.sleep(1000);
+                        Thread.sleep(3000);
                         loadBalancing();
                     }
                 } catch (Exception e) {

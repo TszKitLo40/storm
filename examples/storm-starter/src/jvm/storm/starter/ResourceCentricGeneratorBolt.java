@@ -37,9 +37,19 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
     private int _emit_cycles;
     private int taskId;
+    private int taskIndex;
     int _prime;
 
-   final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
+//    private long progressPermission = 200;
+    private long progressPermission = Long.MAX_VALUE;
+
+   final int[] primes = {104179, 104183, 104207, 104231, 104233, 104239, 104243, 104281, 104287, 104297,
+     104309, 104311, 104323, 104327, 104347, 104369, 104381, 104383, 104393, 104399,
+           104417, 104459, 104471, 104473, 104479, 104491, 104513, 104527, 104537, 104543,
+           104549, 104551, 104561, 104579, 104593, 104597, 104623, 104639, 104651, 104659,
+           104677, 104681, 104683, 104693, 104701, 104707, 104711, 104717, 104723, 104729};
+
+
     public class ChangeDistribution implements Runnable {
 
         @Override
@@ -85,6 +95,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
         public void run() {
             try {
+                long count = 0;
             while (true) {
                 Random random = new Random();
 
@@ -98,7 +109,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 //                    System.out.println("key");
 //                    System.out.println(key);
 //                    _prime = primes[random.nextInt(primes.length)];
-                    key = ((key + _prime) * 101) % 1113;
+                    key = ((key + _prime) * 577) % 13477;
                  /*   if(count == 0){
                         start = System.currentTimeMillis();
                     }
@@ -109,13 +120,24 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                         count %= 1000;
                     //    start = System.currentTimeMillis();
                     }*/
-                    int pos = routingTable.route(String.valueOf(key));
+                    int pos = routingTable.route(key);
                     int targetTaskId = downStreamTaskIds.get(pos);
+                while(count >= progressPermission) {
+                    Utils.sleep(1);
+                }
                     _collector.emitDirect(targetTaskId, new Values(String.valueOf(key)));
 
 
 //                    _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
+
+                count ++;
+                if(count % 1000 == 0) {
+//                    Slave.getInstance().logOnMaster(String.format("Task %d: %d", taskId, count));
+                }
+                if(count % 50 == 0) {
+                    _collector.emit(ResourceCentricZipfComputationTopology.CountReportSteram, new Values(taskIndex, count));
+                }
 
             }
             }
@@ -129,6 +151,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         declarer.declareStream("statics", new Fields("taskId", "Histogram"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateMigrationCommandStream, new Fields("sourceTaskId","targetTaskId", "shardId"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.FeedbackStream, new Fields("command", "arg1"));
+        declarer.declareStream(ResourceCentricZipfComputationTopology.CountReportSteram, new Fields("taskid", "count"));
     }
 
     @Override
@@ -137,6 +160,14 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
         this.taskId = context.getThisTaskId();
 
+        taskIndex = -1;
+
+        for(int i = 0; i < context.getComponentTasks(ResourceCentricZipfComputationTopology.GeneratorBolt).size(); i++) {
+            if(taskId == context.getComponentTasks(ResourceCentricZipfComputationTopology.GeneratorBolt).get(i)) {
+                taskIndex = i;
+            }
+        }
+
         downStreamTaskIds = context.getComponentTasks(ResourceCentricZipfComputationTopology.ComputationBolt);
 
         numberOfComputingTasks = downStreamTaskIds.size();
@@ -144,7 +175,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         routingTable = new BalancedHashRouting(numberOfComputingTasks);
 
         _numberOfElements = 1000;
-        _exponent = 0.75;
+        _exponent = 1;
 
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
 
@@ -158,12 +189,12 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
     public Map getComponentConfiguration(){ return new HashedMap();}
 
     public void setNumberOfElements(Tuple tuple) {
-        System.out.println(tuple.getString(0));
+//        System.out.println(tuple.getString(0));
         _numberOfElements = Integer.parseInt(tuple.getString(0));
     }
 
     public void setExponent(Tuple tuple) {
-        System.out.println(tuple.getString(1));
+//        System.out.println(tuple.getString(1));
         _exponent = Double.parseDouble(tuple.getString(1));
     }
 
@@ -175,39 +206,44 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
             _numberOfElements = Integer.parseInt(tuple.getString(0));
             _exponent = Double.parseDouble(tuple.getString(1));
+            int seed = tuple.getInteger(2);
             _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-            _prime = primes[new Random().nextInt(primes.length)];
+            _prime = primes[seed % (primes.length)];
+            Slave.getInstance().logOnMaster(String.format("Prime is changed to %d on task %d, keys = %d, exp = %1.2f", _prime, taskId, _numberOfElements, _exponent ));
         } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.UpstreamCommand)) {
             String command  = tuple.getString(0);
             if(command.equals("getHistograms")) {
                 _collector.emit("statics", new Values(taskId, routingTable.getBucketsDistribution()));
             } else if (command.equals("pausing")) {
-                Slave.getInstance().logOnMaster("Received pausing command on " + taskId);
+//                Slave.getInstance().logOnMaster("Received pausing command on " + taskId);
                 int sourceTaskOffset = tuple.getInteger(1);
                 int targetTaskOffset = tuple.getInteger(2);
                 int shardId = tuple.getInteger(3);
                 _emitThread.interrupt();
                 try {
                     _emitThread.join();
-                    Slave.getInstance().logOnMaster("Sending thread is paused on " + taskId);
+//                    Slave.getInstance().logOnMaster("Sending thread is paused on " + taskId);
                 }
                 catch (InterruptedException e) {
                     e.printStackTrace();
                 }
                 routingTable.reassignBucketToRoute(shardId, targetTaskOffset);
-                Slave.getInstance().logOnMaster("Routing table is updated on " + taskId);
+//                Slave.getInstance().logOnMaster("Routing table is updated on " + taskId);
                 _collector.emitDirect(downStreamTaskIds.get(sourceTaskOffset), ResourceCentricZipfComputationTopology.StateMigrationCommandStream, new Values(sourceTaskOffset, targetTaskOffset, shardId));
             } else if (command.equals("resuming")) {
                 int sourceTaskIndex = tuple.getInteger(1);
                 _emitThread = new Thread(new emitKey());
                 _emitThread.start();
 
-                Slave.getInstance().logOnMaster("Routing thread is resumed!");
+//                Slave.getInstance().logOnMaster("Routing thread is resumed!");
                 _collector.emit(ResourceCentricZipfComputationTopology.FeedbackStream, new Values("resumed", sourceTaskIndex));
             }
         } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.SeedUpdateStream)) {
             _prime = primes[Math.abs(tuple.getInteger(0) % primes.length)];
             Slave.getInstance().logOnMaster(String.format("Prime is changed to %d on task %d", _prime, taskId ));
+        } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.CountPermissionStream)) {
+            progressPermission = Math.max(progressPermission, tuple.getLong(0));
+//            Slave.getInstance().logOnMaster(String.format("Progress on task %d is updated to %d", taskId, progressPermission));
         }
     }
 

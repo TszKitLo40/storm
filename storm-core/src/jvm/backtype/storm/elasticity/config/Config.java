@@ -5,15 +5,15 @@ package backtype.storm.elasticity.config;
  */
 public class Config {
 
-    public static int NumberOfShard = 64;
+    public static int NumberOfShard = 256;
 
     public static double RoutingSamplingRate = 1.0;
 
-    public static int SubtaskInputQueueCapacity = 8;
+    public static int SubtaskInputQueueCapacity = 256;
 
     public static int ResultQueueCapacity = 1024;
 
-    public static int RemoteExecutorInputQueueCapacity = 8;
+    public static int RemoteExecutorInputQueueCapacity = 256;
 
     public static int ElasticTaskHolderOutputQueueCapacity = 1024;
 
