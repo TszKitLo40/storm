@@ -9,7 +9,7 @@ public class Config {
 
     public static double RoutingSamplingRate = 1.0;
 
-    public static int SubtaskInputQueueCapacity = 256;
+    public static int SubtaskInputQueueCapacity = 64;
 
     public static int ResultQueueCapacity = 1024;
 
@@ -29,7 +29,7 @@ public class Config {
 
     public static int WorkerLevelLoadBalancingCycleInSecs = 10;
 
-    public static int SubtaskLevelLoadBalancingCycleInSecs = 5;
+    public static int SubtaskLevelLoadBalancingCycleInMilliSecs = 500;
 
     public static boolean EnableWorkerLevelLoadBalancing = false;
 
@@ -39,7 +39,7 @@ public class Config {
 
     public static int LoggingServerPort = 10000;
 
-    public static double latencySampleRate = 1;
+    public static double latencySampleRate = 0.02;
 
     public static int numberOfLatencyHistoryRecords = 10;
 

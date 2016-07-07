@@ -57,10 +57,11 @@ public class BalancedHashRouting implements RoutingTable {
 
     @Override
     public synchronized int route(Object key) {
+        final int shard = hashFunction.hash(key) % numberOfHashValues;
         if(sample!=null)
-            sample.record(key);
+            sample.record(shard);
 
-        final int ret = hashValueToRoute.get(hashFunction.hash(key) % numberOfHashValues);
+        final int ret = hashValueToRoute.get(shard);
         if(routeDistributionSampler != null)
             routeDistributionSampler.record(ret);
 

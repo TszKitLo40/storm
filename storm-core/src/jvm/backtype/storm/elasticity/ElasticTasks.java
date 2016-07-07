@@ -7,6 +7,7 @@ import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteTuple;
+import backtype.storm.elasticity.metrics.ThroughputForRoutes;
 import backtype.storm.elasticity.routing.*;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.KeyFrequencySampler;
@@ -487,13 +488,22 @@ public class ElasticTasks implements Serializable {
     public ExecutionLatencyForRoutes getExecutionLatencyForRoutes() {
         ExecutionLatencyForRoutes latencyForRoutes = new ExecutionLatencyForRoutes();
         for(Integer routeId: _queryRunnables.keySet()) {
-            if(_queryRunnables.containsKey(routeId)) {
+//            if(_queryRunnables.containsKey(routeId)) {
                 Long averageExecutionLatency = _queryRunnables.get(routeId).getAverageExecutionLatency();
                 if(averageExecutionLatency != null)
                     latencyForRoutes.add(routeId, averageExecutionLatency);
-            }
+//            }
         }
         return latencyForRoutes;
+    }
+
+    public ThroughputForRoutes getThroughputForRoutes() {
+        ThroughputForRoutes throughputForRoutes = new ThroughputForRoutes();
+        for(int route: _queryRunnables.keySet()) {
+            double throughput = _queryRunnables.get(route).getThroughput();
+            throughputForRoutes.add(route, throughput);
+        }
+        return throughputForRoutes;
     }
 
     public void makesSureNoPendingTuples(int routeId) {

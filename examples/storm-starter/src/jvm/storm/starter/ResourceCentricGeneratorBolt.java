@@ -12,12 +12,11 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
+import org.apache.commons.collections.ArrayStack;
 import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Created by acelzj on 03/05/16.
@@ -34,12 +33,18 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
     private int numberOfComputingTasks;
     private List<Integer> downStreamTaskIds;
+    private List<Long> pendingPruncutationUpdates;
 
     private int _emit_cycles;
     private int taskId;
     private int taskIndex;
     int _prime;
 
+
+    final private int puncutationGenrationFrequency = 400;
+    final private int numberOfPendingTuple = 100000;
+    private long currentPuncutationLowWaterMarker = 0;
+//    private long currentPuncutationLowWaterMarker = 10000000L;
 //    private long progressPermission = 200;
     private long progressPermission = Long.MAX_VALUE;
 
@@ -70,38 +75,15 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
     }
 
     public class emitKey implements Runnable {
-//        public void run() {
-//            try {
-//                Random random = new Random();
-//                while (true) {
-//
-//                    Thread.sleep(_emit_cycles);
-////                    int key = _distribution.sample();
-//                      int key = random.nextInt(_numberOfElements);
-////                    System.out.println("key");
-////                    System.out.println(key);
-//
-////                    _collector.emit(new Values(String.valueOf(key)));
-//                    int pos = routingTable.route(String.valueOf(key));
-//                    int targetTaskId = downStreamTaskIds.get(pos);
-//                    _collector.emitDirect(targetTaskId, new Values(String.valueOf(key)));
-//                    monitor.rateTracker.notify(1);
-//                }
-//            }
-//            catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//        }
-
         public void run() {
             try {
                 long count = 0;
-            while (true) {
+                 while (true) {
                 Random random = new Random();
 
                     //    Slave.getInstance().logOnMaster("Time:"+String.valueOf(_sleepTimeInMilics));
                     //   long BeforeSleep = System.currentTimeMillis();
-                    Utils.sleep(_emit_cycles);
+                    Thread.sleep(_emit_cycles);
                     //    long AfterSleep = System.currentTimeMillis();
                     //    Slave.getInstance().logOnMaster("Sleep_Time:"+String.valueOf(AfterSleep-BeforeSleep));
                     //  Thread.sleep(_sleepTimeInMilics);
@@ -110,6 +92,10 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 //                    System.out.println(key);
 //                    _prime = primes[random.nextInt(primes.length)];
                     key = ((key + _prime) * 577) % 13477;
+
+//                    if(count%10!=0) {
+//                        key = 1024;
+//                    }
                  /*   if(count == 0){
                         start = System.currentTimeMillis();
                     }
@@ -122,9 +108,19 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                     }*/
                     int pos = routingTable.route(key);
                     int targetTaskId = downStreamTaskIds.get(pos);
-                while(count >= progressPermission) {
-                    Utils.sleep(1);
-                }
+                    while(count >= progressPermission) {
+                        Thread.sleep(1);
+                    }
+
+                     if(count % puncutationGenrationFrequency ==0) {
+                         _collector.emitDirect(targetTaskId, ResourceCentricZipfComputationTopology.PuncutationEmitStream, new Values(count, taskId));
+//                         Slave.getInstance().logOnMaster(String.format("PUNC %d is sent to %d", count, targetTaskId));
+                     }
+
+                     while(count >= currentPuncutationLowWaterMarker + numberOfPendingTuple) {
+                         Thread.sleep(1);
+                     }
+
                     _collector.emitDirect(targetTaskId, new Values(String.valueOf(key)));
 
 
@@ -140,6 +136,8 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                 }
 
             }
+            } catch (InterruptedException ee) {
+
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -152,6 +150,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateMigrationCommandStream, new Fields("sourceTaskId","targetTaskId", "shardId"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.FeedbackStream, new Fields("command", "arg1"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.CountReportSteram, new Fields("taskid", "count"));
+        declarer.declareStream(ResourceCentricZipfComputationTopology.PuncutationEmitStream, new Fields("puncutation", "taskid"));
     }
 
     @Override
@@ -182,7 +181,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
-
+        pendingPruncutationUpdates = new ArrayList<>();
 //        new Thread(new ChangeDistribution()).start();
     }
 
@@ -244,6 +243,35 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.CountPermissionStream)) {
             progressPermission = Math.max(progressPermission, tuple.getLong(0));
 //            Slave.getInstance().logOnMaster(String.format("Progress on task %d is updated to %d", taskId, progressPermission));
+        } else if (tuple.getSourceStreamId().equals(ResourceCentricZipfComputationTopology.PuncutationFeedbackStreawm)) {
+            long receivedPuncutation = tuple.getLong(0);
+            if(currentPuncutationLowWaterMarker + puncutationGenrationFrequency == receivedPuncutation) {
+                currentPuncutationLowWaterMarker = receivedPuncutation;
+//                Slave.getInstance().sendMessageToMaster(String.format("Pending is updated to %d.", currentPuncutationLowWaterMarker));
+                // resolve pending puntucations
+                Collections.sort(pendingPruncutationUpdates);
+                boolean updated = true;
+                while(updated && pendingPruncutationUpdates.size() > 0) {
+                    if(pendingPruncutationUpdates.get(0) == currentPuncutationLowWaterMarker + puncutationGenrationFrequency) {
+                        currentPuncutationLowWaterMarker = pendingPruncutationUpdates.get(0);
+                        pendingPruncutationUpdates.remove(0);
+                        updated = true;
+//                        Slave.getInstance().sendMessageToMaster(String.format("Pending is updated to %d by history.", currentPuncutationLowWaterMarker));
+                    } else if(pendingPruncutationUpdates.get(0) < currentPuncutationLowWaterMarker + puncutationGenrationFrequency) {
+                        // clean the old punctuation.
+                        pendingPruncutationUpdates.remove(0);
+                    } else {
+                        updated = false;
+                    }
+                }
+
+            } else {
+                pendingPruncutationUpdates.add(receivedPuncutation);
+//                Slave.getInstance().sendMessageToMaster(String.format("%d is added into pending history!", receivedPuncutation));
+            }
+
+//            currentPuncutationLowWaterMarker = Math.max(currentPuncutationLowWaterMarker, tuple.getLong(0));
+//            Slave.getInstance().logOnMaster(String.format("PRUC is updated to %d", currentPuncutationLowWaterMarker));
         }
     }
 

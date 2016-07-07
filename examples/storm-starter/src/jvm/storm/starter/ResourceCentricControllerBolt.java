@@ -158,7 +158,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             Histograms histograms = (Histograms)input.getValue(1);
             taskToHistogram.put(sourceTaskId, histograms);
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateMigrationStream)) {
-            Slave.getInstance().logOnMaster("Will forward the state!");
+//            Slave.getInstance().logOnMaster("Will forward the state!");
             int sourceTaskOffset = input.getInteger(0);
             int targetTaskOffset = input.getInteger(1);
             int shardId = input.getInteger(2);
@@ -288,13 +288,13 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                 return;
             }
 
-            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", shardId, sourceTaskIndex, targetTaskIndex));
+//            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", shardId, sourceTaskIndex, targetTaskIndex));
 
             int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
 
             sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskIndex, new Semaphore(0));
 
-            Slave.getInstance().logOnMaster(String.format("Controller: sending pausing"));
+//            Slave.getInstance().logOnMaster(String.format("Controller: sending pausing"));
 
             collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskIndex, targetTaskIndex, shardId));
 
@@ -304,7 +304,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
             targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskIndex).acquire();
 
-            Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
+//            Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
 
             sourceTaskIndexToResumingWaitingSemphore.put(sourceTaskIndex, new Semaphore(0));
             collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("resuming", sourceTaskIndex, targetTaskIndex, shardId));
@@ -522,9 +522,12 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
     Double getRate() {
         double rate = 0;
+        String str = "";
         for(double r: taskToRate.values()) {
             rate += r;
+            str += r + "\n";
         }
+//        Slave.getInstance().logOnMaster(str);
         return rate;
     }
 
@@ -595,8 +598,9 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             @Override
             public void run() {
                 try {
+//                    Thread.sleep(10000);
                     while(true) {
-                        Thread.sleep(3000);
+                        Thread.sleep(1000);
                         loadBalancing();
                     }
                 } catch (Exception e) {

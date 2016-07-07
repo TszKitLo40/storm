@@ -7,7 +7,6 @@ import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.actormessage.ExecutorScalingInRequestMessage;
 import backtype.storm.elasticity.message.actormessage.ExecutorScalingOutRequestMessage;
-import backtype.storm.elasticity.message.actormessage.ScalingInSubtaskCommand;
 import backtype.storm.elasticity.resource.ResourceManager;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
@@ -15,17 +14,13 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.PartitioningMinimizedMovement;
-import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.generated.TaskNotExistException;
 import backtype.storm.utils.Utils;
 import org.apache.thrift.TException;
 import org.eclipse.jetty.util.ArrayQueue;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RunnableFuture;
 
 /**
  * Created by Robert on 11/11/15.
@@ -104,7 +99,7 @@ public class ElasticScheduler {
             public void run() {
                 try {
                     while(true) {
-                        Thread.sleep(Config.SubtaskLevelLoadBalancingCycleInSecs * 1000);
+                        Thread.sleep(Config.SubtaskLevelLoadBalancingCycleInMilliSecs);
                         Set<Integer> taskIds = master._elasticTaskIdToWorkerLogicalName.keySet();
                         for(Integer task: taskIds) {
                             try {

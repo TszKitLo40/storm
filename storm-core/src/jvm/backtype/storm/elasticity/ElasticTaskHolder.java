@@ -12,6 +12,7 @@ import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.exceptions.TaskNotExistingException;
 import backtype.storm.elasticity.message.taksmessage.*;
 import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
+import backtype.storm.elasticity.metrics.ThroughputForRoutes;
 import backtype.storm.elasticity.resource.ResourceMonitor;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
@@ -35,7 +36,6 @@ import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.TupleImpl;
 import backtype.storm.utils.Utils;
-import com.google.common.primitives.Bytes;
 import org.apache.commons.lang.SerializationException;
 import org.apache.commons.lang.SerializationUtils;
 import org.slf4j.Logger;
@@ -402,14 +402,14 @@ public class ElasticTaskHolder {
                                     System.out.println("TaskId: " + remoteState._taskId);
                                     System.out.println("Connections: " + _originalTaskIdToConnection );
                                 }
-                            } else if (message instanceof ExecutionLatencyForRoutesMessage) {
-                                ExecutionLatencyForRoutesMessage latencyForRoutes = (ExecutionLatencyForRoutesMessage)message;
+                            } else if (message instanceof MetricsForRoutesMessage) {
+                                MetricsForRoutesMessage latencyForRoutes = (MetricsForRoutesMessage)message;
                                 byte[] bytes = SerializationUtils.serialize(latencyForRoutes);
                                 IConnection connection = _originalTaskIdToConnection.get(latencyForRoutes.taskId);
                                 if(connection != null) {
                                     TaskMessage taskMessage = new TaskMessage(latencyForRoutes.taskId, bytes);
                                     insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, connection, taskMessage);
-//                                    System.out.println("ExecutionLatencyForRoutesMessage is sent!");
+//                                    System.out.println("MetricsForRoutesMessage is sent!");
                                 } else {
                                     System.err.println("Cannot find the connection for task " + latencyForRoutes.toString());
                                 }
@@ -524,6 +524,14 @@ public class ElasticTaskHolder {
                             } else if (object instanceof PendingTupleCleanedMessage) {
                                 PendingTupleCleanedMessage cleanedMessage = (PendingTupleCleanedMessage) object;
                                 handlePendingTupleCleanedMessage(cleanedMessage);
+                            } else if (object instanceof MetricsForRoutesMessage) {
+//                                System.out.println("MetricsForRoutesMessage");
+                                MetricsForRoutesMessage latencyForRoutesMessage = (MetricsForRoutesMessage)object;
+                                int taskId = latencyForRoutesMessage.taskId;
+//                            sendMessageToMaster(String.format("Latency data at %s is received!", latencyForRoutesMessage.timeStamp));
+                                _bolts.get(taskId).updateLatencyMetrics(latencyForRoutesMessage.latencyForRoutes);
+                                _bolts.get(taskId).updateThroughputMetrics(latencyForRoutesMessage.throughputForRoutes);
+
                             } else {
                                 System.err.println(" -_- Priority input connection receives unexpected object: " + object);
                                 _slaveActor.sendMessageToMaster("-_- Priority input connection receives unexpected object: " + object);
@@ -644,12 +652,13 @@ public class ElasticTaskHolder {
 
                             handleStateFlushToken(token);
 
-                        } else if (object instanceof ExecutionLatencyForRoutesMessage) {
-                            System.out.println("ExecutionLatencyForRoutesMessage");
-                            ExecutionLatencyForRoutesMessage latencyForRoutesMessage = (ExecutionLatencyForRoutesMessage)object;
+                        } else if (object instanceof MetricsForRoutesMessage) {
+                            System.out.println("MetricsForRoutesMessage");
+                            MetricsForRoutesMessage latencyForRoutesMessage = (MetricsForRoutesMessage)object;
                             int taskId = latencyForRoutesMessage.taskId;
 //                            sendMessageToMaster(String.format("Latency data at %s is received!", latencyForRoutesMessage.timeStamp));
                             _bolts.get(taskId).updateLatencyMetrics(latencyForRoutesMessage.latencyForRoutes);
+                            _bolts.get(taskId).updateThroughputMetrics(latencyForRoutesMessage.throughputForRoutes);
 
                         } else if (object instanceof CleanPendingTupleToken) {
                             System.out.println("CleanPendingTupleToken");
@@ -1032,7 +1041,8 @@ public class ElasticTaskHolder {
     public double getThroughput(int taskid) {
         if(!_bolts.containsKey(taskid))
             return -1;
-        return _bolts.get(taskid).getRate();
+        return _bolts.get(taskid).getMetrics().getRecentThroughput(5000);
+//        return _bolts.get(taskid).getInputRate();
     }
 
     public Histograms getDistribution(int taskid) throws TaskNotExistingException {
@@ -1653,13 +1663,18 @@ public class ElasticTaskHolder {
 
                         for(int remoteTaskId: _originalTaskIdToRemoteTaskExecutor.keySet()) {
                             ExecutionLatencyForRoutes latencyForRoutes = _originalTaskIdToRemoteTaskExecutor.get(remoteTaskId)._elasticTasks.getExecutionLatencyForRoutes();
-                            ExecutionLatencyForRoutesMessage message = new ExecutionLatencyForRoutesMessage(remoteTaskId, latencyForRoutes);
+                            ThroughputForRoutes throughputForRoutes = _originalTaskIdToRemoteTaskExecutor.get(remoteTaskId)._elasticTasks.getThroughputForRoutes();
+                            MetricsForRoutesMessage message = new MetricsForRoutesMessage(remoteTaskId, latencyForRoutes, throughputForRoutes);
+
                             message.setTimeStamp(Calendar.getInstance().getTime().toString());
-                            _sendingQueue.put(message);
+                            _originalTaskIdToPriorityConnection.get(remoteTaskId).send(remoteTaskId, SerializationUtils.serialize(message));
+//                            _sendingQueue.put(message);
                         }
                         for(int taskId: _bolts.keySet()) {
                             ExecutionLatencyForRoutes latencyForRoutes = _bolts.get(taskId).get_elasticTasks().getExecutionLatencyForRoutes();
+                            ThroughputForRoutes throughputForRoutes = _bolts.get(taskId).get_elasticTasks().getThroughputForRoutes();
                             _bolts.get(taskId).getMetrics().updateLatency(latencyForRoutes);
+                            _bolts.get(taskId).getMetrics().updateThroughput(throughputForRoutes);
 //                            System.out.println("Latency is added to the local metrics!");
 //                            System.out.println(latencyForRoutes);
                         }
@@ -1687,7 +1702,7 @@ public class ElasticTaskHolder {
                             int currentParallelism = _bolts.get(taskId).getCurrentParallelism();
                             int desirableParallelism = _bolts.get(taskId).getDesirableParallelism();
 //                            sendMessageToMaster("Task: " + taskId + "average latency: " + _bolts.get(taskId).getMetrics().getAverageLatency());
-//                            sendMessageToMaster("Task: " + taskId + "rate: " + _bolts.get(taskId).getRate());
+//                            sendMessageToMaster("Task: " + taskId + "rate: " + _bolts.get(taskId).getInputRate());
 //                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
                             if(currentParallelism < desirableParallelism) {
                                 ExecutorScalingOutRequestMessage requestMessage = new ExecutorScalingOutRequestMessage(taskId);

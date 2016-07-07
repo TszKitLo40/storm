@@ -13,12 +13,27 @@ public class ElasticExecutorMetrics {
 
     ExecutionLatencyForRoutes executionLatencyForRoutes = new ExecutionLatencyForRoutes();
 
+    ThroughputForRoutes throughputForRoutes = new ThroughputForRoutes();
+
+    public void updateThroughput(ThroughputForRoutes throughputForRoutes) {
+        this.throughputForRoutes.merge(throughputForRoutes);
+    }
+
     public void updateLatency(ExecutionLatencyForRoutes latencyForRoutes) {
         executionLatencyForRoutes.merge(latencyForRoutes);
     }
 
+    public Double getRecentThroughput(long ms) {
+        return throughputForRoutes.getRecentThroughput(ms);
+    }
+
     public Long getRecentAverageLatency(int ms) {
         return executionLatencyForRoutes.getRecentAverageLatency(ms);
+    }
+
+
+    public Double getThroughput() {
+        return throughputForRoutes.getThroughput();
     }
 
     public Long getAverageLatency() {

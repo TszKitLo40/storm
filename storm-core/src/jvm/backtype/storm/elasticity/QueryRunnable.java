@@ -2,6 +2,7 @@ package backtype.storm.elasticity;
 
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.utils.RateTracker;
 import org.joda.time.Seconds;
 
 import java.util.LinkedList;
@@ -28,6 +29,8 @@ public class QueryRunnable implements Runnable {
 
     private ConcurrentLinkedQueue<Long> latencyHistory = new ConcurrentLinkedQueue<>();
 
+    private RateTracker rateTracker;
+
     private boolean forceSample = true;
 
     private Thread forceSampleThread;
@@ -51,6 +54,7 @@ public class QueryRunnable implements Runnable {
             }
         });
         forceSampleThread.start();
+        rateTracker = new RateTracker(1000, 5);
     }
 
     /**
@@ -80,7 +84,7 @@ public class QueryRunnable implements Runnable {
     public void  run() {
         try {
             int sample = 0;
-            int sampeEveryNTuples = (int)(1 / Config.latencySampleRate);
+            final int sampeEveryNTuples = (int)(1 / Config.latencySampleRate);
             while (!_terminationRequest || !_pendingTuples.isEmpty()) {
                 Tuple input = _pendingTuples.poll(5, TimeUnit.MILLISECONDS);
                 if(input!=null) {
@@ -95,6 +99,7 @@ public class QueryRunnable implements Runnable {
                     } else {
                         _bolt.execute(input, _outputCollector);
                     }
+                    rateTracker.notify(1);
                 }
             }
             interrupted = true;
@@ -121,5 +126,9 @@ public class QueryRunnable implements Runnable {
         } else {
             return sum/size;
         }
+    }
+
+    public double getThroughput() {
+        return rateTracker.reportRate();
     }
 }

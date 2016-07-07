@@ -19,6 +19,9 @@ public class ResourceCentricZipfComputationTopology {
     public static String CountReportSteram = "CountReportStream";
     public static String CountPermissionStream = "CountPermissionStream";
 
+    static String PuncutationEmitStream = "PunctuationEmitStream";
+    static String PuncutationFeedbackStreawm = "PunctuationFeedbackStream";
+
 
     public static String UpstreamCommand = "UpstreamCommand";
 
@@ -44,13 +47,15 @@ public class ResourceCentricZipfComputationTopology {
                 .allGrouping(Spout)
                 .allGrouping(Controller, UpstreamCommand)
                 .allGrouping(Controller, SeedUpdateStream)
-                .allGrouping(Controller, CountPermissionStream);
+                .allGrouping(Controller, CountPermissionStream)
+                .directGrouping(ComputationBolt, PuncutationFeedbackStreawm);
 
 
         builder.setBolt(ComputationBolt, new ResourceCentricComputationBolt(Integer.parseInt(args[3])), Integer.parseInt(args[4]))
                 .directGrouping(GeneratorBolt)
                 .directGrouping(GeneratorBolt, StateMigrationCommandStream)
-                .directGrouping(Controller, StateUpdateStream);
+                .directGrouping(Controller, StateUpdateStream)
+                .directGrouping(GeneratorBolt, PuncutationEmitStream);
 
         builder.setBolt(Controller, new ResourceCentricControllerBolt(), 1)
                 .allGrouping(ComputationBolt, StateMigrationStream)

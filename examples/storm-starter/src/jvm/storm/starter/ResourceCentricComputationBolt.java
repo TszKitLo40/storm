@@ -67,10 +67,11 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
             int sourceTaskOffset = tuple.getInteger(0);
             int targetTaskOffset = tuple.getInteger(1);
             int shardId = tuple.getInteger(2);
-            if(receivedMigrationCommand == 1)
-                Slave.getInstance().logOnMaster(String.format("Task %d Received StateMigrationCommand %d: %d--->%d.", taskId, shardId, sourceTaskOffset, targetTaskOffset));
+            if(receivedMigrationCommand == 1) {
+//                Slave.getInstance().logOnMaster(String.format("Task %d Received StateMigrationCommand %d: %d--->%d.", taskId, shardId, sourceTaskOffset, targetTaskOffset));
+            }
             if(receivedMigrationCommand==upstreamTaskIds.size()) {
-                Slave.getInstance().logOnMaster(String.format("Task %d Received StateMigrationCommand %d: %d--->%d.", taskId, shardId, sourceTaskOffset, targetTaskOffset));
+//                Slave.getInstance().logOnMaster(String.format("Task %d Received StateMigrationCommand %d: %d--->%d.", taskId, shardId, sourceTaskOffset, targetTaskOffset));
 
                 // received the migration command from each of the upstream tasks.
                 receivedMigrationCommand = 0;
@@ -89,6 +90,11 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
 //            Slave.getInstance().logOnMaster("State is updated!");
             collector.emit(ResourceCentricZipfComputationTopology.StateReadyStream, tuple, new Values(targetTaskOffset));
 
+        } else if (streamId.equals(ResourceCentricZipfComputationTopology.PuncutationEmitStream)) {
+            long pruncutation = tuple.getLong(0);
+            int taskid = tuple.getInteger(1);
+            collector.emitDirect(taskid, ResourceCentricZipfComputationTopology.PuncutationFeedbackStreawm, new Values(pruncutation));
+//            Slave.getInstance().logOnMaster(String.format("PRUN %d is sent back to %d by %d", pruncutation, taskid, taskId));
         }
     }
 
@@ -100,6 +106,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateMigrationStream, new Fields("sourceTaskId", "targetTaskId", "shardId", "state"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.StateReadyStream, new Fields("targetTaskId"));
         declarer.declareStream(ResourceCentricZipfComputationTopology.RateAndLatencyReportStream, new Fields("TaskId", "rate", "latency"));
+        declarer.declareStream(ResourceCentricZipfComputationTopology.PuncutationFeedbackStreawm, new Fields("punctuation"));
     }
 
     @Override
@@ -108,7 +115,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
         upstreamTaskIds = context.getComponentTasks("generator");
         receivedMigrationCommand = 0;
         latencyHistory = new ConcurrentLinkedQueue<>();
-        rateTracker = new RateTracker(1000,10);
+        rateTracker = new RateTracker(1000,5);
 
         taskId = context.getThisTaskId();
 

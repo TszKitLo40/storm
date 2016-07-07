@@ -1,9 +1,9 @@
 package backtype.storm.elasticity;
 
-import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.metrics.ElasticExecutorMetrics;
 import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
+import backtype.storm.elasticity.metrics.ThroughputForRoutes;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
@@ -17,7 +17,6 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.RateTracker;
-import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,7 +116,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _elasticTasks = ElasticTasks.createHashRouting(1,_bolt,_taskId, _outputCollector);
 //        createTest();
 //        _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
-        _rateTracker = new RateTracker(1000, 5);
+        _rateTracker = new RateTracker(3000, 5);
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
             _holder.registerElasticBolt(this, _taskId);
@@ -200,7 +199,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         }
     }
 
-    public double getRate() {
+    public double getInputRate() {
         return _rateTracker.reportRate();
     }
 
@@ -215,6 +214,11 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         RoutingTable routingTable = getCompleteRoutingTable();
         metrics.removeInvalidRoutes(routingTable.getRoutes());
     }
+
+    public void updateThroughputMetrics(ThroughputForRoutes throughputForRoutes) {
+        metrics.updateThroughput(throughputForRoutes);
+    }
+
 
     public int getCurrentParallelism() {
         return getCompleteRoutingTable().getNumberOfRoutes();
@@ -232,7 +236,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
         final double overProvisioningFactor = 0.5;
 
-        double inputRate = getRate();
+        double inputRate = getInputRate();
         Long averageLatency = getMetrics().getRecentAverageLatency(3000);
         if(averageLatency == null) {
 //            System.out.println("averageLatency is null!");

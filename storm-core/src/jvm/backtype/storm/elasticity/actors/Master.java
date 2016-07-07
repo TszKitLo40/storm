@@ -743,8 +743,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
  //       inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
         try {
  //           return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
-
-            return (RoutingTable)sendAndReceive(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+            Object received = sendAndReceive(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+            if(!(received instanceof RoutingTable)) {
+                System.err.println(String.format("Expected: RoutingTable, get: %s , context: %s", received.getClass().toString(), received.toString()));
+                return null;
+            }
+            return (RoutingTable)received;
         } catch (TimeoutException e) {
             e.printStackTrace();
             return null;
