@@ -54,6 +54,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
            104549, 104551, 104561, 104579, 104593, 104597, 104623, 104639, 104651, 104659,
            104677, 104681, 104683, 104693, 104701, 104707, 104711, 104717, 104723, 104729};
 
+    emitKey _emitKey;
 
     public class ChangeDistribution implements Runnable {
 
@@ -75,6 +76,17 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
     }
 
     public class emitKey implements Runnable {
+
+        boolean terminating = false;
+        boolean terminated = false;
+
+        public void terminate() {
+            terminating = true;
+            while(!terminated) {
+                Utils.sleep(1);
+            }
+        }
+
         public void run() {
             try {
                 long count = 0;
@@ -134,10 +146,14 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                 if(count % 50 == 0) {
                     _collector.emit(ResourceCentricZipfComputationTopology.CountReportSteram, new Values(taskIndex, count));
                 }
-
+                if(terminating) {
+                    terminated = true;
+                    terminating = false;
+                    break;
+                }
             }
             } catch (InterruptedException ee) {
-
+//                Slave.getInstance().sendMessageToMaster("I was interrupted!");
             }
             catch (Exception e) {
                 e.printStackTrace();
@@ -179,7 +195,8 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
 
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
-        _emitThread = new Thread(new emitKey());
+        _emitKey = new emitKey();
+        _emitThread = new Thread(_emitKey);
         _emitThread.start();
         pendingPruncutationUpdates = new ArrayList<>();
 //        new Thread(new ChangeDistribution()).start();
@@ -218,20 +235,22 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                 int sourceTaskOffset = tuple.getInteger(1);
                 int targetTaskOffset = tuple.getInteger(2);
                 int shardId = tuple.getInteger(3);
-                _emitThread.interrupt();
-                try {
-                    _emitThread.join();
-//                    Slave.getInstance().logOnMaster("Sending thread is paused on " + taskId);
-                }
-                catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                _emitKey.terminate();
+//                _emitThread.interrupt();
+//                try {
+//                    _emitThread.join();
+////                    Slave.getInstance().logOnMaster("Sending thread is paused on " + taskId);
+//                }
+//                catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
                 routingTable.reassignBucketToRoute(shardId, targetTaskOffset);
 //                Slave.getInstance().logOnMaster("Routing table is updated on " + taskId);
                 _collector.emitDirect(downStreamTaskIds.get(sourceTaskOffset), ResourceCentricZipfComputationTopology.StateMigrationCommandStream, new Values(sourceTaskOffset, targetTaskOffset, shardId));
             } else if (command.equals("resuming")) {
                 int sourceTaskIndex = tuple.getInteger(1);
-                _emitThread = new Thread(new emitKey());
+                _emitKey = new emitKey();
+                _emitThread = new Thread(_emitKey);
                 _emitThread.start();
 
 //                Slave.getInstance().logOnMaster("Routing thread is resumed!");

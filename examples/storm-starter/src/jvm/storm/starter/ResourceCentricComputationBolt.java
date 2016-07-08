@@ -77,7 +77,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
                 receivedMigrationCommand = 0;
                 KeyValueState state = getState();
 
-                state.getState().put("key", new byte[1024 *  1]);
+//                state.getState().put("key", new byte[1024 *  1]);
 
 //                Slave.getInstance().logOnMaster("State migration starts!");
                 collector.emit(ResourceCentricZipfComputationTopology.StateMigrationStream, tuple, new Values(sourceTaskOffset, targetTaskOffset, shardId, state));

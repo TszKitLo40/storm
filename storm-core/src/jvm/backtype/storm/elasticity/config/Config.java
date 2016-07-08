@@ -5,7 +5,7 @@ package backtype.storm.elasticity.config;
  */
 public class Config {
 
-    public static int NumberOfShard = 256;
+    public static int NumberOfShard = 1024;
 
     public static double RoutingSamplingRate = 1.0;
 
