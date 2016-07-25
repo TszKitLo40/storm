@@ -47,6 +47,6 @@ public class Config {
 
     public static double taskLevelLoadBalancingThreshold = 0.2;
 
-    public static String masterIp = "192.168.0.183";
+    public static String masterIp = "10.21.25.113";
 
 }

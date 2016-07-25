@@ -46,3 +46,8 @@
 #     parallelism.hint: 1
 #     argument:
 #       - endpoint: "metrics-collector.mycompany.org"
+
+
+
+## Elastic Configures
+# elasticity.slave.ip: "10.11.1.25"
