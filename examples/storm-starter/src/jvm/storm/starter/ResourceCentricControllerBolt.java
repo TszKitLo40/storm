@@ -104,7 +104,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
             public void run() {
                 while(true) {
                     try {
-                        Thread.sleep(1000);
+                        Thread.sleep(50000);
                         Histograms histograms = new Histograms();
                         for(int taskId: taskToHistogram.keySet()) {
                             histograms.merge(taskToHistogram.get(taskId));
@@ -126,6 +126,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                         long max = Long.MIN_VALUE;
                         String str = "";
                         for(long count: routeCount) {
+
                             sum += count;
                             str += count + " ";
                             min = Math.min(min, count);
@@ -146,7 +147,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
 //        createAutomaticScalingThread();
 
-        createLoadBalancingThread();
+//        createLoadBalancingThread();
 //        createSeedUpdatingThread();
     }
 
@@ -288,13 +289,13 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
                 return;
             }
 
-//            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", shardId, sourceTaskIndex, targetTaskIndex));
+            Slave.getInstance().logOnMaster(String.format("Begin to migrate shard %d from %d to %d!", shardId, sourceTaskIndex, targetTaskIndex));
 
             int sourceTaskId = downstreamTaskIds.get(sourceTaskIndex);
 
             sourceTaskIdToPendingTupleCleanedSemphore.put(sourceTaskIndex, new Semaphore(0));
 
-//            Slave.getInstance().logOnMaster(String.format("Controller: sending pausing"));
+            Slave.getInstance().logOnMaster(String.format("Controller: sending pausing"));
 
             collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("pausing", sourceTaskIndex, targetTaskIndex, shardId));
 
@@ -304,7 +305,7 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
 
             targetTaskIdToWaitingStateMigrationSemphore.get(targetTaskIndex).acquire();
 
-//            Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
+            Slave.getInstance().logOnMaster(String.format("Shard reassignment of shard %d from %d to %d is ready!", shardId, sourceTaskId, targetTaskIndex));
 
             sourceTaskIndexToResumingWaitingSemphore.put(sourceTaskIndex, new Semaphore(0));
             collector.emit(ResourceCentricZipfComputationTopology.UpstreamCommand, new Values("resuming", sourceTaskIndex, targetTaskIndex, shardId));
@@ -518,6 +519,11 @@ public class ResourceCentricControllerBolt implements IRichBolt, ResourceCentric
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public String queryRoutingTable() throws TException {
+        return routingTable.toString();
     }
 
     Double getRate() {

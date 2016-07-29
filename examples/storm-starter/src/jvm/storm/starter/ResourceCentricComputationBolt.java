@@ -27,11 +27,11 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
 
     ConcurrentLinkedQueue<Long> latencyHistory;
 
-    RateTracker rateTracker;
+    transient RateTracker rateTracker;
 
     int receivedMigrationCommand;
 
-    ElasticOutputCollector outputCollector;
+    transient ElasticOutputCollector outputCollector;
     private int taskId;
 
     public ResourceCentricComputationBolt(int sleepTimeInSecs) {
@@ -60,7 +60,8 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
                 count = 0;
             count++;
             setValueByKey(number, count);
-            rateTracker.notify(1);
+            if(rateTracker!=null)
+                rateTracker.notify(1);
 //            collector.emit(tuple, new Values(number, count));
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateMigrationCommandStream)) {
             receivedMigrationCommand++;
@@ -77,9 +78,9 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
                 receivedMigrationCommand = 0;
                 KeyValueState state = getState();
 
-//                state.getState().put("key", new byte[1024 *  1]);
+//                state.getState().put("key", new byte[1024 *  1024 * 32]);
 
-//                Slave.getInstance().logOnMaster("State migration starts!");
+                Slave.getInstance().logOnMaster("State migration starts!");
                 collector.emit(ResourceCentricZipfComputationTopology.StateMigrationStream, tuple, new Values(sourceTaskOffset, targetTaskOffset, shardId, state));
             }
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.StateUpdateStream)) {
@@ -87,7 +88,7 @@ public class ResourceCentricComputationBolt extends BaseElasticBolt{
             int targetTaskOffset = tuple.getInteger(0);
             KeyValueState state = (KeyValueState) tuple.getValue(1);
             getState().update(state);
-//            Slave.getInstance().logOnMaster("State is updated!");
+            Slave.getInstance().logOnMaster("State is updated!");
             collector.emit(ResourceCentricZipfComputationTopology.StateReadyStream, tuple, new Values(targetTaskOffset));
 
         } else if (streamId.equals(ResourceCentricZipfComputationTopology.PuncutationEmitStream)) {

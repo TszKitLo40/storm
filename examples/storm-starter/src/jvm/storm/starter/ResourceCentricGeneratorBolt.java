@@ -42,7 +42,7 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 
 
     final private int puncutationGenrationFrequency = 400;
-    final private int numberOfPendingTuple = 100000;
+    final private int numberOfPendingTuple = 2000;
     private long currentPuncutationLowWaterMarker = 0;
 //    private long currentPuncutationLowWaterMarker = 10000000L;
 //    private long progressPermission = 200;
@@ -90,8 +90,19 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
         public void run() {
             try {
                 long count = 0;
-                 while (true) {
-                Random random = new Random();
+                while (true) {
+                    while (count >= progressPermission && !terminating) {
+                        Thread.sleep(1);
+                    }
+                    while (count >= currentPuncutationLowWaterMarker + numberOfPendingTuple && !terminating) {
+                        Thread.sleep(1);
+                    }
+                    if (terminating) {
+                        terminated = true;
+                        terminating = false;
+                        break;
+                    }
+                    Random random = new Random();
 
                     //    Slave.getInstance().logOnMaster("Time:"+String.valueOf(_sleepTimeInMilics));
                     //   long BeforeSleep = System.currentTimeMillis();
@@ -120,18 +131,12 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                     }*/
                     int pos = routingTable.route(key);
                     int targetTaskId = downStreamTaskIds.get(pos);
-                    while(count >= progressPermission) {
-                        Thread.sleep(1);
+
+                    if (count % puncutationGenrationFrequency == 0) {
+                        _collector.emitDirect(targetTaskId, ResourceCentricZipfComputationTopology.PuncutationEmitStream, new Values(count, taskId));
+//                         Slave.getInstance().logOnMaster(String.format("PUNC %d is sent to %d", count, targetTaskId));
                     }
 
-                     if(count % puncutationGenrationFrequency ==0) {
-                         _collector.emitDirect(targetTaskId, ResourceCentricZipfComputationTopology.PuncutationEmitStream, new Values(count, taskId));
-//                         Slave.getInstance().logOnMaster(String.format("PUNC %d is sent to %d", count, targetTaskId));
-                     }
-
-                     while(count >= currentPuncutationLowWaterMarker + numberOfPendingTuple) {
-                         Thread.sleep(1);
-                     }
 
                     _collector.emitDirect(targetTaskId, new Values(String.valueOf(key)));
 
@@ -139,23 +144,17 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
 //                    _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
 
-                count ++;
-                if(count % 1000 == 0) {
+                    count++;
+                    if (count % 1000 == 0) {
 //                    Slave.getInstance().logOnMaster(String.format("Task %d: %d", taskId, count));
+                    }
+                    if (count % 50 == 0) {
+                        _collector.emit(ResourceCentricZipfComputationTopology.CountReportSteram, new Values(taskIndex, count));
+                    }
                 }
-                if(count % 50 == 0) {
-                    _collector.emit(ResourceCentricZipfComputationTopology.CountReportSteram, new Values(taskIndex, count));
-                }
-                if(terminating) {
-                    terminated = true;
-                    terminating = false;
-                    break;
-                }
-            }
             } catch (InterruptedException ee) {
 //                Slave.getInstance().sendMessageToMaster("I was interrupted!");
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -235,7 +234,9 @@ public class ResourceCentricGeneratorBolt implements IRichBolt{
                 int sourceTaskOffset = tuple.getInteger(1);
                 int targetTaskOffset = tuple.getInteger(2);
                 int shardId = tuple.getInteger(3);
+                System.out.println("Begin to terminate emit thread..");
                 _emitKey.terminate();
+                System.out.println("Terminated!");
 //                _emitThread.interrupt();
 //                try {
 //                    _emitThread.join();

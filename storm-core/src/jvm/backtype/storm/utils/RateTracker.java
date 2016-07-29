@@ -17,6 +17,7 @@
  */
 package backtype.storm.utils;
 
+import java.io.Serializable;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
@@ -24,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * This class is a utility to track the rate of something.
  */
-public class RateTracker{
+public class RateTracker implements Serializable{
     private final int _bucketSizeMillis;
     //Old Buckets and their length are only touched when rotating or gathering the metrics, which should not be that frequent
     // As such all access to them should be protected by synchronizing with the RateTracker instance

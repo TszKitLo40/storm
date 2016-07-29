@@ -82,7 +82,7 @@ public class ZipfSpout extends BaseRichSpout implements ChangeDistributionServic
         _numberOfElements = 1000;
         _exponent = 1;
         _instance = this;
-        _sleepTimeInMilics = 15000;
+        _sleepTimeInMilics = 60000;
         _seed = Math.abs(new Random().nextInt());
      //   createThriftServiceThread();
         _collector.emit(new Values(String.valueOf(_numberOfElements), String.valueOf(_exponent), (_seed)));

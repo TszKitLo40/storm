@@ -481,8 +481,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
 //            final Inbox inbox = Inbox.create(getContext().system());
             final Inbox inbox = getInbox();
-//            inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
-//            inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+            inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
+            log("[Elastic]: Migration message has been sent!");
+            inbox.receive(new FiniteDuration(10000, TimeUnit.SECONDS));
 
 
             return;
@@ -588,8 +589,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
         long startTime = System.currentTimeMillis();
 
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
+        log("Shard reassignment command has been sent!");
         try {
-            inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+            inbox.receive(new FiniteDuration(10000, TimeUnit.SECONDS));
         } catch (TimeoutException e) {
             e.printStackTrace();
             return;

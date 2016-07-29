@@ -14,7 +14,7 @@ import org.apache.thrift.transport.TTransport;
 public class ShardReassignment {
     public static void main(String[] args) {
 
-        System.out.println("command: thrift-ip sourceTaskId targetTaskId shardId");
+        System.out.println("command: thrift-ip sourceTaskId targetTaskId shardId repeat[default = 1]");
 
 
         try {
@@ -28,8 +28,29 @@ public class ShardReassignment {
 //            sum += Integer.getInteger(args[1]);
 //            sum += Integer.getInteger(args[2]);
 //            System.out.println(sum);
+            int repeat = 1;
+            if(args.length >=5 && args[4]!=null) {
+                repeat = Integer.parseInt(args[4]);
+            }
+            long totalTime = 0;
+            long min = Long.MAX_VALUE;
+            long max = Long.MIN_VALUE;
+            for(int i = 0; i < repeat; i++) {
+                long start = System.currentTimeMillis();
+                if(i%2==0)
+                    thriftClient.shardReassignment(Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]));
+                else
+                    thriftClient.shardReassignment(Integer.parseInt(args[2]), Integer.parseInt(args[1]), Integer.parseInt(args[3]));
+                long time = System.currentTimeMillis() - start;
+                min = Math.min(min, time);
+                max = Math.max(max, time);
+                totalTime += time;
+                System.out.println(time);
+            }
+            System.out.println("total: " + totalTime);
+            System.out.println(String.format("Max: %d  Min: %d AVG: %.2f AVG(exclusive max): %.2f\n", max, min, totalTime / ((double) repeat), (totalTime - max) / ((double) (repeat - 1))));
 
-            thriftClient.shardReassignment(Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]));
+
             transport.close();
         } catch (TException e) {
             e.printStackTrace();

@@ -34,14 +34,17 @@ public class ConfigReader {
     private static void readFileIfNecessary() {
         try {
             if (config == null)
-                config = readConfig(PATH);
+                config = readConfig(System.getenv("STORM_HOME") + PATH);
         }
         catch (FileNotFoundException e) {
-            System.err.print("Cannot find file " + PATH);
+            System.err.print("Cannot find file " + System.getenv("STORM_HOME") + PATH);
+            System.err.println("Current @STORM_HOME is " + System.getenv("STORM_HOME") + " You should set $STORM_HOME$ " +
+                    "to the direct parent of the directory you execute ./storm supervisor");
+
         }
     }
 
-    private static String PATH = "../conf/storm.yaml";
+    private static String PATH = "/conf/storm.yaml";
 
 
     public static Config readConfig(String path) throws FileNotFoundException {

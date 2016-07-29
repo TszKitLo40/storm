@@ -233,6 +233,11 @@ struct ExecutorSummary {
   7: optional ExecutorStats stats;
 }
 
+struct DebugOptions {
+  1: optional bool enable
+  2: optional double samplingpct
+}
+
 struct TopologyInfo {
   1: required string id;
   2: required string name;
@@ -246,10 +251,6 @@ struct TopologyInfo {
 515: optional i32 replication_count;
 }
 
-struct DebugOptions {
-  1: optional bool enable
-  2: optional double samplingpct
-}
 
 struct CommonAggregateStats {
 1: optional i32 num_executors;

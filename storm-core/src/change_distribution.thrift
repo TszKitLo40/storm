@@ -35,6 +35,7 @@ service ResourceCentricControllerService {
   void scalingIn();
   void scalingOut();
   void loadBalancing();
+  string queryRoutingTable();
 }
 
 
