@@ -14,6 +14,8 @@ import backtype.storm.elasticity.utils.KeyFrequencySampler;
 import backtype.storm.tuple.Tuple;
 
 import java.io.Serializable;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,6 +49,9 @@ public class ElasticTasks implements Serializable {
     public transient KeyFrequencySampler _sample;
 
     private boolean remote = false;
+
+    private boolean reportDispatchUtilizationNotificatoin;
+    long lastCpuTime = 0;
 
 
     public ElasticTasks(BaseElasticBolt bolt, Integer taskID) {
@@ -82,6 +87,15 @@ public class ElasticTasks implements Serializable {
         _elasticOutputCollector = elasticOutputCollector;
         _sample = new KeyFrequencySampler(Config.RoutingSamplingRate);
         _taskHolder=ElasticTaskHolder.instance();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    Utils.sleep(5000);
+                    reportDispatchUtilizationNotificatoin = true;
+                }
+            }
+        }).start();
     }
 
     public void prepare(ElasticOutputCollector elasticOutputCollector, KeyValueState state) {
@@ -107,6 +121,18 @@ public class ElasticTasks implements Serializable {
     }
 
     public synchronized boolean tryHandleTuple(Tuple tuple, Object key) {
+
+        if(reportDispatchUtilizationNotificatoin) {
+            reportDispatchUtilizationNotificatoin = false;
+            ThreadMXBean tmxb = ManagementFactory.getThreadMXBean();
+
+            long cpuTime = tmxb.getThreadUserTime(Thread.currentThread().getId());
+            double utilization = (cpuTime - lastCpuTime) / 5E9;
+            lastCpuTime = cpuTime;
+            Slave.getInstance().sendMessageToMaster(String.format("Dispatch: %f", utilization));
+        }
+
+
         int route = _routingTable.route(key);
 //        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
 //        if(route==RoutingTable.origin)

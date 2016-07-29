@@ -23,6 +23,8 @@ import backtype.storm.elasticity.scheduler.ShardReassignmentPlan;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
+import backtype.storm.elasticity.utils.serialize.RemoteTupleExecuteResultDeserializer;
+import backtype.storm.elasticity.utils.serialize.RemoteTupleExecuteResultSerializer;
 import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.elasticity.utils.timer.SubtaskWithdrawTimer;
 import backtype.storm.generated.HostNotExistException;
@@ -79,6 +81,9 @@ public class ElasticTaskHolder {
 
     private KryoTupleSerializer tupleSerializer;
 
+    private RemoteTupleExecuteResultSerializer remoteTupleExecuteResultSerializer;
+
+    private RemoteTupleExecuteResultDeserializer remoteTupleExecuteResultDeserializer;
 
 
     Map<Integer, BaseElasticBoltExecutor> _bolts = new HashMap<>();
@@ -326,6 +331,7 @@ public class ElasticTaskHolder {
                                 LOG.debug("The element is RemoteTupleExecuteResult");
 
                                 RemoteTupleExecuteResult remoteTupleExecuteResult = (RemoteTupleExecuteResult)message;
+                                remoteTupleExecuteResult.spaceEfficientSerialize(remoteTupleExecuteResultSerializer);
                                 if (_originalTaskIdToExecutorResultConnection.containsKey(remoteTupleExecuteResult._originalTaskID)) {
                                     byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
 //                                    _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
@@ -454,7 +460,8 @@ public class ElasticTaskHolder {
         sendingThread.start();
         System.out.println("sending thread is created!");
 
-        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", 0.7);
+//        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", 0.7);
+        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", -1);
 
     }
 
@@ -466,9 +473,9 @@ public class ElasticTaskHolder {
                 long lastCpuTime = 0;
                 try {
                     while(true) {
-                        Thread.sleep(1000);
+                        Thread.sleep(5000);
                         long cpuTime = tmxb.getThreadUserTime(threadId);
-                        double utilization = (cpuTime - lastCpuTime) / 1E9;
+                        double utilization = (cpuTime - lastCpuTime) / 5E9;
                         lastCpuTime = cpuTime;
                         if(utilization > reportThreshold) {
                             sendMessageToMaster("cpu utilization of " + threadName + " reaches " + utilization);
@@ -577,7 +584,8 @@ public class ElasticTaskHolder {
             }
         });
         receivingThread.start();
-        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", 0.7);
+        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", -1);
+//        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", 0.7);
     }
 
 
@@ -610,6 +618,7 @@ public class ElasticTaskHolder {
                         if(object instanceof RemoteTupleExecuteResult) {
                             System.out.println("RemoteTupleExecuteResult");
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
+                            result.spaceEfficientDeserialize(remoteTupleExecuteResultDeserializer);
                             ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
                             LOG.debug("A query result is received for "+result._originalTaskID);
                             _bolts.get(targetTaskId).insertToResultQueue(result);
@@ -1032,6 +1041,12 @@ public class ElasticTaskHolder {
         _workerTopologyContext = context;
         tupleDeserializer = new KryoTupleDeserializer(stormConf, context);
         tupleSerializer = new KryoTupleSerializer(stormConf, context);
+
+        remoteTupleExecuteResultDeserializer = new RemoteTupleExecuteResultDeserializer(stormConf, context, tupleDeserializer);
+        remoteTupleExecuteResultSerializer = new RemoteTupleExecuteResultSerializer(stormConf, context, tupleSerializer);
+
+
+
     }
 
     public WorkerTopologyContext getWorkerTopologyContext() {
@@ -1259,6 +1274,7 @@ public class ElasticTaskHolder {
         String workerName = _slaveActor.getName();
 
         String routeName = taskId + "." + routeId;
+
         if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
             if(!workerLogicalName.equals(targetHost)) {
                 _slaveActor.sendMessageToMaster("========== Migration from local to remote ========= " + routeName);

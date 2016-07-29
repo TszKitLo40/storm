@@ -56,4 +56,13 @@ public class KryoTupleDeserializer implements ITupleDeserializer {
             throw new RuntimeException(e);
         }
     }
+
+    public List<Object> deserializeObjects(byte[] ser) {
+        try {
+            _kryoInput.setBuffer(ser);
+            return _kryo.deserialize(ser);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
