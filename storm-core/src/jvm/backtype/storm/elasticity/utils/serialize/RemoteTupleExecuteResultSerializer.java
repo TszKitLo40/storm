@@ -34,9 +34,15 @@ public class RemoteTupleExecuteResultSerializer {
             _kryoOut.clear();
             _kryoOut.writeInt(tuple._taskId);
             _kryoOut.writeString(tuple._streamId);
-            byte[] bytes = tupleSerializer.serialize(tuple._inputTuple);
-            _kryoOut.writeInt(bytes.length);
-            _kryoOut.writeBytes(bytes);
+            byte[] bytes = null;
+            int byteLength = 0;
+            if(tuple._inputTuple!=null) {
+                bytes = tupleSerializer.serialize(tuple._inputTuple);
+                byteLength = bytes.length;
+            }
+            _kryoOut.writeInt(byteLength);
+            if(byteLength != 0)
+                _kryoOut.writeBytes(bytes);
             _kryo.serializeInto(tuple._outputTuple, _kryoOut);
             _kryoOut.writeInt(tuple._commandType);
             _kryoOut.writeInt(tuple._originalTaskID);

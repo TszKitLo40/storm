@@ -42,7 +42,7 @@ public class KryoTupleDeserializer implements ITupleDeserializer {
         _kryoInput = new Input(1);
     }        
 
-    public Tuple deserialize(byte[] ser) {
+    synchronized public Tuple deserialize(byte[] ser) {
         try {
             _kryoInput.setBuffer(ser);
             int taskId = _kryoInput.readInt(true);

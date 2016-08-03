@@ -33,13 +33,34 @@ public class RemoteTupleExecuteResultDeserializer {
     }
 
     public void deserialize(RemoteTupleExecuteResult tuple) {
+        System.out.println("Bytes total size: " + tuple.bytes.length);
         _kryoInput.setBuffer(tuple.bytes);
         tuple._taskId = _kryoInput.readInt(true);
         tuple._streamId = _kryoInput.readString();
         int byteLength = _kryoInput.readInt(true);
-        tuple._inputTuple = tupleDeserializer.deserialize(_kryoInput.readBytes(byteLength));
+        if(byteLength>0) {
+            byte[] bytes = _kryoInput.readBytes(byteLength);
+            System.out.println(String.format("inner byte length: %d(expected %d).", bytes.length, byteLength));
+            tuple._inputTuple = tupleDeserializer.deserialize(bytes);
+        }
         tuple._outputTuple = _kryo.deserializeFrom(_kryoInput);
         tuple._commandType = _kryoInput.readInt(true);
         tuple._originalTaskID = _kryoInput.readInt(true);
+    }
+
+    public RemoteTupleExecuteResult deserializeToTuple(byte[] bytes) {
+        _kryoInput.setBuffer(bytes);
+        int taskId = _kryoInput.readInt(true);
+        String streamId = _kryoInput.readString();
+        int byteLength = _kryoInput.readInt(true);
+        Tuple inputTuple = null;
+        if(byteLength > 0) {
+            inputTuple = tupleDeserializer.deserialize(_kryoInput.readBytes(byteLength));
+        }
+        List<Object> outputTuple = _kryo.deserializeFrom(_kryoInput);
+        int command = _kryoInput.readInt(true);
+        int orignalTaskID = _kryoInput.readInt(true);
+        RemoteTupleExecuteResult ret = new RemoteTupleExecuteResult(orignalTaskID,taskId, streamId, inputTuple, outputTuple, command);
+        return ret;
     }
 }

@@ -326,15 +326,16 @@ public class ElasticTaskHolder {
 
                         for(ITaskMessage message: drainer) {
     //                        System.out.println("sending...");
-                            LOG.debug("An element is taken from the sendingQueue");
+//                            LOG.debug("An element is taken from the sendingQueue");
                             if(message instanceof RemoteTupleExecuteResult) {
-                                LOG.debug("The element is RemoteTupleExecuteResult");
+//                                LOG.debug("The element is RemoteTupleExecuteResult");
 
                                 RemoteTupleExecuteResult remoteTupleExecuteResult = (RemoteTupleExecuteResult)message;
-                                remoteTupleExecuteResult.spaceEfficientSerialize(remoteTupleExecuteResultSerializer);
+//                                remoteTupleExecuteResult.spaceEfficientSerialize(remoteTupleExecuteResultSerializer);
                                 if (_originalTaskIdToExecutorResultConnection.containsKey(remoteTupleExecuteResult._originalTaskID)) {
-                                    byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
+//                                    byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
 //                                    _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
+                                    byte[] bytes = remoteTupleExecuteResultSerializer.serialize(remoteTupleExecuteResult);
                                     TaskMessage taskMessage = new TaskMessage(remoteTupleExecuteResult._originalTaskID, bytes);
                                     insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID), taskMessage);
 
@@ -564,19 +565,23 @@ public class ElasticTaskHolder {
                         Iterator<TaskMessage> messageIterator = _remoteExecutionResultInputConnection.recv(0, 0);
                         while(messageIterator.hasNext()) {
                             TaskMessage message = messageIterator.next();
-                            Object object = SerializationUtils.deserialize(message.message());
+//                            Object object = SerializationUtils.deserialize(message.message());
+                            Object object = remoteTupleExecuteResultDeserializer.deserializeToTuple(message.message());
+//                            Slave.getInstance().sendMessageToMaster("createRemoteExecutorResultReceivingThread got something: " + object);
                             if(object instanceof RemoteTupleExecuteResult) {
                                 RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
+//                                result.spaceEfficientDeserialize(remoteTupleExecuteResultDeserializer);
                                 if(result._inputTuple != null)
                                     ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
-                                LOG.debug("A query result is received for "+result._originalTaskID);
+//                                LOG.debug("A query result is received for "+result._originalTaskID);
                                 _bolts.get(result._originalTaskID).insertToResultQueue(result);
-                                LOG.debug("a query result tuple is added into the input queue");
+//                                LOG.debug("a query result tuple is added into the input queue");
                             } else {
                                 System.err.println("Remote Execution Result input connection receives unexpected object: " + object);
                                 _slaveActor.sendMessageToMaster("Remote Execution Result input connection receives unexpected object: " + object);
                             }
                         }
+                        Utils.sleep(1);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -597,6 +602,7 @@ public class ElasticTaskHolder {
                 int count = 0;
                 while (true) {
                 try {
+                    Utils.sleep(1);
                     Iterator<TaskMessage> messageIterator = _inputConnection.recv(0, 0);
 
 //                    if(messageIterator!=null)
@@ -614,15 +620,15 @@ public class ElasticTaskHolder {
                             queue.put(remoteTuple);
                         } else {
                         Object object = SerializationUtils.deserialize(message.message());
-                        System.out.println(String.format("Received %s!", object));
+//                        System.out.println(String.format("Received %s!", object));
                         if(object instanceof RemoteTupleExecuteResult) {
-                            System.out.println("RemoteTupleExecuteResult");
+//                            System.out.println("RemoteTupleExecuteResult");
                             RemoteTupleExecuteResult result = (RemoteTupleExecuteResult)object;
                             result.spaceEfficientDeserialize(remoteTupleExecuteResultDeserializer);
                             ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
-                            LOG.debug("A query result is received for "+result._originalTaskID);
+//                            LOG.debug("A query result is received for "+result._originalTaskID);
                             _bolts.get(targetTaskId).insertToResultQueue(result);
-                            LOG.debug("a query result tuple is added into the input queue");
+//                            LOG.debug("a query result tuple is added into the input queue");
                         } else if (object instanceof RemoteTuple) {
                             System.out.println("RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) object;
@@ -632,8 +638,8 @@ public class ElasticTaskHolder {
                                 ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(message.task());
                                 LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
                                 queue.put(remoteTuple._tuple);
-                                System.out.println("handled!");
-                                LOG.debug("A remote tuple is added to the queue!\n");
+//                                System.out.println("handled!");
+//                                LOG.debug("A remote tuple is added to the queue!\n");
 
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
@@ -694,7 +700,8 @@ public class ElasticTaskHolder {
             }
         });
         receivingThread.start();
-        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", 0.7);
+//        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", 0.7);
+        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", -1);
     }
 
     private void handleRemoteState(RemoteState remoteState) {
