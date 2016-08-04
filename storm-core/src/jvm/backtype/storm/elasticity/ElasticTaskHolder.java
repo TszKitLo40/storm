@@ -322,7 +322,7 @@ public class ElasticTaskHolder {
                         ArrayList<ITaskMessage> drainer = new ArrayList<>();
                         ITaskMessage firstMessage = _sendingQueue.take();
                         drainer.add(firstMessage);
-                        _sendingQueue.drainTo(drainer, 256);
+                        _sendingQueue.drainTo(drainer, 2048);
 
                         for(ITaskMessage message: drainer) {
     //                        System.out.println("sending...");
@@ -581,7 +581,7 @@ public class ElasticTaskHolder {
                                 _slaveActor.sendMessageToMaster("Remote Execution Result input connection receives unexpected object: " + object);
                             }
                         }
-                        Utils.sleep(1);
+//                        Utils.sleep(1);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -602,7 +602,7 @@ public class ElasticTaskHolder {
                 int count = 0;
                 while (true) {
                 try {
-                    Utils.sleep(1);
+//                    Utils.sleep(1);
                     Iterator<TaskMessage> messageIterator = _inputConnection.recv(0, 0);
 
 //                    if(messageIterator!=null)
@@ -630,7 +630,7 @@ public class ElasticTaskHolder {
                             _bolts.get(targetTaskId).insertToResultQueue(result);
 //                            LOG.debug("a query result tuple is added into the input queue");
                         } else if (object instanceof RemoteTuple) {
-                            System.out.println("RemoteTuple");
+//                            System.out.println("RemoteTuple");
                             RemoteTuple remoteTuple = (RemoteTuple) object;
                             try {
 //                                System.out.println("A remote tuple " + remoteTuple._taskId + "." + remoteTuple._route + " (sid = " + remoteTuple.sid + ") is received!\n");

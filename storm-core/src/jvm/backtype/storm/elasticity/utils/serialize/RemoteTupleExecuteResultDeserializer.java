@@ -33,14 +33,14 @@ public class RemoteTupleExecuteResultDeserializer {
     }
 
     public void deserialize(RemoteTupleExecuteResult tuple) {
-        System.out.println("Bytes total size: " + tuple.bytes.length);
+//        System.out.println("Bytes total size: " + tuple.bytes.length);
         _kryoInput.setBuffer(tuple.bytes);
         tuple._taskId = _kryoInput.readInt(true);
         tuple._streamId = _kryoInput.readString();
         int byteLength = _kryoInput.readInt(true);
         if(byteLength>0) {
             byte[] bytes = _kryoInput.readBytes(byteLength);
-            System.out.println(String.format("inner byte length: %d(expected %d).", bytes.length, byteLength));
+//            System.out.println(String.format("inner byte length: %d(expected %d).", bytes.length, byteLength));
             tuple._inputTuple = tupleDeserializer.deserialize(bytes);
         }
         tuple._outputTuple = _kryo.deserializeFrom(_kryoInput);
