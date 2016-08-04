@@ -1016,6 +1016,17 @@ public class ElasticTaskHolder {
         //terminate the thread and cleanup the resources.
         ElasticRemoteTaskExecutor remoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(taskid);
         remoteTaskExecutor._elasticTasks.terminateGivenQuery(route);
+
+        /**
+         * Ideally, remote task executor should be removed when it does not have any task.
+         * The removal operation is pending now, as there is a well hidden bug caused by the removal.
+         */
+        if(remoteTaskExecutor._elasticTasks.get_routingTable().getRoutes().size()==0) {
+            System.out.println("Removing the elastic task...");
+            removeEmptyRemoteTaskExecutor(taskid);
+            System.out.println("Removed the elastic task...");
+        }
+
         try {
             //get state and send back
             RemoteState state = remoteTaskExecutor.getStateForRoutes(route);
@@ -1032,15 +1043,7 @@ public class ElasticTaskHolder {
         System.out.println("Route "+ route+ " has been removed from the routing table");
 
 
-        /**
-         * Ideally, remote task executor should be removed when it does not have any task.
-         * The removal operation is pending now, as there is a well hidden bug caused by the removal.
-         */
-        if(remoteTaskExecutor._elasticTasks.get_routingTable().getRoutes().size()==0) {
-//            System.out.println("Removing the elastic task...");
-//            removeEmptyRemoteTaskExecutor(taskid);
-//            System.out.println("Removed the elastic task...");
-        }
+
 
 
 

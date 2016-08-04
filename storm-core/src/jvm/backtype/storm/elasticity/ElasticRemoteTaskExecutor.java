@@ -90,33 +90,39 @@ public class ElasticRemoteTaskExecutor {
         @Override
         public void run() {
             int count = 0;
-            while (!_terminating) {
-                try {
-//                    System.out.println("poll...");
-                    Tuple input = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
-//                    System.out.println("polled!");
+            try {
+                while (!_terminating) {
+                    try {
+                        //                    System.out.println("poll...");
+                        Tuple input = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
+                        //                    System.out.println("polled!");
 
-                    if(input != null) {
-                        boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
-                        count++;
-                    if(count % 10000 == 0) {
-                        System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
-                        count = 0;
+                        if (input != null) {
+                            boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
+                            count++;
+                            if (count % 10000 == 0) {
+                                System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
+                                count = 0;
+                            }
+
+                            if (!handled)
+                                System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
+
+                            //                    catch (Exception e) {
+                            //                        e.printStackTrace();
+                            //                    }
+                        }
+                    } catch (Exception e) {
+                        if (e instanceof InterruptedException) {
+                            System.out.println("InputTupleRouting thread is interrupted!");
+                            throw e;
+                        }
+                        e.printStackTrace();
                     }
-
-                        if (!handled)
-                            System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
-
-                        //                    catch (Exception e) {
-                        //                        e.printStackTrace();
-                        //                    }
-                    }
-                } catch (InterruptedException e) {
-                    System.out.println("InputTupleRouting thread is interrupted!");
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
 
+                } catch (InterruptedException  e) {
+                e.printStackTrace();
             }
             _terminated = true;
 
@@ -225,14 +231,32 @@ public class ElasticRemoteTaskExecutor {
         System.out.println("routing table is merged and the worker threads are created!");
     }
 
+    /** There are two ways to terminate a running thread:
+     *  (1) employ a termination flag to notify the thread upon termination request. The thread
+     *  terminates at desirable points of execution once the flag is detected.
+     *  (2) employ Thread.terminate() to terminate the thread at cancellation points (e.g., sleep,
+     *  blocking system calls).
+     *
+     *  Method (2) is easier to implement and typically terminates as early as possible, but the
+     *  termination points are out of control and hence may introduce inconsistency to the programming logic.
+     *
+     *  We use method (2) because termination of any cancellation points is acceptable in our logic.
+     */
     public void close() {
-//            _stateCheckpointingThread.interrupt();
-//            _processingThread.interrupt();
-        _checkPointing.terminate();
-//            _stateCheckpointingThread.join();
-//            _processingThread.join();
-        _processingRunnable.terminate();
 
+
+//        _checkPointing.terminate();
+//        _processingRunnable.terminate();
+
+        _stateCheckpointingThread.interrupt();
+        _processingThread.interrupt();
+        try {
+            _stateCheckpointingThread.join();
+            _processingThread.join();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }

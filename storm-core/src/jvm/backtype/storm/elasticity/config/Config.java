@@ -9,7 +9,7 @@ public class Config {
 
     public static double RoutingSamplingRate = 1.0;
 
-    public static int SubtaskInputQueueCapacity = 1024;
+    public static int SubtaskInputQueueCapacity = 256;
 
     public static int ResultQueueCapacity = 1024;
 
