@@ -28,9 +28,11 @@ import backtype.storm.elasticity.utils.serialize.RemoteTupleExecuteResultSeriali
 import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.elasticity.utils.timer.SubtaskWithdrawTimer;
 import backtype.storm.generated.HostNotExistException;
+import backtype.storm.messaging.ConnectionWithStatus;
 import backtype.storm.messaging.IConnection;
 import backtype.storm.messaging.IContext;
 import backtype.storm.messaging.TaskMessage;
+import backtype.storm.messaging.netty.Client;
 import backtype.storm.messaging.netty.Context;
 import backtype.storm.serialization.KryoTupleDeserializer;
 import backtype.storm.serialization.KryoTupleSerializer;
@@ -238,17 +240,23 @@ public class ElasticTaskHolder {
         if(!_originalTaskIdToRemoteTaskExecutor.containsKey(message._elasticTask.get_taskID())) {
             //This is the first RemoteTasks assigned to this host.
 //            if(!_originalTaskIdToConnection.containsKey(message._elasticTask.get_taskID())) {
-                IConnection iConnection = _context.connect(message._ip + ":" + message._port + "-" + message._elasticTask.get_taskID(), message._ip, message._port);
+                Client iConnection = (Client)_context.connect(message._ip + ":" + message._port + "-" + message._elasticTask.get_taskID(), message._ip, message._port);
+                while(iConnection.status()!=Client.Status.Ready)
+                    Utils.sleep(1);
                 _originalTaskIdToConnection.put(message._elasticTask.get_taskID(), iConnection);
 //            }
 
 //            if(!_originalTaskIdToPriorityConnection.containsKey(message._elasticTask.get_taskID())) {
-                IConnection prioritizedConnection = _context.connect(message._ip + ":" + (message._port + 5) + "-" + message._elasticTask.get_taskID(), message._ip, message._port + 5);
+                Client prioritizedConnection = (Client)_context.connect(message._ip + ":" + (message._port + 5) + "-" + message._elasticTask.get_taskID(), message._ip, message._port + 5);
+                while(prioritizedConnection.status()!=Client.Status.Ready)
+                    Utils.sleep(1);
                 _originalTaskIdToPriorityConnection.put(message._elasticTask.get_taskID(), prioritizedConnection);
 //            }
 
 //            if(!_originalTaskIdToExecutorResultConnection.containsKey(message._elasticTask.get_taskID())) {
-                IConnection remoteExecutionResultConnection = _context.connect(message._ip + ":" + (message._port + 10) + "-" + message._elasticTask.get_taskID(), message._ip, message._port + 10);
+                Client remoteExecutionResultConnection = (Client) _context.connect(message._ip + ":" + (message._port + 10) + "-" + message._elasticTask.get_taskID(), message._ip, message._port + 10);
+                while(remoteExecutionResultConnection.status()!=Client.Status.Ready)
+                    Utils.sleep(1);
                 _originalTaskIdToExecutorResultConnection.put(message._elasticTask.get_taskID(), remoteExecutionResultConnection);
 //            }
 
@@ -461,8 +469,8 @@ public class ElasticTaskHolder {
         sendingThread.start();
         System.out.println("sending thread is created!");
 
-//        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", 0.7);
-        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", -1);
+        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", 0.7);
+//        createThreadUtilizationMonitoringThread(sendingThread.getId(), "Sending Thread", -1);
 
     }
 
@@ -589,8 +597,8 @@ public class ElasticTaskHolder {
             }
         });
         receivingThread.start();
-        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", -1);
-//        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", 0.7);
+//        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", -1);
+        createThreadUtilizationMonitoringThread(receivingThread.getId(), "RemoteExecutorResult Receiving Thread", 0.7);
     }
 
 
@@ -652,7 +660,7 @@ public class ElasticTaskHolder {
 
                         } else if (object instanceof RemoteSubtaskTerminationToken) {
                             System.out.print("Received a RemoteSubtaskTerminationToken!");
-//                            sendMessageToMaster("Received a RemoteSubtaskTerminationToken!");
+                            sendMessageToMaster("Received a RemoteSubtaskTerminationToken!");
                             RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) object;
                             terminateRemoteRoute(remoteSubtaskTerminationToken.taskid, remoteSubtaskTerminationToken.route);
                         } else if (object instanceof BucketToRouteReassignment) {
@@ -700,8 +708,8 @@ public class ElasticTaskHolder {
             }
         });
         receivingThread.start();
-//        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", 0.7);
-        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", -1);
+        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", 0.7);
+//        createThreadUtilizationMonitoringThread(receivingThread.getId(), "Receiving Thread", -1);
     }
 
     private void handleRemoteState(RemoteState remoteState) {
@@ -881,7 +889,9 @@ public class ElasticTaskHolder {
     }
 
     public void establishConnectionToRemoteTaskHolder(int taksId, int route, String remoteIp, int remotePort) {
-        IConnection connection = _context.connect("",remoteIp,remotePort);
+        Client connection = (Client)_context.connect("",remoteIp,remotePort);
+        while(connection.status()!= Client.Status.Ready)
+            Utils.sleep(1);
         _taskidRouteToConnection.put(taksId+"."+route, connection);
         connection.send(0, SerializationUtils.serialize("Hello!"));
         System.out.println("Established connection with remote task holder for " + taksId + "." + route);
@@ -1295,7 +1305,7 @@ public class ElasticTaskHolder {
             if(workerName.equals(targetHost)) {
                 _slaveActor.sendMessageToMaster("========== Migration from remote to local! ========== " + routeName);
                 withdrawRemoteElasticTasks(taskId,routeId);
-                migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
+//                migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
                 _slaveActor.sendMessageToMaster("====================== E N D ====================== " + routeName);
 
             } else {
@@ -1342,7 +1352,7 @@ public class ElasticTaskHolder {
 //        RemoteState remoteState = new RemoteState(taskId, state, routeId);
         SmartTimer.getInstance().stop("SubtaskMigrate", "reconnect");
 //        sendMessageToMaster(SmartTimer.getInstance().getTimerString("SubtaskMigrate"));
-        _slaveActor.sendMessageToNode(targetHost, new TestAliveMessage("local to remote migration completes!"));
+//        _slaveActor.sendMessageToNode(targetHost, new TestAliveMessage("local to remote migration completes!"));
 //        _taskidRouteToConnection.get(taskId + "." + routeId).send(taskId, SerializationUtils.serialize(remoteState));
     }
 

@@ -87,15 +87,15 @@ public class ElasticTasks implements Serializable {
         _elasticOutputCollector = elasticOutputCollector;
         _sample = new KeyFrequencySampler(Config.RoutingSamplingRate);
         _taskHolder=ElasticTaskHolder.instance();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(true) {
-                    Utils.sleep(5000);
-                    reportDispatchUtilizationNotificatoin = true;
-                }
-            }
-        }).start();
+//        new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                while(true) {
+//                    Utils.sleep(5000);
+//                    reportDispatchUtilizationNotificatoin = true;
+//                }
+//            }
+//        }).start();
     }
 
     public void prepare(ElasticOutputCollector elasticOutputCollector, KeyValueState state) {
