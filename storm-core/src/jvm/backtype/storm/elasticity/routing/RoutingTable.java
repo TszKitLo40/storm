@@ -3,7 +3,7 @@ package backtype.storm.elasticity.routing;
 import backtype.storm.elasticity.utils.Histograms;
 
 import java.io.Serializable;
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Robert on 11/3/15.
@@ -13,7 +13,7 @@ public interface RoutingTable extends Serializable, ScalableRouting {
     public static int remote = -2;
     public int route(Object key);
     public int getNumberOfRoutes();
-    public ArrayList<Integer> getRoutes();
+    public List<Integer> getRoutes();
     public Histograms getRoutingDistribution();
     public void enableRoutingDistributionSampling();
 //    public int scalingOut();

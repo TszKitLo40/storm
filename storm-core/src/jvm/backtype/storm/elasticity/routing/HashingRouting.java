@@ -3,10 +3,9 @@ package backtype.storm.elasticity.routing;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlidingWindowRouteSampler;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Robert on 11/3/15.
@@ -63,8 +62,8 @@ public class HashingRouting implements RoutingTable {
     }
 
     @Override
-    public ArrayList<Integer> getRoutes() {
-        ArrayList<Integer> ret = new ArrayList<>();
+    public List<Integer> getRoutes() {
+        List<Integer> ret = new ArrayList<>();
         for(int i=0;i<numberOfRoutes;i++) {
             ret.add(i);
         }

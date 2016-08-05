@@ -893,7 +893,7 @@ public class ElasticTaskHolder {
         while(connection.status()!= Client.Status.Ready)
             Utils.sleep(1);
         _taskidRouteToConnection.put(taksId+"."+route, connection);
-        connection.send(0, SerializationUtils.serialize("Hello!"));
+//        connection.send(0, SerializationUtils.serialize("Hello!"));
         System.out.println("Established connection with remote task holder for " + taksId + "." + route);
 //        sendMessageToMaster("Established connection with remote task holder for " + taksId + "." + route + " on " + remoteIp + ":" + remotePort);
     }
@@ -1295,6 +1295,11 @@ public class ElasticTaskHolder {
 
         String routeName = taskId + "." + routeId;
 
+        if(!_bolts.containsKey(taskId))
+            throw new TaskNotExistingException(taskId);
+//        if(_bolts.get(taskId).get_elasticTasks().get_routingTable().getNumberOfRoutes())
+
+
         if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
             if(!workerLogicalName.equals(targetHost)) {
                 _slaveActor.sendMessageToMaster("========== Migration from local to remote ========= " + routeName);
@@ -1308,7 +1313,6 @@ public class ElasticTaskHolder {
             if(workerName.equals(targetHost)) {
                 _slaveActor.sendMessageToMaster("========== Migration from remote to local! ========== " + routeName);
                 withdrawRemoteElasticTasks(taskId,routeId);
-//                migrateSubtaskToRemoteHost(targetHost, taskId, routeId);
                 _slaveActor.sendMessageToMaster("====================== E N D ====================== " + routeName);
 
             } else {

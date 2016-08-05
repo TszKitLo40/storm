@@ -3,6 +3,7 @@ import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
 import backtype.storm.elasticity.state.*;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -12,7 +13,7 @@ public class RemoteState implements ITaskMessage {
 
     public int _taskId;
     public  Map<Object, Object> _state;
-    public ArrayList<Integer> _routes = new ArrayList<>();
+    public List<Integer> _routes = new ArrayList<>();
     public boolean finalized = false;
 
 
@@ -22,7 +23,7 @@ public class RemoteState implements ITaskMessage {
         _routes.add(route);
     }
 
-    public RemoteState(int taskid,  Map<Object, Object> state, ArrayList<Integer> routes) {
+    public RemoteState(int taskid,  Map<Object, Object> state, List<Integer> routes) {
         _taskId = taskid;
         _state = state;
         _routes = routes;

@@ -14,6 +14,7 @@ import backtype.storm.utils.Utils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -179,7 +180,7 @@ public class ElasticRemoteTaskExecutor {
     }
 
 
-    public RemoteState getStateForRoutes(ArrayList<Integer> routes) throws InterruptedException {
+    public RemoteState getStateForRoutes(List<Integer> routes) throws InterruptedException {
         KeyValueState state = _elasticTasks.get_bolt().getState();
         KeyValueState stateForRoutes = new KeyValueState();
         HashSet<Integer> routeSet = new HashSet<>(routes);
@@ -220,7 +221,7 @@ public class ElasticRemoteTaskExecutor {
             Slave.getInstance().sendMessageToMaster("Routing table cannot be updated as balanced routing table cannot be extracted!");
         }
 
-        ArrayList<Integer> newRoutes = routingTable.getRoutes();
+        List<Integer> newRoutes = routingTable.getRoutes();
         ((PartialHashingRouting)_elasticTasks.get_routingTable()).addValidRoutes(newRoutes);
 
 

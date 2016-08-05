@@ -1,6 +1,5 @@
 package backtype.storm.elasticity.routing;
 
-import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
@@ -74,8 +73,8 @@ public class BalancedHashRouting implements RoutingTable {
     }
 
     @Override
-    public synchronized ArrayList<Integer> getRoutes() {
-        ArrayList<Integer> ret = new ArrayList<>();
+    public synchronized List<Integer> getRoutes() {
+        List<Integer> ret = new ArrayList<>();
         for(int i=0; i<numberOfRoutes; i++) {
             ret.add(i);
         }
