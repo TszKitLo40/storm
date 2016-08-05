@@ -8,4 +8,7 @@ public class InvalidRouteException extends Exception {
     public InvalidRouteException(String str) {
         super(str);
     }
+    public InvalidRouteException(int routeId) {
+        this("Route " + routeId + " is invalid!");
+    }
 }

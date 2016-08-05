@@ -16,7 +16,7 @@ public class RoutingTableUtils {
             return null;
     }
 
-    List<Integer> getOriginalRoutes(RoutingTable routingTable) {
+    public static List<Integer> getOriginalRoutes(RoutingTable routingTable) {
         if(routingTable instanceof PartialHashingRouting) {
             return ((PartialHashingRouting) routingTable).getOriginalRoutes();
         } else

@@ -1296,8 +1296,13 @@ public class ElasticTaskHolder {
         String routeName = taskId + "." + routeId;
 
         if(!_bolts.containsKey(taskId))
-            throw new TaskNotExistingException(taskId);
-//        if(_bolts.get(taskId).get_elasticTasks().get_routingTable().getNumberOfRoutes())
+            throw new TaskNotExistingException(String.format("Task %d does not exist or is not running on %s", taskId, workerName));
+
+        if(!RoutingTableUtils.getOriginalRoutes(_bolts.get(taskId).get_elasticTasks().get_routingTable()).contains(routeId))
+            throw new InvalidRouteException(routeId);
+
+        if(targetHost.equals(routeIdToRemoteHost.get(new RouteId(taskId, routeId))))
+            throw new RuntimeException("Cannot migrate " + taskId + "." + routeId + ", because the task is already running on the host ");
 
 
         if(_bolts.containsKey(taskId) && _bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
