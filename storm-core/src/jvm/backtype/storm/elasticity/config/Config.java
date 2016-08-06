@@ -1,9 +1,63 @@
 package backtype.storm.elasticity.config;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Map;
+
 /**
  * Created by robert on 12/22/15.
  */
 public class Config {
+
+
+    public static void overrideFromStormConf(Map conf) {
+
+        try {
+            InetAddress address = InetAddress.getByName(readString(conf, "nimbus.host", "NimbusHostNameNotGiven"));
+            masterIp = address.getHostAddress();
+            System.out.println("Master ip: " + masterIp);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            InetAddress address = InetAddress.getByName(readString(conf, "elasticity.slave.ip", "SlaveIpNotGiven"));
+            slaveIp = address.getHostAddress();
+            System.out.println("Slave ip: " + slaveIp);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
+
+
+        EnableSubtaskLevelLoadBalancing = readBoolean(conf, "elasticity.EnableIntraExecutorLoadBalancing", false);
+
+        EnableAutomaticScaling = readBoolean(conf, "elasticity.EnableAutomaticScaling", false);
+    }
+
+    static int readInteger(Map conf, String key, int defaultValue) {
+        if(conf.containsKey(key))
+            return (int)conf.get(key);
+        else
+            return defaultValue;
+    }
+
+    static String readString(Map conf, String key, String defaultValue) {
+        if(conf.containsKey(key))
+            return (String) conf.get(key);
+        else
+            return defaultValue;
+    }
+
+    static boolean readBoolean(Map conf, String key, boolean defaultValue) {
+        if(conf.containsKey(key))
+            return ((int) conf.get(key)) >= 1;
+        else
+            return defaultValue;
+    }
+
+
+    /* The following are the default value */
 
     public static int NumberOfShard = 1024;
 
@@ -48,5 +102,7 @@ public class Config {
     public static double taskLevelLoadBalancingThreshold = 0.2;
 
     public static String masterIp = "10.21.25.192";
+
+    public static String slaveIp = "10.21.25.191";
 
 }

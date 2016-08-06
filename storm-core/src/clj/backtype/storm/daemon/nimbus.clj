@@ -126,7 +126,7 @@
      :id->sched-status (atom {})
      :cred-renewers (AuthUtils/GetCredentialRenewers conf)
      :nimbus-autocred-plugins (AuthUtils/getNimbusAutoCredPlugins conf)
-     :elastic-scheduler (ElasticScheduler.)
+     :elastic-scheduler (ElasticScheduler. conf)
      }))
 
 (defn inbox [nimbus]

@@ -362,12 +362,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     public void handleExecutorScalingOutRequest(int taskid) {
-
+        String hostIp = null;
         try {
             String workerHostName = _elasticTaskIdToWorkerLogicalName.get(taskid);
             String preferredIp = getIpForWorkerLogicalName(workerHostName);
 
-            String hostIp = ResourceManager.instance().computationResource.allocateProcessOnPreferredNode(preferredIp);
+            hostIp = ResourceManager.instance().computationResource.allocateProcessOnPreferredNode(preferredIp);
 
             if(hostIp == null) {
                 System.err.println("There is not enough computation resources for scaling out!");
@@ -413,6 +413,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
         } catch (Exception e) {
             e.printStackTrace();
+            if(hostIp != null) {
+                ResourceManager.instance().computationResource.returnProcessor(hostIp);
+            }
         }
 
     }

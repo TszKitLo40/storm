@@ -411,62 +411,65 @@ public class Slave extends UntypedActor {
     }
 
     static public Slave createActor(String name, String port) {
-        backtype.storm.Config stormConfig;
-        try{
+//        backtype.storm.Config stormConfig;
+//        try{
 
-            String hostname = ConfigReader.readString("elasticity.slave.ip");
-            if(hostname == null)
-                hostname = InetAddress.getLocalHost().getHostAddress();
+//            String hostname = ConfigReader.readString("elasticity.slave.ip");
+//            if(hostname == null)
+//                hostname = InetAddress.getLocalHost().getHostAddress();
 
-            
+            System.out.println("#############1 " + backtype.storm.elasticity.config.Config.slaveIp);
+
+
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
-                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + hostname))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.slaveIp))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                     .withFallback(ConfigFactory.load());
             ActorSystem system = ActorSystem.create("ClusterSystem", config);
             system.actorOf(Props.create(Slave.class, name, port), "slave");
 
-            System.out.println("Slave actor is created on " + hostname);
-//            Slave slave = Slave.getInstance();
-
-
+            System.out.println("#############1 " + backtype.storm.elasticity.config.Config.slaveIp);
+            System.out.println("Slave actor is created on " + backtype.storm.elasticity.config.Config.slaveIp);
 
             return Slave.waitAndGetInstance();
-        } catch (UnknownHostException e ) {
-            e.printStackTrace();
-            return null;
-        }
+//        } catch (UnknownHostException e ) {
+//            e.printStackTrace();
+//            return null;
+//        }
 
     }
 
     static public Slave createActor(String name, String port, boolean supervisorActor) {
-        try{
+//        try{
 
-            String hostname = ConfigReader.readString("elasticity.slave.ip");
-            if(hostname == null)
-                hostname = InetAddress.getLocalHost().getHostAddress();
+//            String hostname = ConfigReader.readString("elasticity.slave.ip");
+//            if(hostname == null)
+//                hostname = InetAddress.getLocalHost().getHostAddress();
+//
+//            System.out.println("Host name = " + hostname);
 
-            System.out.println("Host name = " + hostname);
+            System.out.println("#############2 " + backtype.storm.elasticity.config.Config.slaveIp);
 
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
-                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + hostname))
+                    .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.slaveIp))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                     .withFallback(ConfigFactory.load());
             ActorSystem system = ActorSystem.create("ClusterSystem", config);
             system.actorOf(Props.create(Slave.class, name, port, supervisorActor), "slave");
 
-            System.out.println("Slave actor is created on " + hostname);
+            System.out.println("#############2 " + backtype.storm.elasticity.config.Config.slaveIp);
+            System.out.println("Slave actor is created on " + backtype.storm.elasticity.config.Config.slaveIp);
 //            Slave slave = Slave.getInstance();
 
 
 
             return Slave.waitAndGetInstance();
-        } catch (UnknownHostException e ) {
-            e.printStackTrace();
-            return null;
-        }
+//        } catch (UnknownHostException e ) {
+//            e.printStackTrace();
+//            return null;
+//        }
 
     }
 

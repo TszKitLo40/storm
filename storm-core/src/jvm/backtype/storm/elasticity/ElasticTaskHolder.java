@@ -125,6 +125,7 @@ public class ElasticTaskHolder {
 
     private ElasticTaskHolder(Map stormConf, String workerId, int port) {
         System.out.println("creating ElasticTaskHolder");
+        Config.overrideFromStormConf(stormConf);
         this.stormConf = stormConf;
         _context = new Context();
         _port = port + 10000;

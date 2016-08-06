@@ -39,7 +39,14 @@ public class ElasticScheduler {
 
     LinkedBlockingQueue<Integer> pendingTaskLevelLoadBalancingQueue = new LinkedBlockingQueue<>();
 
-    public ElasticScheduler() {
+    public ElasticScheduler(Map conf) {
+
+//        System.out.println("Print ------->");
+//        System.out.println(conf.get("slave.ip"));
+//        System.out.println("Printed!");
+
+        Config.overrideFromStormConf(conf);
+
         master = Master.createActor();
         resourceManager = new ResourceManager();
         instance = this;
@@ -163,8 +170,8 @@ public class ElasticScheduler {
                                 }
                         }
                         if(request instanceof ExecutorScalingOutRequestMessage) {
-                            System.out.println("Scaling out!");
                             ExecutorScalingOutRequestMessage requestMessage = (ExecutorScalingOutRequestMessage)request;
+                            System.out.println("Scaling out " + requestMessage.taskId);
                             synchronized (lock) {
                                 long start = System.currentTimeMillis();
                                 master.handleExecutorScalingOutRequest(requestMessage.taskId);
