@@ -33,6 +33,8 @@ public class Config {
         EnableSubtaskLevelLoadBalancing = readBoolean(conf, "elasticity.EnableIntraExecutorLoadBalancing", false);
 
         EnableAutomaticScaling = readBoolean(conf, "elasticity.EnableAutomaticScaling", false);
+
+        SubtaskLevelLoadBalancingCycleInMilliSecs = readInteger(conf, "elasticity.IntraExecutorLoadBalancingCycle", 1000);
     }
 
     static int readInteger(Map conf, String key, int defaultValue) {
@@ -59,7 +61,7 @@ public class Config {
 
     /* The following are the default value */
 
-    public static int NumberOfShard = 1024;
+    public static int NumberOfShard = 64;
 
     public static double RoutingSamplingRate = 1.0;
 
@@ -101,7 +103,7 @@ public class Config {
 
     public static double taskLevelLoadBalancingThreshold = 0.2;
 
-    public static String masterIp = "10.21.25.192";
+    public static String masterIp = "10.21.25.204";
 
     public static String slaveIp = "10.21.25.191";
 

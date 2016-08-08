@@ -35,7 +35,7 @@ public class KryoTupleSerializer implements ITupleSerializer {
         _ids = new SerializationFactory.IdDictionary(context.getRawTopology());
     }
 
-    public byte[] serialize(Tuple tuple) {
+    synchronized public byte[] serialize(Tuple tuple) {
         try {
             
             _kryoOut.clear();
@@ -49,7 +49,7 @@ public class KryoTupleSerializer implements ITupleSerializer {
         }
     }
 
-    public byte[] serialize(List<Object> objects) {
+    synchronized public byte[] serialize(List<Object> objects) {
         try {
             _kryoOut.clear();
             _kryo.serializeInto(objects, _kryoOut);

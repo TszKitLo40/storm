@@ -345,6 +345,14 @@ public class ElasticTaskHolder {
 //                                    byte[] bytes = SerializationUtils.serialize(remoteTupleExecuteResult);
 //                                    _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID).send(remoteTupleExecuteResult._originalTaskID, bytes);
                                     byte[] bytes = remoteTupleExecuteResultSerializer.serialize(remoteTupleExecuteResult);
+//                                    RemoteTupleExecuteResult recovered = remoteTupleExecuteResultDeserializer.deserializeToTuple(bytes);
+//
+//                                    if(recovered._originalTaskID!=remoteTupleExecuteResult._originalTaskID) {
+//                                        System.out.println(String.format("OriginalTaskId is wrong. %d --> %d", remoteTupleExecuteResult._originalTaskID, recovered._originalTaskID));
+//                                        System.out.println("\n\n\nBefore: " + remoteTupleExecuteResult.toString());
+//                                        System.out.println("After: " + recovered.toString());
+//                                    }
+
                                     TaskMessage taskMessage = new TaskMessage(remoteTupleExecuteResult._originalTaskID, bytes);
                                     insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _originalTaskIdToExecutorResultConnection.get(remoteTupleExecuteResult._originalTaskID), taskMessage);
 
@@ -582,9 +590,9 @@ public class ElasticTaskHolder {
 //                                result.spaceEfficientDeserialize(remoteTupleExecuteResultDeserializer);
                                 if(result._inputTuple != null)
                                     ((TupleImpl)result._inputTuple).setContext(_workerTopologyContext);
-//                                LOG.debug("A query result is received for "+result._originalTaskID);
+//                                System.out.println("A query result is received. originalTaskId =  "+result._originalTaskID + " TaskID =  " + result._taskId);
                                 _bolts.get(result._originalTaskID).insertToResultQueue(result);
-//                                LOG.debug("a query result tuple is added into the input queue");
+//                                System.out.println("a query result tuple is added into the input queue");
                             } else {
                                 System.err.println("Remote Execution Result input connection receives unexpected object: " + object);
                                 _slaveActor.sendMessageToMaster("Remote Execution Result input connection receives unexpected object: " + object);
@@ -687,7 +695,7 @@ public class ElasticTaskHolder {
                         } else if (object instanceof CleanPendingTupleToken) {
                             System.out.println("CleanPendingTupleToken");
                             CleanPendingTupleToken cleanPendingTupleToken = (CleanPendingTupleToken) object;
-                            sendMessageToMaster("Received CleanPendingTupleToken");
+//                            sendMessageToMaster("Received CleanPendingTupleToken");
 
                             handleCleanPendingTupleToken(cleanPendingTupleToken);
                         }
@@ -752,16 +760,16 @@ public class ElasticTaskHolder {
         try {
         if(_bolts.containsKey(taskId)) {
             if(_bolts.get(taskId).get_elasticTasks().get_routingTable().getRoutes().contains(routeId)) {
-                sendMessageToMaster("Waiting for pending tuples to be cleaned!");
+//                sendMessageToMaster("Waiting for pending tuples to be cleaned!");
                 _bolts.get(taskId).get_elasticTasks().makesSureNoPendingTuples(routeId);
-                sendMessageToMaster("Waiting tuples are cleaned!");
+//                sendMessageToMaster("Waiting tuples are cleaned!");
             } else {
                 _taskIdRouteToCleanPendingTupleSemaphore.put(taskId + "." + routeId, new Semaphore(0));
                 _sendingQueue.put(new CleanPendingTupleToken(taskId, routeId));
-                sendMessageToMaster("Waiting for pending tuples to be cleaned [Remote]!");
+//                sendMessageToMaster("Waiting for pending tuples to be cleaned [Remote]!");
                 _taskIdRouteToCleanPendingTupleSemaphore.get(taskId+"."+routeId).acquire();
                 _taskIdRouteToCleanPendingTupleSemaphore.remove(taskId + "." + routeId);
-                sendMessageToMaster("Waiting tuples are cleaned [Remote]!");
+//                sendMessageToMaster("Waiting tuples are cleaned [Remote]!");
             }
         }
         } catch (Exception e) {
@@ -814,10 +822,10 @@ public class ElasticTaskHolder {
         }
         System.out.println("to handle handleCleanPendingTupleToken");
         _originalTaskIdToRemoteTaskExecutor.get(token.taskId)._elasticTasks.makesSureNoPendingTuples(token.routeId);
-
+        System.out.println(String.format("Pending tuple for %s.%s is cleaned!", token.taskId, token.routeId));
         PendingTupleCleanedMessage message = new PendingTupleCleanedMessage(token.taskId, token.routeId);
         _originalTaskIdToPriorityConnection.get(token.taskId).send(token.taskId, SerializationUtils.serialize(message));
-        sendMessageToMaster("PendingTupleCleanedMessage is sent back!");
+//        sendMessageToMaster("PendingTupleCleanedMessage is sent back!");
     }
 
     private KeyValueState getState(int taskId) {
@@ -1242,24 +1250,36 @@ public class ElasticTaskHolder {
         System.out.println("Resumed!");
         SmartTimer.getInstance().stop("ShardReassignment", "total");
 //        sendMessageToMaster("Reassignment completes!");
-        _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("ShardReassignment"));
+//        _slaveActor.sendMessageToMaster(SmartTimer.getInstance().getTimerString("ShardReassignment"));
         System.out.println("===End Shard Reassignment " + bucketId + " " + taskid + "." + orignalRoute + "---->" + taskid + "." + targetRoute);
 
     }
 
-    public void waitIfStreamToTargetSubtaskIsPaused(int targetTask, int route) {
+    public boolean waitIfStreamToTargetSubtaskIsPaused(int targetTask, int route) {
 //        System.out.println("waitIfStreamToTargetSubtaskIsPaused!");
         String key = targetTask+"."+route;
         if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
             try {
                 System.out.println("Sending stream to " + targetTask + "." + route + " is paused. Waiting for resumption!");
-                _taskIdRouteToSendingWaitingSemaphore.get(key).acquire();
-                _taskIdRouteToSendingWaitingSemaphore.remove(key);
+                Semaphore semaphore = _taskIdRouteToSendingWaitingSemaphore.get(key);
+                semaphore.acquire();
+//                synchronized (_taskIdRouteToSendingWaitingSemaphore) {
+//                    if(_taskIdRouteToCleanPendingTupleSemaphore.containsKey(key) && _taskIdRouteToCleanPendingTupleSemaphore.get(key).equals(semaphore)) {
+//                        _taskIdRouteToCleanPendingTupleSemaphore.remove(key);
+//                        System.out.println("Semaphore for " + key + " is removed.");
+//                    }
+//                    else {
+//                        System.out.println("Semaphore for " + key + " is not removed, because the semaphore is not the original one!");
+//                    }
+                _taskIdRouteToCleanPendingTupleSemaphore.remove(key);
+//                }
                 System.out.println( targetTask + "." + route +" is resumed!!!!!");
+                return true;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
+        return false;
     }
 
     void pauseSendingToTargetSubtask(int targetTask, int route) {
@@ -1277,7 +1297,7 @@ public class ElasticTaskHolder {
             return;
         }
         _taskIdRouteToSendingWaitingSemaphore.get(key).release();
-        System.out.println("Sending is resumed!");
+        System.out.println("Sending to " + key + "is resumed!");
 
     }
 

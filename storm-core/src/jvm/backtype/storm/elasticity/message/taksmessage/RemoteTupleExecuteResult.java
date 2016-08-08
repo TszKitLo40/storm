@@ -56,4 +56,17 @@ public class RemoteTupleExecuteResult extends TupleExecuteResult implements ITas
     }
 
 
+    public String toString() {
+        String ret = "";
+        ret += String.format("_taskId = %d\n", _taskId);
+        ret += String.format("_streamId = %s\n", _streamId);
+        ret += String.format("_inputTuple = %s\n", _inputTuple);
+        ret += String.format("_outputTuple = %s\n", _outputTuple.toString());
+        ret += String.format("_commandType = %s\n", _commandType);
+        ret += String.format("_originalTaskId = %s\n", _originalTaskID);
+
+        return ret;
+    }
+
+
 }

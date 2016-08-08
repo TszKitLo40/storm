@@ -415,6 +415,7 @@ public class Slave extends UntypedActor {
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
                 .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.slaveIp))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
+                .withFallback(ConfigFactory.parseString("akka.cluster.seed-nodes = [ \"akka.tcp://ClusterSystem@"+ backtype.storm.elasticity.config.Config.masterIp + ":2551\"]"))
                 .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                 .withFallback(ConfigFactory.load());
         ActorSystem system = ActorSystem.create("ClusterSystem", config);
@@ -431,6 +432,7 @@ public class Slave extends UntypedActor {
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=0")
                 .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.slaveIp))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [slave]"))
+                .withFallback(ConfigFactory.parseString("akka.cluster.seed-nodes = [ \"akka.tcp://ClusterSystem@"+ backtype.storm.elasticity.config.Config.masterIp + ":2551\"]"))
                 .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.maximum-frame-size = 134217728"))
                 .withFallback(ConfigFactory.load());
         ActorSystem system = ActorSystem.create("ClusterSystem", config);

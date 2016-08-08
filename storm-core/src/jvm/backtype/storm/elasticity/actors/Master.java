@@ -210,7 +210,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
                                 for (String coreIp : _taskToCoreLocations.get(task)) {
                                     System.out.println("No: " + i++);
                                     ResourceManager.instance().computationResource.returnProcessor(coreIp);
-                                    System.out.println("The CPU core for task " + task + " is returned, as the its hosting worker is called!");
+                                    System.out.println("The CPU core for task " + task + " is returned, as the its hosting worker is dead!");
                                 }
                             }
 
@@ -434,7 +434,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.masterIp))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
-                    .withFallback(ConfigFactory.load()); 
+                    .withFallback(ConfigFactory.parseString("akka.cluster.seed-nodes = [ \"akka.tcp://ClusterSystem@"+ backtype.storm.elasticity.config.Config.masterIp + ":2551\"]"))
+                    .withFallback(ConfigFactory.load());
             ActorSystem system = ActorSystem.create("ClusterSystem", config);
 
             system.actorOf(Props.create(Master.class), "master");
@@ -454,6 +455,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
                 .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
+                .withFallback(ConfigFactory.parseString("akka.cluster.seed-nodes = [ \"akka.tcp://ClusterSystem@"+ backtype.storm.elasticity.config.Config.masterIp + ":2551\"]"))
                 .withFallback(ConfigFactory.load());
 
         ActorSystem system = ActorSystem.create("ClusterSystem", config);
@@ -592,7 +594,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         long startTime = System.currentTimeMillis();
 
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
-        log("Shard reassignment command has been sent!");
+//        log("Shard reassignment command has been sent!");
         try {
             inbox.receive(new FiniteDuration(10000, TimeUnit.SECONDS));
         } catch (TimeoutException e) {

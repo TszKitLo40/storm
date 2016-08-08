@@ -50,7 +50,7 @@ public class ElasticTasks implements Serializable {
 
     private boolean remote = false;
 
-    private boolean reportDispatchUtilizationNotificatoin;
+    private boolean reportDispatchUtilizationNotificatoin = false;
     long lastCpuTime = 0;
 
 
@@ -146,7 +146,14 @@ public class ElasticTasks implements Serializable {
 //        if(new Random().nextFloat()<0.002) {
 //            System.out.println("A tuple is route to " + route);
 //        }
-        _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
+        final boolean paused = _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
+
+
+        // The routing table may be updated during the pausing phase, so we should recompute the route.
+        if(paused) {
+            route = _routingTable.route(key);
+        }
+
         if (route == RoutingTable.remote) {
             if(remote) {
                 String str = "A tuple is routed to remote on a remote ElasticTasks!\n";
@@ -166,6 +173,7 @@ public class ElasticTasks implements Serializable {
 
             } catch (Exception e) {
                 e.printStackTrace();
+
             }
             return true;
         }
