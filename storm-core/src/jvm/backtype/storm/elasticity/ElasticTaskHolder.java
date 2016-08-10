@@ -155,7 +155,7 @@ public class ElasticTaskHolder {
 
     public void registerElasticBolt(BaseElasticBoltExecutor bolt, int taskId) {
         _bolts.put(taskId, bolt);
-        _taskIdToRouteToSendingWaitingSemaphore = new HashMap<>();
+        _taskIdToRouteToSendingWaitingSemaphore.put(taskId, new HashMap<Integer, Semaphore>());
         _slaveActor.registerOriginalElasticTaskToMaster(taskId);
         createQueueUtilizationMonitoringThread(_sendingQueue, "Sending Queue", Config.ElasticTaskHolderOutputQueueCapacity, 0.9, null);
         LOG.info("A new ElasticTask is registered." + taskId);
@@ -276,6 +276,8 @@ public class ElasticTaskHolder {
             System.out.println("ElasticRemoteTaskExecutor is created!");
 
             _originalTaskIdToRemoteTaskExecutor.put(message._elasticTask.get_taskID(), remoteTaskExecutor);
+
+            _taskIdToRouteToSendingWaitingSemaphore.put(message._elasticTask.get_taskID(), new HashMap<Integer, Semaphore>());
 
             System.out.println("ElasticRemoteTaskExecutor is added to the map!");
             remoteTaskExecutor.prepare(message.state);
@@ -1254,15 +1256,15 @@ public class ElasticTaskHolder {
     public boolean waitIfStreamToTargetSubtaskIsPaused(int targetTask, int route) {
 //        System.out.println("waitIfStreamToTargetSubtaskIsPaused!");
         String key = targetTask+"."+route;
-        if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
+        if(_taskIdToRouteToSendingWaitingSemaphore.get(targetTask).containsKey(route)) {
             try {
                 System.out.println("Sending stream to " + targetTask + "." + route + " is paused. Waiting for resumption!");
 //                _taskIdRouteToSendingWaitingSemaphore.get(key).acquire();
-                Semaphore semaphore = _taskIdRouteToSendingWaitingSemaphore.get(key);
+                Semaphore semaphore = _taskIdToRouteToSendingWaitingSemaphore.get(targetTask).get(route);
                 semaphore.acquire();
 //                synchronized (_taskIdRouteToSendingWaitingSemaphore) {
-                    if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key) && _taskIdRouteToSendingWaitingSemaphore.get(key).equals(semaphore)) {
-                        _taskIdRouteToSendingWaitingSemaphore.remove(key);
+                    if(_taskIdToRouteToSendingWaitingSemaphore.get(targetTask).containsKey(route) && _taskIdToRouteToSendingWaitingSemaphore.get(targetTask).get(route).equals(semaphore)) {
+                        _taskIdToRouteToSendingWaitingSemaphore.get(targetTask).remove(route);
                         System.out.println("Semaphore for " + key + " is removed.");
                     }
                     else {
@@ -1280,22 +1282,22 @@ public class ElasticTaskHolder {
     }
 
     void pauseSendingToTargetSubtask(int targetTask, int route) {
-        String key = targetTask+"."+route;
-        synchronized (_taskIdRouteToSendingWaitingSemaphore) {
-            _taskIdRouteToSendingWaitingSemaphore.put(key, new Semaphore(0));
+        synchronized (_taskIdToRouteToSendingWaitingSemaphore.get(targetTask)) {
+            _taskIdToRouteToSendingWaitingSemaphore.get(targetTask).put(route, new Semaphore(0));
         }
+        final String key = targetTask+"."+route;
         System.out.println("Sending to " + key + " is paused!");
 
     }
 
     void resumeSendingToTargetSubtask(int targetTask, int route) {
         String key = targetTask + "." + route;
-        synchronized (_taskIdRouteToSendingWaitingSemaphore) {
-            if (!_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
+        synchronized (_taskIdToRouteToSendingWaitingSemaphore.get(targetTask)) {
+            if (!_taskIdToRouteToSendingWaitingSemaphore.get(targetTask).containsKey(route)) {
                 System.out.println("cannot resume " + key + " because the semaphore does not exist!");
                 return;
             }
-            _taskIdRouteToSendingWaitingSemaphore.get(key).release();
+            _taskIdToRouteToSendingWaitingSemaphore.get(targetTask).get(route).release();
         }
         System.out.println("Sending to " + key + "is resumed!");
 

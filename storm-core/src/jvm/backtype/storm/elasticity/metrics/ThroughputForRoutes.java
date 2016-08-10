@@ -1,5 +1,7 @@
 package backtype.storm.elasticity.metrics;
 
+import backtype.storm.elasticity.actors.Slave;
+
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +30,7 @@ public class ThroughputForRoutes implements Serializable {
         double throughput = 0;
         for(int route: routeToThroughput.keySet()) {
             throughput += routeToThroughput.get(route);
+            Slave.getInstance().sendMessageToMaster(String.format("[%d:] %f", route, routeToThroughput.get(route)));
         }
         return throughput;
     }
@@ -37,6 +40,7 @@ public class ThroughputForRoutes implements Serializable {
         for(int route: routeToThroughput.keySet()) {
             if(routeToUpdateTime.get(route)!=null && System.currentTimeMillis() - routeToUpdateTime.get(route) <= threshold) {
                 throughput += routeToThroughput.get(route);
+                Slave.getInstance().sendMessageToMaster(String.format("[%d:] %f", route, routeToThroughput.get(route)));
             }
         }
         return throughput;

@@ -118,6 +118,7 @@ public class ElasticRemoteTaskExecutor {
                             System.out.println("InputTupleRouting thread is interrupted!");
                             throw e;
                         }
+                        System.out.println(String.format("_elasticTasks: %s, _bolt: %s", _elasticTasks, _bolt));
                         e.printStackTrace();
                     }
                 }

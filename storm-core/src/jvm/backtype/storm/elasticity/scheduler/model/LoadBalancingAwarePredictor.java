@@ -24,7 +24,7 @@ public class LoadBalancingAwarePredictor implements ExecutorParallelismPredictor
                 maxRouteLoads = Math.max(i, maxRouteLoads);
             }
 
-            if(maxRouteLoads == maxShardLoad)
+            if(maxRouteLoads * 0.9 < maxShardLoad)
                 desirableDoP = currentDop;
         }
 

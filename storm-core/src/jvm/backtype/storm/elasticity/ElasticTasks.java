@@ -138,20 +138,8 @@ public class ElasticTasks implements Serializable {
         if(route == RoutingTable.remote)
             originalRoute = ((PartialHashingRouting)_routingTable).getOrignalRoute(key);
 
-//        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
-//        if(route==RoutingTable.origin)
-//            return false;
-//        else
-
-//        System.out.println("A tuple is routed to " + route);
-//        System.out.println("Routing table: " + _routingTable);
-
-
-//        if(new Random().nextFloat()<0.002) {
-//            System.out.println("A tuple is route to " + route);
-//        }
         final boolean paused = _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
-        synchronized (_taskHolder._taskIdRouteToSendingWaitingSemaphore) {
+        synchronized (_taskHolder._taskIdToRouteToSendingWaitingSemaphore.get(_taskID)) {
 
             // The routing table may be updated during the pausing phase, so we should recompute the route.
             if (paused) {
@@ -169,28 +157,14 @@ public class ElasticTasks implements Serializable {
                     Slave.getInstance().sendMessageToMaster(str);
                     return false;
                 }
-//            System.out.println("============== BEGIN ===============");
-//            System.out.println(String.format("BEGIN: %d(key %s) is routed to %d (original: %d == %d) ", GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard
-//              ,key.toString()  , route, RoutingTableUtils.getBalancecHashRouting(_routingTable).route(key), ((PartialHashingRouting)_routingTable).getOrignalRoute(key)));
 
-                System.out.println(String.format("%s(shard = %d) is routed to %d [remote]!", key.toString(), GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard, originalRoute));
+//                System.out.println(String.format("%s(shard = %d) is routed to %d [remote]!", key.toString(), GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard, originalRoute));
                 RemoteTuple remoteTuple = new RemoteTuple(_taskID, originalRoute, tuple);
 
-
-//            System.out.println(String.format("END:   %d(key %s) is routed to %d (original: %d == %d) ", GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard
-//                    ,key.toString()  , route, RoutingTableUtils.getBalancecHashRouting(_routingTable).route(key), ((PartialHashingRouting)_routingTable).getOrignalRoute(key)));
-
-
-//            System.out.println("==============  END  ===============");
                 try {
                     _remoteTupleQueue.put(remoteTuple);
-//                System.out.println("Remote Tuple is generated and sent to _remoteTupleQueue");
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-
                 } catch (Exception e) {
                     e.printStackTrace();
-
                 }
                 return true;
             } else {
@@ -200,9 +174,6 @@ public class ElasticTasks implements Serializable {
 //                System.out.println("A tuple is inserted into the processing queue!");
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                } catch (NullPointerException ne) {
-                    ne.printStackTrace();
-//                System.err.println("route:"+route+", queue size: "+_queues.size());
                 }
                 return true;
             }
