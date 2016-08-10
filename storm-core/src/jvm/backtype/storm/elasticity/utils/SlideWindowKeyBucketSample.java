@@ -66,7 +66,8 @@ public class SlideWindowKeyBucketSample implements Serializable {
     public Histograms getDistribution() {
         ConcurrentHashMap<Integer, Long> distribution = new ConcurrentHashMap<>();
         for(Integer i=0; i < _nBuckets; i++ ) {
-            distribution.put(i, (long)(buckets[i].reportRate() * sampleLength));
+            //RateTracker.reportRate() return tuples per second rather than millisecond
+            distribution.put(i, (long)(buckets[i].reportRate() * sampleLength/1000));
         }
 //        for(int i = 0; i < _nBuckets; ++i){
 //            System.out.print(i);

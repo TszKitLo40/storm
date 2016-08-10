@@ -37,7 +37,7 @@ public class ElasticExecutorMetrics {
     }
 
     public Long getAverageLatency() {
-        Slave.getInstance().sendMessageToMaster(executionLatencyForRoutes.toString());
+//        Slave.getInstance().sendMessageToMaster(executionLatencyForRoutes.toString());
         return executionLatencyForRoutes.getAverageLatency();
     }
 

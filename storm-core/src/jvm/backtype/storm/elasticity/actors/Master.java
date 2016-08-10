@@ -197,6 +197,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
                     final String logicalName = _hostNameToWorkerLogicalName.get(name);
 
                     _ipToWorkerLogicalName.get(ip).remove(logicalName);
+                    System.out.println(ip + " is removed!");
+                    printIpToWorkerLogicalName();
 //                    if(_ipToWorkerLogicalName.get(ip).isEmpty()) {
 //                        _ipToWorkerLogicalName.remove(ip);
 ////                        ResourceManager.instance().computationResource.unregisterNode(ip);
@@ -263,6 +265,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             if(!_ipToWorkerLogicalName.containsKey(ip))
                 _ipToWorkerLogicalName.put(ip, new HashSet<String>());
             _ipToWorkerLogicalName.get(ip).add(logicalName);
+            printIpToWorkerLogicalName();
 //            ResourceManager.instance().computationResource.registerNode(ip, workerRegistrationMessage.getNumberOfProcessors());
             System.out.println(ResourceManager.instance().computationResource);
 
@@ -415,6 +418,10 @@ public class Master extends UntypedActor implements MasterService.Iface {
             e.printStackTrace();
             if(hostIp != null) {
                 ResourceManager.instance().computationResource.returnProcessor(hostIp);
+            }
+            System.out.println("HostIP: " + hostIp);
+            for(String name: _ipToWorkerLogicalName.keySet()) {
+                System.out.println(String.format("%s: %s", name, _ipToWorkerLogicalName.get(name)));
             }
         }
 
@@ -795,6 +802,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     public String getRouteHosterName(int taskid, int route) {
         return _taskidRouteToWorker.get(taskid + "." + route);
+    }
+
+    private void printIpToWorkerLogicalName() {
+        System.out.println("_ipToWorkerLogicalName: ");
+        for(String ip: _ipToWorkerLogicalName.keySet()) {
+            System.out.println(String.format("%s: %s", ip, _ipToWorkerLogicalName.get(ip)));
+        }
     }
 
 }

@@ -1,7 +1,6 @@
 package storm.starter;
 
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.elasticity.BaseElasticBolt;
 import backtype.storm.elasticity.ElasticOutputCollector;
@@ -154,12 +153,12 @@ public class WordCountTopologyElastic {
         else {
             conf.setMaxTaskParallelism(3);
 
-            LocalCluster cluster = new LocalCluster();
-            cluster.submitTopology("word-count", conf, builder.createTopology());
-
-            Thread.sleep(1000000);
-
-            cluster.shutdown();
+//            LocalCluster cluster = new LocalCluster();
+//            cluster.submitTopology("word-count", conf, builder.createTopology());
+//
+//            Thread.sleep(1000000);
+//
+//            cluster.shutdown();
         }
     }
 }

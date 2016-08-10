@@ -246,16 +246,20 @@ public class ElasticScheduler {
         return (loadMax - loadMin) / (double)loadMax;
     }
 
-    /**
-     * Given the statics collected from the routing table, this function predict the ratio of actual performance
-     * to the optimal performance. Performance ratio is from 0 to 1. The higher ratio is, the better load balance
-     * is achieved.
-     * @param histograms statics on the bucket level
-     * @param balancedHashRouting routing table, containing the shard to task mapping.
-     * @return the performance factor
-     * @throws TaskNotExistException
-     * @throws RoutingTypeNotSupportedException
-     */
+    public static double getPerformanceFactor(BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
+        return getPerformanceFactor(balancedHashRouting.getBucketsDistribution(), balancedHashRouting);
+    }
+
+        /**
+         * Given the statics collected from the routing table, this function predict the ratio of actual performance
+         * to the optimal performance. Performance ratio is from 0 to 1. The higher ratio is, the better load balance
+         * is achieved.
+         * @param histograms statics on the bucket level
+         * @param balancedHashRouting routing table, containing the shard to task mapping.
+         * @return the performance factor
+         * @throws TaskNotExistException
+         * @throws RoutingTypeNotSupportedException
+         */
     public static double getPerformanceFactor(Histograms histograms, BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
 //        RoutingTable routingTable = master.getRoutingTable(taskId);
 //        BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
@@ -284,6 +288,10 @@ public class ElasticScheduler {
             routeLoads[shardToRouteMapping.get(shard)] += histograms.histogramsToArrayList().get(shard);
         }
 
+        return getPerformanceFactor(routeLoads);
+    }
+
+    static public double getPerformanceFactor(long[] routeLoads) {
         long loadSum = 0;
         long loadMin = Long.MAX_VALUE;
         long loadMax = Long.MIN_VALUE;
@@ -302,6 +310,25 @@ public class ElasticScheduler {
         }
 
         return ratio;
+    }
+
+    static public long[] getRouteLoads(BalancedHashRouting balancedHashRouting) {
+        Histograms histograms = balancedHashRouting.getBucketsDistribution();
+        Map<Integer, Integer> shardToRouteMapping = balancedHashRouting.getBucketToRouteMapping();
+        final int numberOfRoutes = balancedHashRouting.getNumberOfRoutes();
+        long[] routeLoads = new long[numberOfRoutes];
+        for(Integer shard: shardToRouteMapping.keySet()) {
+            routeLoads[shardToRouteMapping.get(shard)] += histograms.histogramsToArrayList().get(shard);
+        }
+        return routeLoads;
+    }
+
+    static public long getMaxShardLoad(BalancedHashRouting balancedHashRouting) {
+        long ret = Long.MIN_VALUE;
+        for(long i: balancedHashRouting.getBucketsDistribution().histogramsToArrayList()) {
+            ret = Math.max(ret, i);
+        }
+        return ret;
     }
 
     public boolean isWorkloadSkewed(int taskId) {

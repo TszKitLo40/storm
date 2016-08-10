@@ -104,6 +104,8 @@ public class ElasticTaskHolder {
 
     Map<String, Semaphore> _taskIdRouteToSendingWaitingSemaphore = new ConcurrentHashMap<>();
 
+    Map<Integer, Map<Integer, Semaphore>> _taskIdToRouteToSendingWaitingSemaphore = new HashMap<>();
+
     Map<String, Semaphore> _taskIdRouteToCleanPendingTupleSemaphore = new ConcurrentHashMap<>();
 
     private Map<String, IConnection> _taskidRouteToConnection = new ConcurrentHashMap<>();
@@ -153,6 +155,7 @@ public class ElasticTaskHolder {
 
     public void registerElasticBolt(BaseElasticBoltExecutor bolt, int taskId) {
         _bolts.put(taskId, bolt);
+        _taskIdToRouteToSendingWaitingSemaphore = new HashMap<>();
         _slaveActor.registerOriginalElasticTaskToMaster(taskId);
         createQueueUtilizationMonitoringThread(_sendingQueue, "Sending Queue", Config.ElasticTaskHolderOutputQueueCapacity, 0.9, null);
         LOG.info("A new ElasticTask is registered." + taskId);
@@ -380,19 +383,12 @@ public class ElasticTaskHolder {
                                         startTime = System.currentTimeMillis();
                                     }
                                 }
-//                                if(_taskidRouteToConnection.containsKey(key)) {
-                                      byte[] bytes = tupleSerializer.serialize(remoteTuple._tuple);
+                                byte[] bytes = tupleSerializer.serialize(remoteTuple._tuple);
 
-                                    TaskMessage taskMessage = new TaskMessage(remoteTuple._taskId + 10000, bytes);
-//                                    TaskMessage taskMessage = new TaskMessage(remoteTuple._taskId, bytes);
-                                    taskMessage.setRemoteTuple();
-                                    insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _taskidRouteToConnection.get(key), taskMessage);
+                                TaskMessage taskMessage = new TaskMessage(remoteTuple._taskId + 10000, bytes);
+                                taskMessage.setRemoteTuple();
+                                insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _taskidRouteToConnection.get(key), taskMessage);
 
-    //                                System.out.println("Sent...");
-    //                                LOG.debug("RemoteTuple is sent!");
-//                                } else {
-//    //                                System.err.println("RemoteTuple will be ignored, because we cannot find connection for remote tasks " + remoteTuple.taskIdAndRoutePair());
-//                                }
 
                             } else if (message instanceof RemoteSubtaskTerminationToken) {
                                 RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) message;
@@ -1261,21 +1257,22 @@ public class ElasticTaskHolder {
         if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
             try {
                 System.out.println("Sending stream to " + targetTask + "." + route + " is paused. Waiting for resumption!");
+//                _taskIdRouteToSendingWaitingSemaphore.get(key).acquire();
                 Semaphore semaphore = _taskIdRouteToSendingWaitingSemaphore.get(key);
                 semaphore.acquire();
 //                synchronized (_taskIdRouteToSendingWaitingSemaphore) {
-//                    if(_taskIdRouteToCleanPendingTupleSemaphore.containsKey(key) && _taskIdRouteToCleanPendingTupleSemaphore.get(key).equals(semaphore)) {
-//                        _taskIdRouteToCleanPendingTupleSemaphore.remove(key);
-//                        System.out.println("Semaphore for " + key + " is removed.");
-//                    }
-//                    else {
-//                        System.out.println("Semaphore for " + key + " is not removed, because the semaphore is not the original one!");
-//                    }
-                _taskIdRouteToCleanPendingTupleSemaphore.remove(key);
+                    if(_taskIdRouteToSendingWaitingSemaphore.containsKey(key) && _taskIdRouteToSendingWaitingSemaphore.get(key).equals(semaphore)) {
+                        _taskIdRouteToSendingWaitingSemaphore.remove(key);
+                        System.out.println("Semaphore for " + key + " is removed.");
+                    }
+                    else {
+                        System.out.println("Semaphore for " + key + " is not removed, because the semaphore is not the original one!");
+                    }
+//                    _taskIdRouteToSendingWaitingSemaphore.remove(key);
 //                }
-                System.out.println( targetTask + "." + route +" is resumed!!!!!");
+                System.out.println( key+" is resumed!!!!!");
                 return true;
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -1284,19 +1281,22 @@ public class ElasticTaskHolder {
 
     void pauseSendingToTargetSubtask(int targetTask, int route) {
         String key = targetTask+"."+route;
-
-        _taskIdRouteToSendingWaitingSemaphore.put(key, new Semaphore(0));
+        synchronized (_taskIdRouteToSendingWaitingSemaphore) {
+            _taskIdRouteToSendingWaitingSemaphore.put(key, new Semaphore(0));
+        }
         System.out.println("Sending to " + key + " is paused!");
 
     }
 
     void resumeSendingToTargetSubtask(int targetTask, int route) {
         String key = targetTask + "." + route;
-        if(!_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
-            System.out.println("cannot resume "+key+" because the semaphore does not exist!");
-            return;
+        synchronized (_taskIdRouteToSendingWaitingSemaphore) {
+            if (!_taskIdRouteToSendingWaitingSemaphore.containsKey(key)) {
+                System.out.println("cannot resume " + key + " because the semaphore does not exist!");
+                return;
+            }
+            _taskIdRouteToSendingWaitingSemaphore.get(key).release();
         }
-        _taskIdRouteToSendingWaitingSemaphore.get(key).release();
         System.out.println("Sending to " + key + "is resumed!");
 
     }
@@ -1565,9 +1565,15 @@ public class ElasticTaskHolder {
             System.out.println(plan.toString());
             SmartTimer.getInstance().start("Scaling In Subtask", "deploy");
             System.out.println("begin to conduct shard reassignments...");
+            sendMessageToMaster(String.format("Scaling in will conduct %d reassignments!", plan.getReassignmentList().size()));
+            int count = 0;
             for(ShardReassignment reassignment: plan.getReassignmentList()) {
 //                sendMessageToMaster("=============== START ===============");
                 reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
+                count ++;
+                if(count % 10 == 0) {
+                    System.out.println(String.format("%d reassignments have been conducted!", count));
+                }
 //                sendMessageToMaster("=============== END ===============");
             }
             SmartTimer.getInstance().stop("Scaling In Subtask", "deploy");
@@ -1694,6 +1700,7 @@ public class ElasticTaskHolder {
 
             SmartTimer.getInstance().start("ScalingOut", "Conduct");
             System.out.println("Begin to conduct shard reassignments...");
+            sendMessageToMaster(String.format("Scaling out will conduct %d reassignments!", plan.getReassignmentList().size()));
             for(ShardReassignment reassignment: plan.getReassignmentList()) {
 //                sendMessageToMaster("=============== START ===============");
                 reassignHashBucketToRoute(taskId, reassignment.shardId, reassignment.originalRoute, reassignment.newRoute);
@@ -1767,9 +1774,9 @@ public class ElasticTaskHolder {
                         for(int taskId: _bolts.keySet()) {
                             int currentParallelism = _bolts.get(taskId).getCurrentParallelism();
                             int desirableParallelism = _bolts.get(taskId).getDesirableParallelism();
-//                            sendMessageToMaster("Task: " + taskId + "average latency: " + _bolts.get(taskId).getMetrics().getAverageLatency());
-//                            sendMessageToMaster("Task: " + taskId + "rate: " + _bolts.get(taskId).getInputRate());
-//                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
+                            sendMessageToMaster("Task: " + taskId + " average latency: " + _bolts.get(taskId).getMetrics().getAverageLatency());
+                            sendMessageToMaster("Task: " + taskId + " rate: " + _bolts.get(taskId).getInputRate());
+                            sendMessageToMaster("Task " + taskId + ":  " + currentParallelism + "---->" + desirableParallelism);
                             if(currentParallelism < desirableParallelism) {
                                 ExecutorScalingOutRequestMessage requestMessage = new ExecutorScalingOutRequestMessage(taskId);
                                 _slaveActor.sendMessageObjectToMaster(requestMessage);

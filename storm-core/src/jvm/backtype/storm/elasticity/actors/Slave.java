@@ -306,9 +306,9 @@ public class Slave extends UntypedActor {
         if(member.hasRole("master")) {
             _master = getContext().actorSelection(member.address()+"/user/master");
             if(supervisorActor) {
-                _master.tell(new SupervisorRegistrationMessage(_name, _port, ResourceMonitor.getNumberOfProcessors()),getSelf());
+                _master.tell(new SupervisorRegistrationMessage(_name, _port, Math.min(8, ResourceMonitor.getNumberOfProcessors())),getSelf());
             } else {
-                _master.tell(new WorkerRegistrationMessage(_name, _port, ResourceMonitor.getNumberOfProcessors()),getSelf());
+                _master.tell(new WorkerRegistrationMessage(_name, _port, Math.min(8, ResourceMonitor.getNumberOfProcessors())),getSelf());
             }
 
             System.out.println("I have sent registration message to master.");

@@ -134,6 +134,10 @@ public class ElasticTasks implements Serializable {
 
 
         int route = _routingTable.route(key);
+        int originalRoute = route;
+        if(route == RoutingTable.remote)
+            originalRoute = ((PartialHashingRouting)_routingTable).getOrignalRoute(key);
+
 //        System.out.println("routing table: " + _routingTable.getClass() + " " + _routingTable + " valid routing: " + _routingTable.getRoutes());
 //        if(route==RoutingTable.origin)
 //            return false;
@@ -147,48 +151,61 @@ public class ElasticTasks implements Serializable {
 //            System.out.println("A tuple is route to " + route);
 //        }
         final boolean paused = _taskHolder.waitIfStreamToTargetSubtaskIsPaused(_taskID, route);
+        synchronized (_taskHolder._taskIdRouteToSendingWaitingSemaphore) {
 
-
-        // The routing table may be updated during the pausing phase, so we should recompute the route.
-        if(paused) {
-            route = _routingTable.route(key);
-        }
-
-        if (route == RoutingTable.remote) {
-            if(remote) {
-                String str = "A tuple is routed to remote on a remote ElasticTasks!\n";
-                str += "target route is " + RoutingTableUtils.getBalancecHashRouting(_routingTable).route(key) + "\n";
-                str += "target shard is " + GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard +"\n";
-                str +=_routingTable.toString();
-                Slave.getInstance().sendMessageToMaster(str);
-                return false;
+            // The routing table may be updated during the pausing phase, so we should recompute the route.
+            if (paused) {
+                route = _routingTable.route(key);
+                if (route == RoutingTable.remote)
+                    originalRoute = ((PartialHashingRouting) _routingTable).getOrignalRoute(key);
             }
-//            System.out.println("a tuple is routed to remote!");
-            RemoteTuple remoteTuple = new RemoteTuple(_taskID, ((PartialHashingRouting)_routingTable).getOrignalRoute(key), tuple);
-            try {
-                _remoteTupleQueue.put(remoteTuple);
+
+            if (route == RoutingTable.remote) {
+                if (remote) {
+                    String str = "A tuple is routed to remote on a remote ElasticTasks!\n";
+                    str += "target route is " + originalRoute + "\n";
+                    str += "target shard is " + GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard + "\n";
+                    str += _routingTable.toString();
+                    Slave.getInstance().sendMessageToMaster(str);
+                    return false;
+                }
+//            System.out.println("============== BEGIN ===============");
+//            System.out.println(String.format("BEGIN: %d(key %s) is routed to %d (original: %d == %d) ", GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard
+//              ,key.toString()  , route, RoutingTableUtils.getBalancecHashRouting(_routingTable).route(key), ((PartialHashingRouting)_routingTable).getOrignalRoute(key)));
+
+                System.out.println(String.format("%s(shard = %d) is routed to %d [remote]!", key.toString(), GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard, originalRoute));
+                RemoteTuple remoteTuple = new RemoteTuple(_taskID, originalRoute, tuple);
+
+
+//            System.out.println(String.format("END:   %d(key %s) is routed to %d (original: %d == %d) ", GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard
+//                    ,key.toString()  , route, RoutingTableUtils.getBalancecHashRouting(_routingTable).route(key), ((PartialHashingRouting)_routingTable).getOrignalRoute(key)));
+
+
+//            System.out.println("==============  END  ===============");
+                try {
+                    _remoteTupleQueue.put(remoteTuple);
 //                System.out.println("Remote Tuple is generated and sent to _remoteTupleQueue");
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
 
-            } catch (Exception e) {
-                e.printStackTrace();
+                } catch (Exception e) {
+                    e.printStackTrace();
 
-            }
-            return true;
-        }
-        else {
-            try {
+                }
+                return true;
+            } else {
+                try {
 //                System.out.println("A tuple is route to "+route+ "by the routing table!");
-                _queues.get(route).put(tuple);
+                    _queues.get(route).put(tuple);
 //                System.out.println("A tuple is inserted into the processing queue!");
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (NullPointerException ne) {
-                ne.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (NullPointerException ne) {
+                    ne.printStackTrace();
 //                System.err.println("route:"+route+", queue size: "+_queues.size());
+                }
+                return true;
             }
-            return true;
         }
     }
 
