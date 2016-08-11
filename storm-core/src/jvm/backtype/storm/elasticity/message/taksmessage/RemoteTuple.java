@@ -24,4 +24,10 @@ public class RemoteTuple implements ITaskMessage {
         return _taskId+"."+_route;
     }
 
+    public String toString() {
+        String ret = "";
+        ret += _tuple.toString();
+        return ret;
+    }
+
 }

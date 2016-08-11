@@ -2,7 +2,9 @@ package backtype.storm.elasticity;
 
 import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
+import backtype.storm.elasticity.message.taksmessage.CleanPendingTupleToken;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
+import backtype.storm.elasticity.message.taksmessage.PendingTupleCleanedMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteState;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
@@ -11,6 +13,7 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.utils.Utils;
+import org.apache.commons.lang.SerializationUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,7 +31,7 @@ public class ElasticRemoteTaskExecutor {
 
     LinkedBlockingQueue<ITaskMessage> _resultQueue;
 
-    LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(Config.RemoteExecutorInputQueueCapacity);
+    LinkedBlockingQueue<Object> _inputQueue = new LinkedBlockingQueue<>(Config.RemoteExecutorInputQueueCapacity);
 
     RemoteElasticOutputCollector _outputCollector;
 
@@ -95,10 +98,14 @@ public class ElasticRemoteTaskExecutor {
                 while (!_terminating) {
                     try {
                         //                    System.out.println("poll...");
-                        Tuple input = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
+                        Object item = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
                         //                    System.out.println("polled!");
 
-                        if (input != null) {
+                        if(item == null)
+                           continue;
+
+                        if(item instanceof Tuple) {
+                            final Tuple input = (Tuple) item;
                             boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
                             count++;
                             if (count % 10000 == 0) {
@@ -109,9 +116,23 @@ public class ElasticRemoteTaskExecutor {
                             if (!handled)
                                 System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
 
-                            //                    catch (Exception e) {
-                            //                        e.printStackTrace();
-                            //                    }
+                        } else if(item instanceof CleanPendingTupleToken) {
+                            final CleanPendingTupleToken token = (CleanPendingTupleToken) item;
+                            //The protocol guarantees that no tuples will be sent to the target route. So a new thread can be created to do the clean job, avoiding
+                            // interfering the process of other route.
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    System.out.println("to handle handleCleanPendingTupleToken");
+                                    _elasticTasks.makesSureNoPendingTuples(token.routeId);
+                                    PendingTupleCleanedMessage message = new PendingTupleCleanedMessage(token.taskId, token.routeId);
+                                    System.out.println(String.format("Pending tuple for %s.%s is cleaned!", token.taskId, token.routeId));
+                                    ElasticTaskHolder.instance()._originalTaskIdToPriorityConnection.get(token.taskId).send(token.taskId, SerializationUtils.serialize(message));
+
+                                }
+                            }).start();
+                        } else {
+                            System.err.println("Received Unexpected Object: " + item);
                         }
                     } catch (Exception e) {
                         if (e instanceof InterruptedException) {
@@ -121,10 +142,12 @@ public class ElasticRemoteTaskExecutor {
                         System.out.println(String.format("_elasticTasks: %s, _bolt: %s", _elasticTasks, _bolt));
                         e.printStackTrace();
                     }
+
                 }
 
                 } catch (InterruptedException  e) {
                 e.printStackTrace();
+
             }
             _terminated = true;
 
@@ -201,7 +224,7 @@ public class ElasticRemoteTaskExecutor {
         return getStateForRoutes(routes);
     }
 
-    public LinkedBlockingQueue<Tuple> get_inputQueue() {
+    public LinkedBlockingQueue<Object> get_inputQueue() {
         return _inputQueue;
     }
 

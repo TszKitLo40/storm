@@ -390,7 +390,7 @@ public class ElasticTaskHolder {
                                 TaskMessage taskMessage = new TaskMessage(remoteTuple._taskId + 10000, bytes);
                                 taskMessage.setRemoteTuple();
                                 insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, _taskidRouteToConnection.get(key), taskMessage);
-
+//                                System.out.println(String.format("%s is sent to %s.", remoteTuple.toString(), _taskidRouteToConnection.get(key)));
 
                             } else if (message instanceof RemoteSubtaskTerminationToken) {
                                 RemoteSubtaskTerminationToken remoteSubtaskTerminationToken = (RemoteSubtaskTerminationToken) message;
@@ -447,8 +447,11 @@ public class ElasticTaskHolder {
                                     TaskMessage taskMessage = new TaskMessage(cleanPendingTupleToken.taskId, bytes);
                                     insertToConnectionToTaskMessageArray(iConnectionNameToTaskMessageArray, connectionNameToIConnection, connection, taskMessage);
 
-                                    System.out.println("CleanPendingTuplesToken is sent to " + connection.toString());
+//                                    System.out.println("CleanPendingTuplesToken is sent to " + connection.toString());
 //                                    sendMessageToMaster("CleanPendingTuplesToken is sent!");
+                                } else {
+                                    sendMessageToMaster("CleanPendingTupleToken cannot be sent, as the connection to the target is not found!!!");
+                                    System.out.println("\"CleanPendingTupleToken canot be sent, as the connection to the target is not found!!!");
                                 }
                             }
 
@@ -631,7 +634,7 @@ public class ElasticTaskHolder {
                             int taskid = message.task() - 10000;
                             Tuple remoteTuple = tupleDeserializer.deserialize(message.message());
                             ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(taskid);
-                            LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
+                            LinkedBlockingQueue<Object> queue = elasticRemoteTaskExecutor.get_inputQueue();
                             queue.put(remoteTuple);
                         } else {
                         Object object = SerializationUtils.deserialize(message.message());
@@ -651,7 +654,7 @@ public class ElasticTaskHolder {
 //                                System.out.println("A remote tuple " + remoteTuple._taskId + "." + remoteTuple._route + " (sid = " + remoteTuple.sid + ") is received!\n");
                                 ((TupleImpl)remoteTuple._tuple).setContext(_workerTopologyContext);
                                 ElasticRemoteTaskExecutor elasticRemoteTaskExecutor = _originalTaskIdToRemoteTaskExecutor.get(message.task());
-                                LinkedBlockingQueue<Tuple> queue = elasticRemoteTaskExecutor.get_inputQueue();
+                                LinkedBlockingQueue<Object> queue = elasticRemoteTaskExecutor.get_inputQueue();
                                 queue.put(remoteTuple._tuple);
 //                                System.out.println("handled!");
 //                                LOG.debug("A remote tuple is added to the queue!\n");
@@ -693,9 +696,11 @@ public class ElasticTaskHolder {
                         } else if (object instanceof CleanPendingTupleToken) {
                             System.out.println("CleanPendingTupleToken");
                             CleanPendingTupleToken cleanPendingTupleToken = (CleanPendingTupleToken) object;
+                            final int taskId = cleanPendingTupleToken.taskId;
+                            _originalTaskIdToRemoteTaskExecutor.get(taskId).get_inputQueue().put(cleanPendingTupleToken);
 //                            sendMessageToMaster("Received CleanPendingTupleToken");
 
-                            handleCleanPendingTupleToken(cleanPendingTupleToken);
+//                            handleCleanPendingTupleToken(cleanPendingTupleToken);
                         }
 
                         else if (object instanceof String) {

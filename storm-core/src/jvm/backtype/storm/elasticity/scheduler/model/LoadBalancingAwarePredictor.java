@@ -24,7 +24,9 @@ public class LoadBalancingAwarePredictor implements ExecutorParallelismPredictor
                 maxRouteLoads = Math.max(i, maxRouteLoads);
             }
 
-            if(maxRouteLoads * 0.9 < maxShardLoad)
+            // this means that there exists one extremely overloaded shard, which exceeds the processing capability of a task.
+            // In such case, scaling out cannot improve the throughput but waste computation resource.
+            if(maxRouteLoads == maxShardLoad)
                 desirableDoP = currentDop;
         }
 

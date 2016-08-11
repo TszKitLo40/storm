@@ -150,7 +150,7 @@ public class ElasticTasks implements Serializable {
 
             if (route == RoutingTable.remote) {
                 if (remote) {
-                    String str = "A tuple is routed to remote on a remote ElasticTasks!\n";
+                    String str = String.format("A tuple [key = %s]is routed to remote on a remote ElasticTasks!\n", key);
                     str += "target route is " + originalRoute + "\n";
                     str += "target shard is " + GlobalHashFunction.getInstance().hash(key) % Config.NumberOfShard + "\n";
                     str += _routingTable.toString();
