@@ -126,7 +126,7 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
 
 
 //        file = new File("/home/acelzj/IndexTopology_experiment/insert_time_without_rebuild_but_split_new_16");
-        file = new File("/home/acelzj/IndexTopology_experiment/NormalDistribution/insert_time_with_rebuild_and_split_single_thread_4");
+        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/insert_time_with_rebuild_and_split_single_thread_4");
 //        file = new File("/home/acelzj/IndexTopology_experiment/NormalDistribution/serialize_time");
         try {
             if (!file.exists()) {

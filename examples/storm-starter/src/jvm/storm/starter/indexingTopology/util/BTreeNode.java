@@ -1,7 +1,7 @@
 package storm.starter.indexingTopology.util;
 
-import indexingTopology.Config.Config;
-import indexingTopology.exception.UnsupportedGenericException;
+import storm.starter.indexingTopology.Config.Config;
+import storm.starter.indexingTopology.exception.UnsupportedGenericException;
 
 import java.io.*;
 import java.nio.ByteBuffer;

@@ -132,7 +132,7 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
         this.context = context;
         //Li Wang
 
-        int bufferSize = 1024 * 32;
+        int bufferSize = 1024;
 
 //        int bufferSize = Utils.getInt(stormConf.get(Config.STORM_MESSAGING_NETTY_BUFFER_SIZE));
         LOG.info("creating Netty Client, connecting to {}:{}, bufferSize: {}", host, port, bufferSize);
