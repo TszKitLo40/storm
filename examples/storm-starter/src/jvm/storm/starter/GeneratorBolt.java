@@ -34,7 +34,9 @@ public class GeneratorBolt implements IRichBolt{
     int _prime;
     transient long start;
     transient long end;
-    long _seed;
+    int _seed;
+    int taskIndex;
+    int taskId;
     Random rand;
     final int[] primes = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271};
    /* public class ChangeDistribution implements Runnable (Tuple tuple){
@@ -51,9 +53,14 @@ public class GeneratorBolt implements IRichBolt{
         }
     }*/
 
+
+
+    long progress = 200;
+
     public GeneratorBolt(int sleepTimeInMilics) { _sleepTimeInMilics = sleepTimeInMilics; }
     public class emitKey implements Runnable {
         public void run() {
+            long count = 0;
             while (true) {
                 try {
                 //    Slave.getInstance().logOnMaster("Time:"+String.valueOf(_sleepTimeInMilics));
@@ -77,6 +84,15 @@ public class GeneratorBolt implements IRichBolt{
                         count %= 1000;
                     //    start = System.currentTimeMillis();
                     }*/
+
+                    while(count >= progress) {
+                        Utils.sleep(1);
+                    }
+
+                    if(count % 10 ==0) {
+                        _collector.emit("CountReportStream", new Values(taskIndex, count));
+                    }
+                    count++;
                     _collector.emit(new Values(String.valueOf(key)));
                     monitor.rateTracker.notify(1);
                 } catch (Exception e) {
@@ -86,23 +102,35 @@ public class GeneratorBolt implements IRichBolt{
         }
     }
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("key"));
+
+        declarer.declareStream("CountReportStream", new Fields("taskid", "count"));
+
     }
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         _collector = collector;
         _numberOfElements = 1000;
-        _exponent = 0.75;
+        _exponent = 1.5;
         _prime = 41;
         count = 0;
         start = 0;
         end = 0;
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
         _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-        _seed = System.currentTimeMillis();
+        _seed = 0;
         _emitThread = new Thread(new emitKey());
         _emitThread.start();
+
+
+        taskId = context.getThisTaskId();
+        taskIndex = -1;
+
+        for(int i = 0; i < context.getComponentTasks("generator").size(); i++) {
+            if(taskId == context.getComponentTasks("generator").get(i)) {
+                taskIndex = i;
+            }
+        }
 
      /*   new Thread(new Runnable() {
             @Override
@@ -123,12 +151,12 @@ public class GeneratorBolt implements IRichBolt{
     public Map getComponentConfiguration(){ return new HashedMap();}
 
     public void setNumberOfElements(Tuple tuple) {
-        System.out.println(tuple.getString(0));
+//        System.out.println(tuple.getString(0));
         _numberOfElements = Integer.parseInt(tuple.getString(0));
     }
 
     public void setExponent(Tuple tuple) {
-        System.out.println(tuple.getString(1));
+//        System.out.println(tuple.getString(1));
         _exponent = Double.parseDouble(tuple.getString(1));
     }
 
@@ -137,16 +165,20 @@ public class GeneratorBolt implements IRichBolt{
     public void execute(Tuple tuple){
       //  setNumberOfElements(tuple);
       //  setExponent(tuple);
-        if (tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
+
+        if(tuple.getSourceStreamId().equals(Utils.DEFAULT_STREAM_ID)) {
             _numberOfElements = Integer.parseInt(tuple.getString(0));
             _exponent = Double.parseDouble(tuple.getString(1));
-            _seed = Long.parseLong(tuple.getString(2));
+            _seed = tuple.getInteger(2);
             _distribution = new ZipfDistribution(_numberOfElements, _exponent);
-            rand = new Random(_seed);
-     //   _prime = primes[(int)_seed % primes.length];
-            _prime = primes[rand.nextInt(primes.length)];
+    //        rand = new Random(_seed);
+            _prime = primes[_seed % primes.length];
 
             Slave.getInstance().logOnMaster(String.format("Prime changed to %d!", _prime));
+        } else if (tuple.getSourceStreamId().equals("CountPermissionStream")) {
+            progress = Math.max(progress, tuple.getLong(0));
+//            Slave.getInstance().logOnMaster(String.format("Progress on task %d is updated to %d", taskId, progress));
+
         }
     }
 

@@ -1,7 +1,6 @@
 package backtype.storm.elasticity.routing;
 
 import backtype.storm.elasticity.utils.Histograms;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 
 import java.util.*;
 
@@ -94,12 +93,12 @@ public class PartialHashingRouting implements RoutingTable {
             return RoutingTable.remote;
     }
 
-    public ArrayList<Integer> getOriginalRoutes() {
+    public List<Integer> getOriginalRoutes() {
         return _routingTable.getRoutes();
     }
 
-    public ArrayList<Integer> getExceptionRoutes() {
-        ArrayList<Integer> ret = getOriginalRoutes();
+    public List<Integer> getExceptionRoutes() {
+        List<Integer> ret = getOriginalRoutes();
         ret.removeAll(getRoutes());
         return ret;
     }
@@ -124,7 +123,7 @@ public class PartialHashingRouting implements RoutingTable {
         addValidRoutes(list);
     }
 
-    public synchronized void addValidRoutes(ArrayList<Integer> routes) {
+    public synchronized void addValidRoutes(List<Integer> routes) {
         for(int i: routes) {
             if(_routingTable.getRoutes().contains(i)) {
                 _validRoutes.add(i);

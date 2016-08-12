@@ -7,7 +7,6 @@ import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.exceptions.RoutingTypeNotSupportedException;
 import backtype.storm.elasticity.message.actormessage.ExecutorScalingInRequestMessage;
 import backtype.storm.elasticity.message.actormessage.ExecutorScalingOutRequestMessage;
-import backtype.storm.elasticity.message.actormessage.ScalingInSubtaskCommand;
 import backtype.storm.elasticity.resource.ResourceManager;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
@@ -15,17 +14,13 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.utils.FirstFitDoubleDecreasing;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.PartitioningMinimizedMovement;
-import backtype.storm.elasticity.utils.timer.SmartTimer;
 import backtype.storm.generated.TaskNotExistException;
 import backtype.storm.utils.Utils;
 import org.apache.thrift.TException;
 import org.eclipse.jetty.util.ArrayQueue;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RunnableFuture;
 
 /**
  * Created by Robert on 11/11/15.
@@ -44,7 +39,14 @@ public class ElasticScheduler {
 
     LinkedBlockingQueue<Integer> pendingTaskLevelLoadBalancingQueue = new LinkedBlockingQueue<>();
 
-    public ElasticScheduler() {
+    public ElasticScheduler(Map conf) {
+
+//        System.out.println("Print ------->");
+//        System.out.println(conf.get("slave.ip"));
+//        System.out.println("Printed!");
+
+        Config.overrideFromStormConf(conf);
+
         master = Master.createActor();
         resourceManager = new ResourceManager();
         instance = this;
@@ -104,7 +106,7 @@ public class ElasticScheduler {
             public void run() {
                 try {
                     while(true) {
-                        Thread.sleep(Config.SubtaskLevelLoadBalancingCycleInSecs * 1000);
+                        Thread.sleep(Config.SubtaskLevelLoadBalancingCycleInMilliSecs);
                         Set<Integer> taskIds = master._elasticTaskIdToWorkerLogicalName.keySet();
                         for(Integer task: taskIds) {
                             try {
@@ -168,8 +170,8 @@ public class ElasticScheduler {
                                 }
                         }
                         if(request instanceof ExecutorScalingOutRequestMessage) {
-                            System.out.println("Scaling out!");
                             ExecutorScalingOutRequestMessage requestMessage = (ExecutorScalingOutRequestMessage)request;
+                            System.out.println("Scaling out " + requestMessage.taskId);
                             synchronized (lock) {
                                 long start = System.currentTimeMillis();
                                 master.handleExecutorScalingOutRequest(requestMessage.taskId);
@@ -244,16 +246,20 @@ public class ElasticScheduler {
         return (loadMax - loadMin) / (double)loadMax;
     }
 
-    /**
-     * Given the statics collected from the routing table, this function predict the ratio of actual performance
-     * to the optimal performance. Performance ratio is from 0 to 1. The higher ratio is, the better load balance
-     * is achieved.
-     * @param histograms statics on the bucket level
-     * @param balancedHashRouting routing table, containing the shard to task mapping.
-     * @return the performance factor
-     * @throws TaskNotExistException
-     * @throws RoutingTypeNotSupportedException
-     */
+    public static double getPerformanceFactor(BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
+        return getPerformanceFactor(balancedHashRouting.getBucketsDistribution(), balancedHashRouting);
+    }
+
+        /**
+         * Given the statics collected from the routing table, this function predict the ratio of actual performance
+         * to the optimal performance. Performance ratio is from 0 to 1. The higher ratio is, the better load balance
+         * is achieved.
+         * @param histograms statics on the bucket level
+         * @param balancedHashRouting routing table, containing the shard to task mapping.
+         * @return the performance factor
+         * @throws TaskNotExistException
+         * @throws RoutingTypeNotSupportedException
+         */
     public static double getPerformanceFactor(Histograms histograms, BalancedHashRouting balancedHashRouting) throws TaskNotExistException, RoutingTypeNotSupportedException {
 //        RoutingTable routingTable = master.getRoutingTable(taskId);
 //        BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
@@ -282,6 +288,10 @@ public class ElasticScheduler {
             routeLoads[shardToRouteMapping.get(shard)] += histograms.histogramsToArrayList().get(shard);
         }
 
+        return getPerformanceFactor(routeLoads);
+    }
+
+    static public double getPerformanceFactor(long[] routeLoads) {
         long loadSum = 0;
         long loadMin = Long.MAX_VALUE;
         long loadMax = Long.MIN_VALUE;
@@ -300,6 +310,25 @@ public class ElasticScheduler {
         }
 
         return ratio;
+    }
+
+    static public long[] getRouteLoads(BalancedHashRouting balancedHashRouting) {
+        Histograms histograms = balancedHashRouting.getBucketsDistribution();
+        Map<Integer, Integer> shardToRouteMapping = balancedHashRouting.getBucketToRouteMapping();
+        final int numberOfRoutes = balancedHashRouting.getNumberOfRoutes();
+        long[] routeLoads = new long[numberOfRoutes];
+        for(Integer shard: shardToRouteMapping.keySet()) {
+            routeLoads[shardToRouteMapping.get(shard)] += histograms.histogramsToArrayList().get(shard);
+        }
+        return routeLoads;
+    }
+
+    static public long getMaxShardLoad(BalancedHashRouting balancedHashRouting) {
+        long ret = Long.MIN_VALUE;
+        for(long i: balancedHashRouting.getBucketsDistribution().histogramsToArrayList()) {
+            ret = Math.max(ret, i);
+        }
+        return ret;
     }
 
     public boolean isWorkloadSkewed(int taskId) {

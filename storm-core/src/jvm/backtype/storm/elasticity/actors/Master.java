@@ -197,6 +197,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
                     final String logicalName = _hostNameToWorkerLogicalName.get(name);
 
                     _ipToWorkerLogicalName.get(ip).remove(logicalName);
+                    System.out.println(ip + " is removed!");
+                    printIpToWorkerLogicalName();
 //                    if(_ipToWorkerLogicalName.get(ip).isEmpty()) {
 //                        _ipToWorkerLogicalName.remove(ip);
 ////                        ResourceManager.instance().computationResource.unregisterNode(ip);
@@ -210,7 +212,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
                                 for (String coreIp : _taskToCoreLocations.get(task)) {
                                     System.out.println("No: " + i++);
                                     ResourceManager.instance().computationResource.returnProcessor(coreIp);
-                                    System.out.println("The CPU core for task " + task + " is returned, as the its hosting worker is called!");
+                                    System.out.println("The CPU core for task " + task + " is returned, as the its hosting worker is dead!");
                                 }
                             }
 
@@ -263,6 +265,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
             if(!_ipToWorkerLogicalName.containsKey(ip))
                 _ipToWorkerLogicalName.put(ip, new HashSet<String>());
             _ipToWorkerLogicalName.get(ip).add(logicalName);
+            printIpToWorkerLogicalName();
 //            ResourceManager.instance().computationResource.registerNode(ip, workerRegistrationMessage.getNumberOfProcessors());
             System.out.println(ResourceManager.instance().computationResource);
 
@@ -362,12 +365,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
     }
 
     public void handleExecutorScalingOutRequest(int taskid) {
-
+        String hostIp = null;
         try {
             String workerHostName = _elasticTaskIdToWorkerLogicalName.get(taskid);
             String preferredIp = getIpForWorkerLogicalName(workerHostName);
 
-            String hostIp = ResourceManager.instance().computationResource.allocateProcessOnPreferredNode(preferredIp);
+            hostIp = ResourceManager.instance().computationResource.allocateProcessOnPreferredNode(preferredIp);
 
             if(hostIp == null) {
                 System.err.println("There is not enough computation resources for scaling out!");
@@ -413,6 +416,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
         } catch (Exception e) {
             e.printStackTrace();
+            if(hostIp != null) {
+                ResourceManager.instance().computationResource.returnProcessor(hostIp);
+            }
+            System.out.println("HostIP: " + hostIp);
+            for(String name: _ipToWorkerLogicalName.keySet()) {
+                System.out.println(String.format("%s: %s", name, _ipToWorkerLogicalName.get(name)));
+            }
         }
 
     }
@@ -431,7 +441,8 @@ public class Master extends UntypedActor implements MasterService.Iface {
             final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
                     .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + backtype.storm.elasticity.config.Config.masterIp))
                     .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
-                    .withFallback(ConfigFactory.load()); 
+                    .withFallback(ConfigFactory.parseString("akka.cluster.seed-nodes = [ \"akka.tcp://ClusterSystem@"+ backtype.storm.elasticity.config.Config.masterIp + ":2551\"]"))
+                    .withFallback(ConfigFactory.load());
             ActorSystem system = ActorSystem.create("ClusterSystem", config);
 
             system.actorOf(Props.create(Master.class), "master");
@@ -451,6 +462,7 @@ public class Master extends UntypedActor implements MasterService.Iface {
         final Config config = ConfigFactory.parseString("akka.remote.netty.tcp.port=2551")
                 .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname="+ InetAddress.getLocalHost().getHostAddress()))
                 .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
+                .withFallback(ConfigFactory.parseString("akka.cluster.seed-nodes = [ \"akka.tcp://ClusterSystem@"+ backtype.storm.elasticity.config.Config.masterIp + ":2551\"]"))
                 .withFallback(ConfigFactory.load());
 
         ActorSystem system = ActorSystem.create("ClusterSystem", config);
@@ -481,8 +493,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
 //            final Inbox inbox = Inbox.create(getContext().system());
             final Inbox inbox = getInbox();
-//            inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
-//            inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+            inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskId))), new TaskMigrationCommand(getHostByWorkerLogicalName(originalHostName), getHostByWorkerLogicalName(targetHostName), taskId, routeNo));
+            log("[Elastic]: Migration message has been sent!");
+            inbox.receive(new FiniteDuration(10000, TimeUnit.SECONDS));
 
 
             return;
@@ -588,8 +601,9 @@ public class Master extends UntypedActor implements MasterService.Iface {
         long startTime = System.currentTimeMillis();
 
         inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), command);
+//        log("Shard reassignment command has been sent!");
         try {
-            inbox.receive(new FiniteDuration(2000, TimeUnit.SECONDS));
+            inbox.receive(new FiniteDuration(10000, TimeUnit.SECONDS));
         } catch (TimeoutException e) {
             e.printStackTrace();
             return;
@@ -743,8 +757,12 @@ public class Master extends UntypedActor implements MasterService.Iface {
  //       inbox.send(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
         try {
  //           return (RoutingTable)inbox.receive(new FiniteDuration(3000, TimeUnit.SECONDS));
-
-            return (RoutingTable)sendAndReceive(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+            Object received = sendAndReceive(getContext().actorFor(_nameToPath.get(_taskidToActorName.get(taskid))), new RoutingTableQueryCommand(taskid));
+            if(!(received instanceof RoutingTable)) {
+                System.err.println(String.format("Expected: RoutingTable, get: %s , context: %s", received.getClass().toString(), received.toString()));
+                return null;
+            }
+            return (RoutingTable)received;
         } catch (TimeoutException e) {
             e.printStackTrace();
             return null;
@@ -784,6 +802,13 @@ public class Master extends UntypedActor implements MasterService.Iface {
 
     public String getRouteHosterName(int taskid, int route) {
         return _taskidRouteToWorker.get(taskid + "." + route);
+    }
+
+    private void printIpToWorkerLogicalName() {
+        System.out.println("_ipToWorkerLogicalName: ");
+        for(String ip: _ipToWorkerLogicalName.keySet()) {
+            System.out.println(String.format("%s: %s", ip, _ipToWorkerLogicalName.get(ip)));
+        }
     }
 
 }

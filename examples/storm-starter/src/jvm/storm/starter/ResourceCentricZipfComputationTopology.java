@@ -16,6 +16,11 @@ public class ResourceCentricZipfComputationTopology {
     public static String FeedbackStream = "FeedbackStream";
     public static String RateAndLatencyReportStream = "LatencyAndRateReport";
     public static String SeedUpdateStream = "SeedUpdateStream";
+    public static String CountReportSteram = "CountReportStream";
+    public static String CountPermissionStream = "CountPermissionStream";
+
+    static String PuncutationEmitStream = "PunctuationEmitStream";
+    static String PuncutationFeedbackStreawm = "PunctuationFeedbackStream";
 
 
     public static String UpstreamCommand = "UpstreamCommand";
@@ -41,20 +46,24 @@ public class ResourceCentricZipfComputationTopology {
         builder.setBolt(GeneratorBolt, new ResourceCentricGeneratorBolt(Integer.parseInt(args[1])),Integer.parseInt(args[2]))
                 .allGrouping(Spout)
                 .allGrouping(Controller, UpstreamCommand)
-                .allGrouping(Controller, SeedUpdateStream);
+                .allGrouping(Controller, SeedUpdateStream)
+                .allGrouping(Controller, CountPermissionStream)
+                .directGrouping(ComputationBolt, PuncutationFeedbackStreawm);
 
 
         builder.setBolt(ComputationBolt, new ResourceCentricComputationBolt(Integer.parseInt(args[3])), Integer.parseInt(args[4]))
                 .directGrouping(GeneratorBolt)
                 .directGrouping(GeneratorBolt, StateMigrationCommandStream)
-                .directGrouping(Controller, StateUpdateStream);
+                .directGrouping(Controller, StateUpdateStream)
+                .directGrouping(GeneratorBolt, PuncutationEmitStream);
 
         builder.setBolt(Controller, new ResourceCentricControllerBolt(), 1)
                 .allGrouping(ComputationBolt, StateMigrationStream)
                 .allGrouping(ComputationBolt, StateReadyStream)
                 .allGrouping(GeneratorBolt, FeedbackStream)
                 .allGrouping(GeneratorBolt, "statics")
-                .allGrouping(ComputationBolt, RateAndLatencyReportStream);
+                .allGrouping(ComputationBolt, RateAndLatencyReportStream)
+                .allGrouping(GeneratorBolt, CountReportSteram);
 
 
         Config conf = new Config();

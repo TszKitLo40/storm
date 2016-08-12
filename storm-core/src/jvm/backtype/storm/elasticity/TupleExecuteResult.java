@@ -11,19 +11,19 @@ import java.util.List;
 public class TupleExecuteResult implements Serializable{
 
 
-    public static final int Emit = 0;
-    public static final int EmitDirect = 1;
-    public static final int Ack = 2;
+    transient public static final int Emit = 0;
+    transient public static final int EmitDirect = 1;
+    transient public static final int Ack = 2;
 
-    protected int _taskId;
+    transient public int _taskId;
 
-    protected String _streamId;
+    transient public String _streamId;
 
-    protected Tuple _inputTuple;
+    transient public Tuple _inputTuple;
 
-    protected List<Object> _outputTuple;
+    transient public List<Object> _outputTuple;
 
-    protected int _commandType;
+    transient public int _commandType;
 
     public TupleExecuteResult(int taskId, String streamId, Tuple inputTuple, List<Object> outputTuple, int command) {
         _taskId = taskId;

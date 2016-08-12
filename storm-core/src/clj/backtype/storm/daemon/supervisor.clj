@@ -827,6 +827,7 @@
                         (generate-supervisor-id))]
           (ls-supervisor-id! state curr-id)
           (reset! id-atom curr-id))
+        (backtype.storm.elasticity.config.Config/overrideFromStormConf conf)
         (Slave/createActor "supervisorActor", "20000", true)
         )
       (confirmAssigned [this port]

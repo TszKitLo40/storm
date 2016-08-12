@@ -46,6 +46,6 @@ public class ResourceMonitor {
     }
 
     static public int getNumberOfProcessors() {
-        return ((com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getAvailableProcessors();
+        return ManagementFactory.getOperatingSystemMXBean().getAvailableProcessors();
     }
 }

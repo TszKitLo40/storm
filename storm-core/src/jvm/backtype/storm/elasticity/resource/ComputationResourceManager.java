@@ -36,7 +36,7 @@ public class ComputationResourceManager {
      * @param preferredNodeIp
      * @return the location of the processor allocated, return null if no processor is available.
      */
-    public String allocateProcessOnPreferredNode(String preferredNodeIp) {
+   synchronized public String allocateProcessOnPreferredNode(String preferredNodeIp) {
         if(nodeIpToProcessors.containsKey(preferredNodeIp) && nodeIpToProcessors.get(preferredNodeIp) > 0) {
             nodeIpToProcessors.put(preferredNodeIp,nodeIpToProcessors.get(preferredNodeIp) - 1);
             System.out.println("A processor is allocated from " + preferredNodeIp);
@@ -67,7 +67,7 @@ public class ComputationResourceManager {
         return ret;
     }
 
-    public void returnProcessor(String nodeIP) {
+    synchronized public void returnProcessor(String nodeIP) {
 
         if(nodeIpToProcessors.containsKey(nodeIP)) {
             nodeIpToProcessors.put(nodeIP,nodeIpToProcessors.get(nodeIP)+1);

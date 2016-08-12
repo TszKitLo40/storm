@@ -59,7 +59,7 @@ public class ZipfGeneratorSpout extends BaseRichSpout{
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector){
         _collector = collector;
         monitor = new ThroughputMonitor(""+context.getThisTaskId());
-        _distribution = new ZipfDistribution(100, 1);
+        _distribution = new ZipfDistribution(1000, 0.5);
         _changeDistributionThread = new Thread(new ChangeDistribution());
         _changeDistributionThread.start();
     }

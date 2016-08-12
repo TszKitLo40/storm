@@ -131,12 +131,14 @@ public class Client extends ConnectionWithStatus implements IStatefulObject {
         this.scheduler = scheduler;
         this.context = context;
         //Li Wang
-        int bufferSize = 1024;
+
+        int bufferSize = 1024 * 32;
+
 //        int bufferSize = Utils.getInt(stormConf.get(Config.STORM_MESSAGING_NETTY_BUFFER_SIZE));
         LOG.info("creating Netty Client, connecting to {}:{}, bufferSize: {}", host, port, bufferSize);
 
         //Li Wang
-        int messageBatchSize = 16;
+        int messageBatchSize = 10240;
 //        int messageBatchSize = Utils.getInt(stormConf.get(Config.STORM_NETTY_MESSAGE_BATCH_SIZE), 262144);
 
         maxReconnectionAttempts = Utils.getInt(stormConf.get(Config.STORM_MESSAGING_NETTY_MAX_RETRIES));

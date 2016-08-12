@@ -4,6 +4,7 @@ import backtype.storm.topology.IBasicOutputCollector;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.Utils;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 

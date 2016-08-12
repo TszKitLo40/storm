@@ -4,11 +4,15 @@ import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.metrics.ElasticExecutorMetrics;
 import backtype.storm.elasticity.metrics.ExecutionLatencyForRoutes;
+import backtype.storm.elasticity.metrics.ThroughputForRoutes;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
 import backtype.storm.elasticity.routing.RoutingTable;
 import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.elasticity.scheduler.ElasticScheduler;
+import backtype.storm.elasticity.scheduler.model.ExecutorParallelismPredictor;
+import backtype.storm.elasticity.scheduler.model.LoadBalancingAwarePredictor;
+import backtype.storm.elasticity.scheduler.model.NaivePredictor;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.KeyBucketSampler;
 import backtype.storm.task.OutputCollector;
@@ -17,7 +21,6 @@ import backtype.storm.topology.IRichBolt;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.utils.RateTracker;
-import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,7 +120,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         _elasticTasks = ElasticTasks.createHashRouting(1,_bolt,_taskId, _outputCollector);
 //        createTest();
 //        _elasticTasks = ElasticTasks.createVoidRouting(_bolt, _taskId, _outputCollector);
-        _rateTracker = new RateTracker(1000, 5);
+        _rateTracker = new RateTracker(3000, 5);
         _holder = ElasticTaskHolder.instance();
         if(_holder!=null) {
             _holder.registerElasticBolt(this, _taskId);
@@ -200,7 +203,7 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         }
     }
 
-    public double getRate() {
+    public double getInputRate() {
         return _rateTracker.reportRate();
     }
 
@@ -216,6 +219,11 @@ public class BaseElasticBoltExecutor implements IRichBolt {
         metrics.removeInvalidRoutes(routingTable.getRoutes());
     }
 
+    public void updateThroughputMetrics(ThroughputForRoutes throughputForRoutes) {
+        metrics.updateThroughput(throughputForRoutes);
+    }
+
+
     public int getCurrentParallelism() {
         return getCompleteRoutingTable().getNumberOfRoutes();
     }
@@ -230,32 +238,39 @@ public class BaseElasticBoltExecutor implements IRichBolt {
 
     public int getDesirableParallelism() {
 
-        final double overProvisioningFactor = 0.5;
-
-        double inputRate = getRate();
-        Long averageLatency = getMetrics().getRecentAverageLatency(3000);
-        if(averageLatency == null) {
-//            System.out.println("averageLatency is null!");
-            return 1;
-        }
-
-        double performanceFactor = 1;
         try {
-            RoutingTable routingTable = _elasticTasks.get_routingTable();
-            BalancedHashRouting balancedHashRouting = (BalancedHashRouting) RoutingTableUtils.getBalancecHashRouting(routingTable);
-            if(balancedHashRouting == null){
+            final double overProvisioningFactor = 0.5;
+
+            double inputRate = getInputRate();
+            Long averageLatency = getMetrics().getRecentAverageLatency(3000);
+            if (averageLatency == null) {
+                System.out.println("averageLatency is null!");
                 return 1;
             }
-            Histograms histograms = balancedHashRouting.getBucketsDistribution();
-            performanceFactor = ElasticScheduler.getPerformanceFactor(histograms, balancedHashRouting);
+            double processingRatePerProcessor = 1 / (averageLatency / 1000000000.0);
+
+            RoutingTable routingTable = _elasticTasks.get_routingTable();
+            BalancedHashRouting balancedHashRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
+            if (balancedHashRouting == null) {
+                return 1;
+            }
+
+            long[] routeLoads = ElasticScheduler.getRouteLoads(balancedHashRouting);
+            long maxShardLoad = ElasticScheduler.getMaxShardLoad(balancedHashRouting);
+
+//            ExecutorParallelismPredictor predictor = new NaivePredictor();
+            ExecutorParallelismPredictor predictor = new LoadBalancingAwarePredictor();
+
+
+            int desirableParallelism = predictor.predict(inputRate, balancedHashRouting.getNumberOfRoutes(), processingRatePerProcessor, routeLoads, maxShardLoad);
+            Slave.getInstance().sendMessageToMaster(String.format("Task %d: input rate=%.5f rate per task=%.5f latency: %.5f ms performance factor=%.2f", _taskId, inputRate, processingRatePerProcessor, averageLatency / 1000000.0, ElasticScheduler.getPerformanceFactor(balancedHashRouting)));
+            return desirableParallelism;
         } catch (Exception e) {
             e.printStackTrace();
+            Slave.getInstance().sendMessageToMaster("Exception happens in getDesirableParallelism()");
+            Slave.getInstance().sendMessageToMaster(e.getMessage());
+            return 1;
         }
-        double processingRatePerProcessor = 1 / (averageLatency / 1000000000.0);
-        int desirableParallelism = (int)Math.ceil(inputRate / (processingRatePerProcessor * performanceFactor) + overProvisioningFactor);
-//        Slave.getInstance().sendMessageToMaster("Task " + _taskId + ": input rate=" + String.format("%.5f ",inputRate) + "rate per task=" +String.format("%.5f", processingRatePerProcessor) + " latency: "+ String.format("%.5f ms", averageLatency/1000000.0));
-//        Slave.getInstance().sendMessageToMaster(String.format("Task %d: input rate=%.5f rate per task=%.5f latency: %.5f ms performance factor=%.2f", _taskId, inputRate, processingRatePerProcessor, averageLatency/1000000.0, performanceFactor));
-        return desirableParallelism;
     }
 
 }

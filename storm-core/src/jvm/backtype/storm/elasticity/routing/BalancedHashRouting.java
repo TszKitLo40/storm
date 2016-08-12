@@ -1,12 +1,13 @@
 package backtype.storm.elasticity.routing;
 
-import backtype.storm.elasticity.ElasticTaskHolder;
 import backtype.storm.elasticity.config.Config;
 import backtype.storm.elasticity.utils.GlobalHashFunction;
 import backtype.storm.elasticity.utils.Histograms;
 import backtype.storm.elasticity.utils.SlideWindowKeyBucketSample;
 import backtype.storm.elasticity.utils.SlidingWindowRouteSampler;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.*;
@@ -57,10 +58,11 @@ public class BalancedHashRouting implements RoutingTable {
 
     @Override
     public synchronized int route(Object key) {
+        final int shard = hashFunction.hash(key) % numberOfHashValues;
         if(sample!=null)
-            sample.record(key);
+            sample.record(shard);
 
-        final int ret = hashValueToRoute.get(hashFunction.hash(key) % numberOfHashValues);
+        final int ret = hashValueToRoute.get(shard);
         if(routeDistributionSampler != null)
             routeDistributionSampler.record(ret);
 
@@ -73,8 +75,8 @@ public class BalancedHashRouting implements RoutingTable {
     }
 
     @Override
-    public synchronized ArrayList<Integer> getRoutes() {
-        ArrayList<Integer> ret = new ArrayList<>();
+    public synchronized List<Integer> getRoutes() {
+        List<Integer> ret = new ArrayList<>();
         for(int i=0; i<numberOfRoutes; i++) {
             ret.add(i);
         }
@@ -98,6 +100,7 @@ public class BalancedHashRouting implements RoutingTable {
 
     public synchronized void reassignBucketToRoute(int bucketid, int targetRoute) {
         hashValueToRoute.put(bucketid, targetRoute);
+        numberOfRoutes = Math.max(targetRoute + 1, numberOfRoutes);
 //        ElasticTaskHolder.instance()._slaveActor.sendMessageToMaster(bucketid + ", " + targetRoute + " is put!");
     }
 
@@ -107,11 +110,14 @@ public class BalancedHashRouting implements RoutingTable {
 //        for(int i=0; i < numberOfRoutes; i++ ) {
 //            routeToBuckets.add(new ArrayList<Integer>());// = new ArrayList<>();
 //        }
-
+        String ret = "Balanced Hash Routing: " + System.identityHashCode(this) + "\n";
         try {
             NumberFormat formatter = new DecimalFormat("#0.0000");
 
+            ret += "number of routes: " + getNumberOfRoutes() + "\n";
+
             ArrayList<Integer>[] routeToBuckets = new ArrayList[numberOfRoutes];
+
             for (int i = 0; i < numberOfRoutes; i++) {
                 routeToBuckets[i] = new ArrayList<>();
             }
@@ -124,8 +130,7 @@ public class BalancedHashRouting implements RoutingTable {
                 Collections.sort(list);
             }
 
-            String ret = "Balanced Hash Routing: " + System.identityHashCode(this) + "\n";
-            ret += "number of routes: " + getNumberOfRoutes() + "\n";
+
             ret += "Route Details:\n";
 
             if (sample != null) {
@@ -163,7 +168,12 @@ public class BalancedHashRouting implements RoutingTable {
                 System.out.println(shard + "." + hashValueToRoute.get(shard));
             }
             System.out.println();
-            return "routing table cannot convert to String due to " + e.getMessage();
+
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+
+            return ret + " routing table cannot convert to String due to " + sw.toString();
         }
     }
 

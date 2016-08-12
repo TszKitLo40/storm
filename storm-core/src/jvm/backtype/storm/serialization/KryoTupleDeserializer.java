@@ -42,7 +42,7 @@ public class KryoTupleDeserializer implements ITupleDeserializer {
         _kryoInput = new Input(1);
     }        
 
-    public Tuple deserialize(byte[] ser) {
+    synchronized public Tuple deserialize(byte[] ser) {
         try {
             _kryoInput.setBuffer(ser);
             int taskId = _kryoInput.readInt(true);
@@ -53,6 +53,15 @@ public class KryoTupleDeserializer implements ITupleDeserializer {
             List<Object> values = _kryo.deserializeFrom(_kryoInput);
             return new TupleImpl(_context, values, taskId, streamName, id);
         } catch(IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<Object> deserializeObjects(byte[] ser) {
+        try {
+            _kryoInput.setBuffer(ser);
+            return _kryo.deserialize(ser);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

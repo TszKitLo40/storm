@@ -2,7 +2,9 @@ package backtype.storm.elasticity;
 
 import backtype.storm.elasticity.actors.Slave;
 import backtype.storm.elasticity.config.Config;
+import backtype.storm.elasticity.message.taksmessage.CleanPendingTupleToken;
 import backtype.storm.elasticity.message.taksmessage.ITaskMessage;
+import backtype.storm.elasticity.message.taksmessage.PendingTupleCleanedMessage;
 import backtype.storm.elasticity.message.taksmessage.RemoteState;
 import backtype.storm.elasticity.routing.BalancedHashRouting;
 import backtype.storm.elasticity.routing.PartialHashingRouting;
@@ -11,9 +13,11 @@ import backtype.storm.elasticity.routing.RoutingTableUtils;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.elasticity.state.*;
 import backtype.storm.utils.Utils;
+import org.apache.commons.lang.SerializationUtils;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +31,7 @@ public class ElasticRemoteTaskExecutor {
 
     LinkedBlockingQueue<ITaskMessage> _resultQueue;
 
-    LinkedBlockingQueue<Tuple> _inputQueue = new LinkedBlockingQueue<>(Config.RemoteExecutorInputQueueCapacity);
+    LinkedBlockingQueue<Object> _inputQueue = new LinkedBlockingQueue<>(Config.RemoteExecutorInputQueueCapacity);
 
     RemoteElasticOutputCollector _outputCollector;
 
@@ -90,32 +94,59 @@ public class ElasticRemoteTaskExecutor {
         @Override
         public void run() {
             int count = 0;
-            while (!_terminating) {
-                try {
-//                    System.out.println("poll...");
-                    Tuple input = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
-//                    System.out.println("polled!");
+            try {
+                while (!_terminating) {
+                    try {
+                        //                    System.out.println("poll...");
+                        Object item = _inputQueue.poll(5, TimeUnit.MILLISECONDS);
+                        //                    System.out.println("polled!");
 
-                    if(input != null) {
-                        boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
-                        count++;
-                    if(count % 10000 == 0) {
-                        System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
-                        count = 0;
+                        if(item == null)
+                           continue;
+
+                        if(item instanceof Tuple) {
+                            final Tuple input = (Tuple) item;
+                            boolean handled = _elasticTasks.tryHandleTuple(input, _bolt.getKey(input));
+                            count++;
+                            if (count % 10000 == 0) {
+                                System.out.println("A remote tuple for " + _elasticTasks.get_taskID() + "." + _elasticTasks.get_routingTable().route(_bolt.getKey(input)) + "has been processed");
+                                count = 0;
+                            }
+
+                            if (!handled)
+                                System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
+
+                        } else if(item instanceof CleanPendingTupleToken) {
+                            final CleanPendingTupleToken token = (CleanPendingTupleToken) item;
+                            //The protocol guarantees that no tuples will be sent to the target route. So a new thread can be created to do the clean job, avoiding
+                            // interfering the process of other route.
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    System.out.println("to handle handleCleanPendingTupleToken");
+                                    _elasticTasks.makesSureNoPendingTuples(token.routeId);
+                                    PendingTupleCleanedMessage message = new PendingTupleCleanedMessage(token.taskId, token.routeId);
+                                    System.out.println(String.format("Pending tuple for %s.%s is cleaned!", token.taskId, token.routeId));
+                                    ElasticTaskHolder.instance()._originalTaskIdToPriorityConnection.get(token.taskId).send(token.taskId, SerializationUtils.serialize(message));
+
+                                }
+                            }).start();
+                        } else {
+                            System.err.println("Received Unexpected Object: " + item);
+                        }
+                    } catch (Exception e) {
+                        if (e instanceof InterruptedException) {
+                            System.out.println("InputTupleRouting thread is interrupted!");
+                            throw e;
+                        }
+                        System.out.println(String.format("_elasticTasks: %s, _bolt: %s", _elasticTasks, _bolt));
+                        e.printStackTrace();
                     }
 
-                        if (!handled)
-                            System.err.println("Failed to handle a remote tuple. There is possibly something wrong with the routing table!");
-
-                        //                    catch (Exception e) {
-                        //                        e.printStackTrace();
-                        //                    }
-                    }
-                } catch (InterruptedException e) {
-                    System.out.println("InputTupleRouting thread is interrupted!");
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
+
+                } catch (InterruptedException  e) {
+                e.printStackTrace();
 
             }
             _terminated = true;
@@ -173,7 +204,7 @@ public class ElasticRemoteTaskExecutor {
     }
 
 
-    public RemoteState getStateForRoutes(ArrayList<Integer> routes) throws InterruptedException {
+    public RemoteState getStateForRoutes(List<Integer> routes) throws InterruptedException {
         KeyValueState state = _elasticTasks.get_bolt().getState();
         KeyValueState stateForRoutes = new KeyValueState();
         HashSet<Integer> routeSet = new HashSet<>(routes);
@@ -193,7 +224,7 @@ public class ElasticRemoteTaskExecutor {
         return getStateForRoutes(routes);
     }
 
-    public LinkedBlockingQueue<Tuple> get_inputQueue() {
+    public LinkedBlockingQueue<Object> get_inputQueue() {
         return _inputQueue;
     }
 
@@ -208,15 +239,16 @@ public class ElasticRemoteTaskExecutor {
             BalancedHashRouting exitingRouting = RoutingTableUtils.getBalancecHashRouting(_elasticTasks.get_routingTable());
             BalancedHashRouting incomingRouting = RoutingTableUtils.getBalancecHashRouting(routingTable);
             exitingRouting.update(incomingRouting);
-//            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
-//            Slave.getInstance().sendMessageToMaster("existing routing table: " + exitingRouting.toString());
+            Slave.getInstance().sendMessageToMaster("Balanced Hash routing is updated!");
         } else {
             Slave.getInstance().sendMessageToMaster("Routing table cannot be updated as balanced routing table cannot be extracted!");
         }
 
-        ArrayList<Integer> newRoutes = routingTable.getRoutes();
+        List<Integer> newRoutes = routingTable.getRoutes();
         ((PartialHashingRouting)_elasticTasks.get_routingTable()).addValidRoutes(newRoutes);
+        Slave.getInstance().sendMessageToMaster("Partial Hash routing is updated!");
 
+        Slave.getInstance().sendMessageToMaster("existing routing table: " + _elasticTasks.get_routingTable().toString());
 
 
         for(int i:routingTable.getRoutes()) {
@@ -225,14 +257,32 @@ public class ElasticRemoteTaskExecutor {
         System.out.println("routing table is merged and the worker threads are created!");
     }
 
+    /** There are two ways to terminate a running thread:
+     *  (1) employ a termination flag to notify the thread upon termination request. The thread
+     *  terminates at desirable points of execution once the flag is detected.
+     *  (2) employ Thread.terminate() to terminate the thread at cancellation points (e.g., sleep,
+     *  blocking system calls).
+     *
+     *  Method (2) is easier to implement and typically terminates as early as possible, but the
+     *  termination points are out of control and hence may introduce inconsistency to the programming logic.
+     *
+     *  We use method (2) because termination of any cancellation points is acceptable in our logic.
+     */
     public void close() {
-//            _stateCheckpointingThread.interrupt();
-//            _processingThread.interrupt();
-        _checkPointing.terminate();
-//            _stateCheckpointingThread.join();
-//            _processingThread.join();
-        _processingRunnable.terminate();
 
+
+//        _checkPointing.terminate();
+//        _processingRunnable.terminate();
+
+        _stateCheckpointingThread.interrupt();
+        _processingThread.interrupt();
+        try {
+            _stateCheckpointingThread.join();
+            _processingThread.join();
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }
