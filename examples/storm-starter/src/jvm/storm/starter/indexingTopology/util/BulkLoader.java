@@ -15,8 +15,6 @@ public class BulkLoader <TKey extends Comparable<TKey>, TValue> {
 
     public BTree bt;
 
-//    private TreeMap<TKey, TValue> record;
-
     private List<Pair<TKey, TValue>> record;
 
     private TimingModule tm;
@@ -39,7 +37,7 @@ public class BulkLoader <TKey extends Comparable<TKey>, TValue> {
         return record.size();
     }
     public void resetRecord() {
-        record = new ArrayList<Pair<TKey, TValue>>();
+        record.clear();
     }
 
     public LinkedList<BTreeLeafNode> createLeaves() {

@@ -6,6 +6,7 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 import org.apache.commons.math3.distribution.NormalDistribution;
 
 import java.io.*;
@@ -94,6 +95,7 @@ public class NormalDistributionGenerator extends BaseRichSpout {
     public void nextTuple() {
         String text = null;
         try {
+//            Utils.sleep(1);
             text = bufferedReader.readLine();
             int msgId = this.counter.getAndIncrement();
 //            System.out.println(text);

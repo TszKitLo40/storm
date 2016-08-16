@@ -19,11 +19,11 @@ public class SplitCounterModule implements Serializable{
         ++counter;
     }
 
-    public int getCounter() {
+    public synchronized int getCounter() {
         return counter;
     }
 
-    public void resetCounter() {
+    public synchronized void resetCounter() {
         counter = 0;
     }
 /*    private ConcurrentHashMap<BTreeLeafNode, Integer> splits;

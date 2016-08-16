@@ -17,10 +17,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Created by acelzj on 7/27/16.
@@ -43,8 +40,8 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
     private SplitCounterModule sm;
     private long processingTime;
     private ExecutorService es;
-  //  private final static int numThreads = 2;
-    private final static int numThreads = 1;
+    private final static int numThreads = 2;
+//    private final static int numThreads = 1;
     private int numSplit;
     private BulkLoader bulkLoader;
     private int dumplicateKeys;
@@ -53,6 +50,8 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
     private FileOutputStream fop;
     private LinkedBlockingQueue<Pair> queue;
     private Thread insertThread;
+//    private final static int NTHREADS = 2;
+//    private static final ExecutorService exec = Executors.newFixedThreadPool(NTHREADS);
     //  private LinkedList<Tuple> tuples;
 
     private class IndexerThread implements Runnable {
@@ -100,25 +99,17 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
         this.insertThread = new Thread(new Runnable() {
             public void run() {
                 while (true) {
-                //    System.out.println(queue.size());
-                    if (!queue.isEmpty()) {
-                    //    System.out.println("****");
                         try {
-                        Pair pair = queue.take();
-                        Double indexValue = (Double) pair.getKey();
-                    //    System.out.println(indexValue);
-                        Integer offset = (Integer) pair.getValue();
-                     //   System.out.println(chunkId);
-                    //    System.out.println(offset);
-
+                            Pair pair = queue.take();
+                            Double indexValue = (Double) pair.getKey();
+                            Integer offset = (Integer) pair.getValue();
                             indexedData.insert(indexValue, offset);
-                         //   System.out.println(tm.getInsertionTime());
                         } catch (UnsupportedGenericException e) {
                             e.printStackTrace();
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
-                    }
+
                 }
             }
         });
@@ -213,7 +204,7 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
         }
     }
 
-    private void indexTupleWithTemplates(Double indexValue, byte[] serializedTuple) throws IOException, InterruptedException{
+    private void indexTupleWithTemplates(final Double indexValue, byte[] serializedTuple) throws IOException, InterruptedException{
         offset = chunk.write(serializedTuple);
         if (offset>=0) {
             Pair pair = new Pair(indexValue, offset);
@@ -234,18 +225,18 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
 
             bulkLoader.addRecord(pair);
             tm.endTiming(Constants.TIME_SERIALIZATION_WRITE.str);
-         //   es.submit(new IndexerThread(indexedData, indexValue, offset));
+//            es.submit(new IndexerThread(indexedData, indexValue, offset));
         } else {
-         //   shutdownAndRestartThreadPool(numThreads);
+//            shutdownAndRestartThreadPool(numThreads);
             tm.endTiming(Constants.TIME_SERIALIZATION_WRITE.str);
             System.out.println("The chunk is full");
             writeIndexedDataToHDFS();
 //            long processingTime = System.nanoTime() + tm.getChunkStartTime();
             long start = System.nanoTime();
-            while (!queue.isEmpty()) {
-                Utils.sleep(1);
-            }
-            System.out.println("The queue has been empty");
+//            while (!queue.isEmpty()) {
+//                Utils.sleep(1);
+//            }
+//            System.out.println("The queue has been empty");
             int processedTuple = numTuples - numTuplesBeforeWritting;
          //   System.out.println("" + processedTuple + "has been processed");
 //            long sleepTime = System.nanoTime() - start;
@@ -317,6 +308,7 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
             offset = chunk.write(serializedTuple);
             Pair pair = new Pair(indexValue, offset);
             bulkLoader.addRecord(pair);
+
             queue.put(pair);
             //   String content = "" + chunkId + " " + percentage;
             //   System.out.println("The total time is " + tm.getTotal());
@@ -407,9 +399,9 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
             //    bulkLoader.resetRecord();
             //     bulkLoader.addRecord(indexValue, offset);
             //     ++chunkId;
-            //     es.submit(new IndexerThread(indexedData,indexValue,offset));
+//                 es.submit(new IndexerThread(indexedData,indexValue,offset));
             // }
-        //    es.submit(new IndexerThread(indexedData));
+//            es.submit(new IndexerThread(indexedData));
         }
     }
 
@@ -440,6 +432,8 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
 
         es = Executors.newFixedThreadPool(threads);
     }
+
+
 
     private void createNewTree(double percentage) {
         if (percentage > Config.rebuildTemplatePercentage) {

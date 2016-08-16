@@ -50,4 +50,4 @@
 
 
 ## Elastic Configures
-# elasticity.slave.ip: "192.168.199.141"
+# elasticity.slave.ip: "10.21.25.221"
