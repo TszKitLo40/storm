@@ -31,6 +31,7 @@ import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 import storm.starter.spout.RandomSentenceSpout;
 
 import java.util.HashMap;
@@ -42,8 +43,34 @@ import java.util.Map;
 public class WordCountTopology {
   public static class SplitSentence extends ShellBolt implements IRichBolt {
 
+    OutputCollector _collector;
+
     public SplitSentence() {
-      super("python", "splitsentence.py");
+//      super("python", "splitsentence.py");
+    }
+
+    public void prepare(@SuppressWarnings("rawtypes") Map conf, TopologyContext context, OutputCollector collector) {
+
+      _collector = collector;
+
+    }
+
+    public void execute(Tuple tuple) {
+
+      Utils.sleep(1);
+
+      String sentence = tuple.getString(0);
+
+      for(String word: sentence.split(" ")) {
+
+//        _collector.emit(tuple, new Values(word));//anchoring
+
+        _collector.emit(new Values(word));//unanchoring
+
+      }
+
+//      _collector.ack(tuple);
+
     }
 
     @Override
@@ -62,6 +89,7 @@ public class WordCountTopology {
 
     @Override
     public void execute(Tuple tuple, BasicOutputCollector collector) {
+      Utils.sleep(1);
       String word = tuple.getString(0);
       Integer count = counts.get(word);
       if (count == null)
@@ -84,7 +112,7 @@ public class WordCountTopology {
     builder.setSpout("spout", new RandomSentenceSpout(0), 1);
 
     builder.setBolt("split", new SplitSentence(), 1).shuffleGrouping("spout");
-    builder.setBolt("count", new WordCount(), 1).fieldsGrouping("split", new Fields("word"));
+//    builder.setBolt("count", new WordCount(), 1).fieldsGrouping("split", new Fields("word"));
 
     Config conf = new Config();
     conf.setDebug(false);

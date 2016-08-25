@@ -5,6 +5,7 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.utils.Utils;
 
 import java.util.Map;
 
@@ -32,11 +33,9 @@ public class InputTestBolt extends BaseRichBolt {
     }
 
     public void execute(Tuple tuple) {
+        Utils.sleep(1);
         ++numTuples;
-        double endTime = System.nanoTime();
-        double emitTime = endTime - startTime;
-        System.out.println("The emit time is " + emitTime);
-        startTime = System.nanoTime();
+        System.out.println(numTuples);
     }
 
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {

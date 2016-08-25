@@ -118,7 +118,7 @@ public class BTree <TKey extends Comparable<TKey>,TValue> implements Serializabl
 		start = System.nanoTime();
 	//	tm.startTiming(Constants.TIME_LEAF_INSERTION.str);
 //		synchronized (leaf) {
-			leaf.insertKeyValue(key, value);
+			leaf.insertKeyValue(key, value, tm);
 //		}
 
 		time = System.nanoTime() - start;
@@ -204,7 +204,9 @@ public class BTree <TKey extends Comparable<TKey>,TValue> implements Serializabl
 	private BTreeLeafNode<TKey,TValue> findLeafNodeShouldContainKey(TKey key) {
 		BTreeNode<TKey> node = this.root;
 		while (node.getNodeType() == TreeNodeType.InnerNode) {
-			node = ((BTreeInnerNode<TKey>)node).getChild( node.search(key) );
+//			synchronized (node) {
+				node = ((BTreeInnerNode<TKey>) node).getChild(node.search(key));
+//			}
 		}
 		
 		return (BTreeLeafNode<TKey,TValue>)node;

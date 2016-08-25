@@ -102,7 +102,7 @@ public class NormalDistributionGenerator extends BaseRichSpout {
             double indexValue = Double.parseDouble(text);
             collector_.emit(new Values(indexValue), msgId);
             if (counter.get() == Integer.MAX_VALUE) {
-                counter = new AtomicInteger(0);
+                counter.set(0);
             }
         } catch (IOException e) {
             e.printStackTrace();

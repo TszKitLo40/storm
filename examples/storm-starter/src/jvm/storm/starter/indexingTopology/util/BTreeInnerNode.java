@@ -83,7 +83,6 @@ class BTreeInnerNode<TKey extends Comparable<TKey>> extends BTreeNode<TKey> impl
 				low = mid + 1;
 			}
 		}
-
 		return low;
 	}
 

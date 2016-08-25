@@ -62,14 +62,14 @@ public class BulkLoader <TKey extends Comparable<TKey>, TValue> {
                 counter = new BytesCounter();
                 leaf = new BTreeLeafNode(order, counter);
                 try {
-                    leaf.insertKeyValue((TKey) lastPair.getKey(), lastPair.getValue());
-                    leaf.insertKeyValue((Double) pair.getKey(),  pair.getValue());
+                    leaf.insertKeyValue((TKey) lastPair.getKey(), lastPair.getValue(), tm);
+                    leaf.insertKeyValue((Double) pair.getKey(),  pair.getValue(), tm);
                 } catch (UnsupportedGenericException e) {
                     e.printStackTrace();
                 }
             } else {
                 try {
-                    leaf.insertKeyValue(key, pair.getValue());
+                    leaf.insertKeyValue(key, pair.getValue(), tm);
                     lastPair = pair;
                 } catch (UnsupportedGenericException e) {
                     e.printStackTrace();
@@ -82,7 +82,7 @@ public class BulkLoader <TKey extends Comparable<TKey>, TValue> {
             counter = new BytesCounter();
             leaf = new BTreeLeafNode(order, counter);
             try {
-                leaf.insertKeyValue((TKey) lastPair.getKey(), lastPair.getValue());
+                leaf.insertKeyValue((TKey) lastPair.getKey(), lastPair.getValue(), tm);
             } catch (UnsupportedGenericException e) {
                 e.printStackTrace();
             }

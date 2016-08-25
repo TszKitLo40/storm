@@ -122,6 +122,28 @@ public class TimingModule implements Serializable{
 
     }
 
+    public long getSearchIndexTime() {
+        long total = 0;
+        if (time.containsKey(Constants.TIME_SEARCH_INDEX.str)) {
+            Stack<Long> stack = time.get(Constants.TIME_SEARCH_INDEX.str);
+            while (!stack.empty()) {
+                total += stack.pop();
+            }
+        }
+        return total;
+    }
+
+    public long getInsertIntoArrayListTime() {
+        long total = 0;
+        if (time.containsKey(Constants.TIME_INSERT_INTO_ARRAYLIST.str)) {
+            Stack<Long> stack = time.get(Constants.TIME_INSERT_INTO_ARRAYLIST.str);
+            while (!stack.empty()) {
+                total += stack.pop();
+            }
+        }
+        return total;
+    }
+
     public long getFindTime() {
 
         long total = 0;

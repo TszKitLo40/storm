@@ -3,6 +3,7 @@ package storm.starter.indexingTopology;
 import backtype.storm.Config;
 import backtype.storm.StormSubmitter;
 import backtype.storm.topology.TopologyBuilder;
+import storm.starter.indexingTopology.bolt.InputTestBolt;
 import storm.starter.indexingTopology.bolt.NormalDistributionIndexerBolt;
 import storm.starter.indexingTopology.spout.NormalDistributionGenerator;
 import storm.starter.indexingTopology.util.Constants;
@@ -16,7 +17,7 @@ import java.util.List;
 /**
  * Created by acelzj on 7/22/16.
  */
-public class NormalDistributionIndexingTopology {
+public class InputTestTopology {
     public static void main(String[] args) throws Exception {
         TopologyBuilder builder = new TopologyBuilder();
      /*   List<String> fieldNames=new ArrayList<String>(Arrays.asList("user_id","id_1","id_2","ts_epoch",
@@ -37,7 +38,7 @@ public class NormalDistributionIndexingTopology {
         builder.setSpout("TupleGenerator", new NormalDistributionGenerator(), 1).setNumTasks(1);
 //        builder.setBolt("Dispatcher",new DispatcherBolt("Indexer","longitude",schema),1).shuffleGrouping("TupleGenerator");
 
-        builder.setBolt("IndexerBolt",new NormalDistributionIndexerBolt(schema, 256, 6500000),1)
+        builder.setBolt("InputTestBolt",new InputTestBolt(),1)
                 .setNumTasks(1)
                 .shuffleGrouping("TupleGenerator");
 

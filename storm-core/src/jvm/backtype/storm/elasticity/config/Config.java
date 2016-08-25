@@ -103,7 +103,7 @@ public class Config {
 
     public static double taskLevelLoadBalancingThreshold = 0.2;
 
-    public static String masterIp = "10.21.25.211";
+    public static String masterIp = "10.21.25.117";
 
     public static String slaveIp = "10.21.25.221";
 
