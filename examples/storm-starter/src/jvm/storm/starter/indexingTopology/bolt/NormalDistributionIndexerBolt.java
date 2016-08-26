@@ -145,7 +145,10 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
 //        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/specific_time_with_rebuild_and_split_new_256");
 //        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/specific_time_with_nothing_4");
 //        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/insertion_specific_with_nothing_64");
-        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/insertion_specific_with_nothing_256");
+//        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/insertion_specific_with_nothing_256");
+//        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/height_with_nothing_64");
+        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/height_without_rebuild_but_split_256");
+//        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/height_with_rebuild_and_split_256");
 //        file = new File("/home/acelzj/IndexTopology_experiment/NormalDistribution/serialize_time");
         try {
             if (!file.exists()) {
@@ -275,9 +278,11 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
 //            double insertionTime = ((double) tm.getInsertionTime()) / ((double) processedTuple);
 //            double locationTime = ((double) tm.getFindTime()) / ((double) processedTuple);
 //            double splitTime = ((double) tm.getSplitTime()) / ((double) processedTuple);
-            double searchIndexTime = ((double) tm.getSearchIndexTime()) / ((double) processedTuple);
-            double insertIntoArrayListTime = ((double) tm.getInsertIntoArrayListTime()) / ((double) processedTuple);
-            String content = "" + searchIndexTime + " " + insertIntoArrayListTime;
+//            double searchIndexTime = ((double) tm.getSearchIndexTime()) / ((double) processedTuple);
+//            double insertIntoArrayListTime = ((double) tm.getInsertIntoArrayListTime()) / ((double) processedTuple);
+            int height = indexedData.getHeight();
+            String content = "" + height;
+//            String content = "" + searchIndexTime + " " + insertIntoArrayListTime;
 //            String content = "" + locationTime + " " + insertionTime + " " + splitTime;
 //            String content = "" + (double) tm.getTotal() / (double) processedTuple;
 //            String content = "" + processedTuple + "has been processed" + "processingTime : " + processingTime / 1000 / 1000 / 1000 + "sleepTime : " + sleepTime / 1000 / 1000 / 1000;
@@ -303,10 +308,10 @@ public class NormalDistributionIndexerBolt extends BaseRichBolt {
             double percentage = (double) sm.getCounter() * 100 / (double) processedTuple;
             System.out.println("The percentage is " + percentage);
 //            System.out.println(bulkLoader.checkInsertion(indexedData, processedTuple));
-//            createNewTemplate(percentage);
+            createNewTemplate(percentage);
 //            copyTemplate(chunkId);
-            createEmptyTree();
-//            indexedData.clearPayload();
+//            createEmptyTree();
+            indexedData.clearPayload();
 
 //              if (chunkId == 0) {
 //                System.out.println("The copy of BTree is: ");

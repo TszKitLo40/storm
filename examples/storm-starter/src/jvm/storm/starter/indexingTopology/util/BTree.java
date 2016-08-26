@@ -285,4 +285,12 @@ public class BTree <TKey extends Comparable<TKey>,TValue> implements Serializabl
 			return null;
 		}
 	}
+
+	public void setHeight(int height) {
+		this.counter.setHeight(height);
+	}
+
+	public int getHeight() {
+		return counter.getHeightCount();
+	}
 }

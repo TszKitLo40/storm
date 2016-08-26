@@ -126,6 +126,8 @@ public class BulkLoader <TKey extends Comparable<TKey>, TValue> {
                     if (parent.isOverflow()) {
                         root = (BTreeInnerNode) parent.dealOverflow(sm, leaf);
                     }
+                    bt.setHeight(counter.getHeightCount());
+                    bt.setRoot(root);
                 } catch (UnsupportedGenericException e) {
                     e.printStackTrace();
                 }
@@ -134,6 +136,7 @@ public class BulkLoader <TKey extends Comparable<TKey>, TValue> {
         bt.setRoot(root);
         return bt;
     }
+
 
   /*  public double checkNewTree(BTree<TKey, TValue> indexedData, SplitCounterModule sm) {
         double numberOfRecord = 0;
