@@ -24,8 +24,8 @@ public class DataSchema implements Serializable {
     public DataSchema(List<String> fieldNames,List<Class> valueTypes) {
         assert fieldNames.size()==valueTypes.size() : "number of fields should be " +
                 "same as the number of value types provided";
-        dataFields=new Fields(fieldNames);
-        this.valueTypes=valueTypes;
+        dataFields = new Fields(fieldNames);
+        this.valueTypes = valueTypes;
     }
 
     public Fields getFieldsObject() { return dataFields; }

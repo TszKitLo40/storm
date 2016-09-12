@@ -32,10 +32,10 @@ public class InputTestTopology {
 
 
         DataSchema schema=new DataSchema(fieldNames,valueTypes);*/
-        List<String> fieldNames=new ArrayList<String>(Arrays.asList("user_id"));
-        List<Class> valueTypes=new ArrayList<Class>(Arrays.asList(Double.class));
-        DataSchema schema=new DataSchema(fieldNames,valueTypes);
-        builder.setSpout("TupleGenerator", new NormalDistributionGenerator(), 1).setNumTasks(1);
+        List<String> fieldNames = new ArrayList<String>(Arrays.asList("user_id"));
+        List<Class> valueTypes = new ArrayList<Class>(Arrays.asList(Double.class));
+        DataSchema schema = new DataSchema(fieldNames,valueTypes);
+        builder.setSpout("TupleGenerator", new NormalDistributionGenerator(schema), 1).setNumTasks(1);
 //        builder.setBolt("Dispatcher",new DispatcherBolt("Indexer","longitude",schema),1).shuffleGrouping("TupleGenerator");
 
         builder.setBolt("InputTestBolt",new InputTestBolt(),1)

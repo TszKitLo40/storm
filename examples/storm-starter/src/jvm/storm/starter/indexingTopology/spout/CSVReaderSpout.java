@@ -39,7 +39,8 @@ public class CSVReaderSpout extends BaseRichSpout {
         collector_=collector;
      //   Utils.sleep(60000);
         try {
-            bufRead=new BufferedReader(new FileReader(CSV_FILENAME));
+//            bufRead=new BufferedReader(new FileReader("/home/lzj/code/storm/storm-dist/binary/target/apache-storm-0.11.0-SNAPSHOT/bin/starhub_preprocessed_db_labelled.csv"));
+            bufRead=new BufferedReader(new FileReader("/home/lzj/code/apache-storm-0.11.0-SNAPSHOT/bin/starhub_preprocessed_db_labelled.csv"));
             // skip header
             bufRead.readLine();
         } catch (FileNotFoundException e) {

@@ -22,18 +22,12 @@ public class BTree <TKey extends Comparable<TKey>,TValue> implements Serializabl
 	private TimingModule tm;
 	private boolean templateMode;
     private SplitCounterModule sm;
-	private ReadWriteLock rwl;
-	private Lock readLock;
-	private Lock writeLock;
 	
 	public BTree(int order, TimingModule tm, SplitCounterModule sm) {
 		counter = new BytesCounter();
         this.root = new BTreeLeafNode<TKey,TValue>(order,counter);
         counter.increaseHeightCount();
 		templateMode = false;
-        rwl = new ReentrantReadWriteLock();
-        readLock = rwl.readLock();
-		writeLock = rwl.writeLock();
 
 		assert tm != null : "Timing module cannot be null";
 		assert sm != null : "Split counter module cannot be null";
@@ -140,14 +134,14 @@ public class BTree <TKey extends Comparable<TKey>,TValue> implements Serializabl
 	//	//else if (!leaf.isOverflow()) {
 		if(!leaf.isOverflow()) {
 			tm.putDuration(Constants.TIME_SPLIT.str, 0);
-//
+
 //		} else {
 //        if (templateMode || !leaf.isOverflow()) {
 //            tm.putDuration(Constants.TIME_SPLIT.str, 0);
 
         } else {
 			start = System.nanoTime();
-		//	tm.startTiming(Constants.TIME_SPLIT.str);
+//			tm.startTiming(Constants.TIME_SPLIT.str);
 			BTreeNode<TKey> n = leaf.dealOverflow(sm, leaf);
 				//	tm.endTiming(Constants.TIME_SPLIT.str);
 			if (n != null) {

@@ -105,6 +105,6 @@ public class Config {
 
     public static String masterIp = "10.21.25.117";
 
-    public static String slaveIp = "10.21.25.221";
+    public static String slaveIp = "10.21.25.220";
 
 }

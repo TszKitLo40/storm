@@ -8,6 +8,7 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 import org.apache.commons.math3.distribution.NormalDistribution;
+import storm.starter.indexingTopology.DataSchema;
 
 import java.io.*;
 import java.util.Map;
@@ -29,25 +30,28 @@ public class NormalDistributionGenerator extends BaseRichSpout {
     BufferedReader bufferedReader;
     AtomicInteger counter;
     Random random;
-    long randomFactor;
+    long seed;
     private FileOutputStream fop;
+    private final DataSchema schema;
 
 
-    public NormalDistributionGenerator() throws FileNotFoundException {
+    public NormalDistributionGenerator(DataSchema schema) throws FileNotFoundException {
+        this.schema = schema;
 //        mean = 500;
 //        sd = 20;
 //        distribution = new NormalDistribution(mean, sd);
-//        randomFactor = 1000;
-//        random = new Random(randomFactor);
-        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/input_data");
+//        seed = 1000;
+//        random = new Random(seed);
+        file = new File("/home/lzj/IndexTopology_experiment/NormalDistribution/input_data_new");
     }
 
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("indexValue"));
+//        declarer.declare(new Fields("indexValue", "value1", "value2", "value3", "value4", "value5", "value6", "value7"));
+        declarer.declare(schema.getFieldsObject());
     }
 
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
-        collector_=collector;
+        collector_ = collector;
         counter = new AtomicInteger(0);
         try {
             bufferedReader = new BufferedReader(new FileReader(file));
@@ -95,12 +99,11 @@ public class NormalDistributionGenerator extends BaseRichSpout {
     public void nextTuple() {
         String text = null;
         try {
-//            Utils.sleep(1);
             text = bufferedReader.readLine();
             int msgId = this.counter.getAndIncrement();
-//            System.out.println(text);
-            double indexValue = Double.parseDouble(text);
-            collector_.emit(new Values(indexValue), msgId);
+            String [] tokens = text.split(" ");
+//            double indexValue = Double.parseDouble(text);
+            collector_.emit(schema.getValuesObject(tokens), msgId);
             if (counter.get() == Integer.MAX_VALUE) {
                 counter.set(0);
             }
@@ -108,8 +111,15 @@ public class NormalDistributionGenerator extends BaseRichSpout {
             e.printStackTrace();
         }
 //        double indexValue = distribution.sample();
-
-//        String content = "" + indexValue;
+//        double value1 = 1;
+//        double value2 = 2;
+//        double value3 = 3;
+//        double value4 = 4;
+//        double value5 = 5;
+//        double value6 = 6;
+//        double value7 = 7;
+//        String content = "" + indexValue + " " + value1 + " " + value2 + " " + value3 + " " + value4 + " " + value5
+//                + " " + value6 + " " + value7;
 //        byte[] contentInBytes = content.getBytes();
 //        String newline = System.getProperty("line.separator");
 //        byte[] nextLineInBytes = newline.getBytes();
@@ -121,6 +131,6 @@ public class NormalDistributionGenerator extends BaseRichSpout {
 //        }
 
 
-//        collector_.emit(new Values(indexValue));
+//        collector_.emit(new Values(indexValue, value1, value2, value3, value4, value5, value6, value7));
     }
 }

@@ -25,9 +25,7 @@ abstract class BTreeNode<TKey extends Comparable<TKey>> implements Serializable{
 	protected BTreeNode<TKey> parentNode;
 	protected BTreeNode<TKey> leftSibling;
 	protected BTreeNode<TKey> rightSibling;
-	protected ReadWriteLock rwl;
-	protected Lock readLock;
-	protected Lock writeLock;
+
 
     protected BTreeNode(int order, BytesCounter counter) {
         this.keyCount = 0;
@@ -37,9 +35,6 @@ abstract class BTreeNode<TKey extends Comparable<TKey>> implements Serializable{
         this.rightSibling = null;
         this.counter=counter;
         this.counter.countNewNode();
-		this.rwl = new ReentrantReadWriteLock();
-		this.readLock = rwl.readLock();
-		this.writeLock = rwl.writeLock();
     }
 
 

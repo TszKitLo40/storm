@@ -1,13 +1,11 @@
 package storm.starter.indexingTopology.util;
 
+import javafx.util.Pair;
 import storm.starter.indexingTopology.exception.UnsupportedGenericException;
 
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 class BTreeLeafNode<TKey extends Comparable<TKey>, TValue> extends BTreeNode<TKey> implements Serializable {
 	protected ArrayList<ArrayList<TValue>> values;
@@ -108,23 +106,47 @@ class BTreeLeafNode<TKey extends Comparable<TKey>, TValue> extends BTreeNode<TKe
 
 	/* The codes below are used to support insertion operation */
 	
+/*	public void insertKeyValue(TKey key, TValue value, TimingModule tm) throws UnsupportedGenericException {
+//		int index = 0;
+//		while (index < this.getKeyCount() && this.getKey(index).compareTo(key) < 0)
+//			++index;
+//		tm.startTiming(Constants.TIME_SEARCH_INDEX.str);
+//		int index = searchIndex(key);
+//		tm.endTiming(Constants.TIME_SEARCH_INDEX.str);
+//
+//		tm.startTiming(Constants.TIME_INSERT_INTO_ARRAYLIST.str);
+//		if (index<this.keys.size() && this.getKey(index).compareTo(key)==0) {
+//			this.values.get(index).add(value);
+//		} else {
+//			this.keys.add(index, key);
+//			this.values.add(index, new ArrayList<TValue>(Arrays.asList(value)));
+//			++this.keyCount;
+//		}
+		keys.add(key);
+		values.add(new ArrayList<TValue>(Arrays.asList(value)));
+		++keyCount;
+//		tm.endTiming(Constants.TIME_INSERT_INTO_ARRAYLIST.str);
+	}*/
+
 	public void insertKeyValue(TKey key, TValue value, TimingModule tm) throws UnsupportedGenericException {
 //		int index = 0;
 //		while (index < this.getKeyCount() && this.getKey(index).compareTo(key) < 0)
 //			++index;
-		tm.startTiming(Constants.TIME_SEARCH_INDEX.str);
-		int index = searchIndex(key);
-		tm.endTiming(Constants.TIME_SEARCH_INDEX.str);
-
-		tm.startTiming(Constants.TIME_INSERT_INTO_ARRAYLIST.str);
-		if (index<this.keys.size() && this.getKey(index).compareTo(key)==0) {
-			this.values.get(index).add(value);
-		} else {
-			this.keys.add(index, key);
-			this.values.add(index, new ArrayList<TValue>(Arrays.asList(value)));
-			++this.keyCount;
-		}
-		tm.endTiming(Constants.TIME_INSERT_INTO_ARRAYLIST.str);
+//		tm.startTiming(Constants.TIME_SEARCH_INDEX.str);
+//		int index = searchIndex(key);
+//		tm.endTiming(Constants.TIME_SEARCH_INDEX.str);
+//
+//		tm.startTiming(Constants.TIME_INSERT_INTO_ARRAYLIST.str);
+//		if (index<this.keys.size() && this.getKey(index).compareTo(key)==0) {
+//			this.values.get(index).add(value);
+//		} else {
+//			this.keys.add(index, key);
+//			this.values.add(index, new ArrayList<TValue>(Arrays.asList(value)));
+//			++this.keyCount;
+//		}
+		keys.add(key);
+		values.add(new ArrayList<TValue>(Arrays.asList(value)));
+		++keyCount;
 	}
 
 	private int searchIndex(TKey key) {
@@ -163,6 +185,9 @@ class BTreeLeafNode<TKey extends Comparable<TKey>, TValue> extends BTreeNode<TKe
 	 */
 	@Override
 	protected BTreeNode<TKey> split() {
+
+		Collections.sort(keys);
+
 		int midIndex = this.getKeyCount() / 2;
 		
 		BTreeLeafNode<TKey,TValue> newRNode = new BTreeLeafNode<TKey,TValue>(this.ORDER,counter);
@@ -177,10 +202,10 @@ class BTreeLeafNode<TKey extends Comparable<TKey>, TValue> extends BTreeNode<TKe
 
 		newRNode.keyCount = this.getKeyCount() - midIndex;
 
-        for (int i=this.getKeyCount()-1;i>=midIndex;i--)
+        for (int i = this.getKeyCount()-1; i >= midIndex; i--)
             this.deleteAt(i);
 
-        this.keyCount=midIndex;
+        this.keyCount = midIndex;
 		return newRNode;
 	}
 	

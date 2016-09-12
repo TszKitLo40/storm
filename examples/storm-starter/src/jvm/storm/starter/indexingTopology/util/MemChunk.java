@@ -28,7 +28,7 @@ public class MemChunk {
         if (allocatedSize - offset < serialData.length)
             return -1;
 
-        data.put(serialData,0,serialData.length);
+        data.put(serialData, 0, serialData.length);
         return offset;
     }
 

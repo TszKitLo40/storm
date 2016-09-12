@@ -95,31 +95,35 @@ public class IndexerBolt extends BaseRichBolt {
         this.bulkLoader = new BulkLoader(btreeOrder, tm, sm);
         this.chunkId = 0;
         this.queue = new LinkedBlockingQueue<Pair>();
-//        this.insertThread = new Thread(new Runnable() {
-//            public void run() {
-//                while (true) {
-//                    if (!queue.isEmpty()) {
-//                        Pair pair = null;
-//                        try {
-//                            pair = queue.take();
-//                            Double indexValue = (Double) pair.getKey();
-//                            Integer offset = (Integer) pair.getValue();
-//                            indexedData.insert(indexValue, offset);
-//                        } catch (InterruptedException e) {
-//                            e.printStackTrace();
-//                        } catch (UnsupportedGenericException e) {
-//                            e.printStackTrace();
-//                        }
-//                    }
-//                }
-//            }
-//        });
-//        this.insertThread.start();
+        this.insertThread = new Thread(new Runnable() {
+            public void run() {
+                while (true) {
+                    if (!queue.isEmpty()) {
+                        Pair pair = null;
+                        try {
+                            pair = queue.take();
+                            Double indexValue = (Double) pair.getKey();
+                            Integer offset = (Integer) pair.getValue();
+                            indexedData.insert(indexValue, offset);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        } catch (UnsupportedGenericException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        });
+        this.insertThread.start();
 
 
 
-        file = new File("/home/acelzj/IndexTopology_experiment/insert_time_with_rebuild_and_split");
+//        file = new File("/home/acelzj/IndexTopology_experiment/insert_time_with_rebuild_and_split");
 //        file = new File("/home/acelzj/IndexTopology_experiment/insert_time_without_rebuild_and_split_thread_pool");
+//        file = new File("/home/lzj/IndexTopology_experiment/insert_specific_time_with_rebuild_and_split_64");
+//        file = new File("/home/lzj/IndexTopology_experiment/insert_specific_time_with_rebuild_and_split_64");
+//        file = new File("/home/lzj/IndexTopology_experiment/insert_specific_time_with_rebuild_and_split_16");
+        file = new File("/home/lzj/IndexTopology_experiment/insert_specific_time_without_rebuild_but_split_256");
         try {
             if (!file.exists()) {
                 file.createNewFile();
@@ -136,7 +140,7 @@ public class IndexerBolt extends BaseRichBolt {
 
 
       //  this.tuples = new LinkedList<Tuple>();
-        es = Executors.newFixedThreadPool(1);
+//        es = Executors.newFixedThreadPool(1);
 
         try {
             hdfs = new HdfsHandle(map);
@@ -181,12 +185,12 @@ public class IndexerBolt extends BaseRichBolt {
         if (offset>=0) {
 //            tm.endTiming(Constants.TIME_SERIALIZATION_WRITE.str);
             Pair pair = new Pair(indexValue, offset);
-//            queue.put(pair);
+            queue.put(pair);
             bulkLoader.addRecord(pair);
 //            tm.endTiming(Constants.TIME_SERIALIZATION_WRITE.str);
-            es.submit(new IndexerThread(indexedData, indexValue, offset));
+//            es.submit(new IndexerThread(indexedData, indexValue, offset));
         } else {
-            shutdownAndRestartThreadPool(numThreads);
+//            shutdownAndRestartThreadPool(numThreads);
 
 
 //            tm.endTiming(Constants.TIME_SERIALIZATION_WRITE.str);
@@ -196,7 +200,7 @@ public class IndexerBolt extends BaseRichBolt {
             numTuplesBeforeWritting = numTuples;
 //            System.out.println("The chunk is full, split time is " + sm.getCounter() + ", " + processedTuple + "tuples has been processed");
             double percentage = (double) sm.getCounter() * 100 / (double) processedTuple;
-            long start = System.nanoTime();
+//            long start = System.nanoTime();
             while (!queue.isEmpty()) {
                 Utils.sleep(1);
             }
@@ -207,12 +211,13 @@ public class IndexerBolt extends BaseRichBolt {
          //   String content = "" + chunkId + " " + percentage;
          //   System.out.println("The total time is " + tm.getTotal());
          //   double insertionTime = ((double) tm.getTotal()) / ((double) processedTuple);
-//            double insertionTime = ((double) tm.getInsertionTime()) / ((double) processedTuple);
-//            double findTime = ((double) tm.getFindTime()) / ((double) processedTuple);
-//            double splitTime = ((double) tm.getSplitTime()) / ((double) processedTuple);
+            double insertionTime = ((double) tm.getInsertionTime()) / ((double) processedTuple);
+            double locationTime = ((double) tm.getFindTime()) / ((double) processedTuple);
+            double splitTime = ((double) tm.getSplitTime()) / ((double) processedTuple);
+            String content = "" + locationTime + " " + insertionTime + " " + splitTime;
 //            System.out.println(processedTuple);
-            String content = "" + (double) tm.getTotal() / (double) processedTuple;
-            System.out.println(content);
+//            String content = "" + (double) tm.getTotal() / (double) processedTuple;
+//            System.out.println(content);
 //            String content = "insertion time is : " + insertionTime + "find time is : " + findTime + "split time is : " + splitTime;
             String newline = System.getProperty("line.separator");
             byte[] contentInBytes = content.getBytes();
@@ -220,7 +225,7 @@ public class IndexerBolt extends BaseRichBolt {
 
             fop.write(contentInBytes);
             fop.write(nextLineInBytes);
-//            copyTree(chunkId);
+            copyTree(chunkId);
 //            createNewTree(percentage);
 //            System.out.println("The percentage of insert failure is " + percentage + "%");
 //            System.out.println(content);
@@ -284,7 +289,7 @@ public class IndexerBolt extends BaseRichBolt {
 //            queue.put(pair);
 //            bulkLoader.addRecord(indexValue, offset);
             ++chunkId;
-            es.submit(new IndexerThread(indexedData,indexValue,offset));
+//            es.submit(new IndexerThread(indexedData,indexValue,offset));
         }
     }
 
